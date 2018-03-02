@@ -14,5 +14,6 @@ public class Person {
     private String lastName;
     private LocalDateTime birthDate;
     private LocalDateTime deathDate;
+    private long lifespanInDays;
 
 }
