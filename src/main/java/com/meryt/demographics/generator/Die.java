@@ -10,14 +10,14 @@ public class Die {
     private final Random random = new Random();
     private final int faces;
 
-    Die(int faces) {
+    public Die(int faces) {
         this.faces = faces;
     }
 
     /**
-     * Roll die once
+     * Roll die once and return the value
      */
-    int roll() {
+    public int roll() {
         return random.nextInt(faces) + 1;
     }
 

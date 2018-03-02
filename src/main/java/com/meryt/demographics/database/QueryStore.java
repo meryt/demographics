@@ -6,9 +6,7 @@ import java.net.URL;
 import com.google.common.base.Charsets;
 import com.google.common.io.Resources;
 import lombok.NonNull;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
 public class QueryStore {
 
     private final String repositoryName;

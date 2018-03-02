@@ -1,5 +1,6 @@
 package com.meryt.demographics.domain.person;
 
+import com.meryt.demographics.generator.Die;
 import lombok.Getter;
 
 public enum Gender {
@@ -21,5 +22,9 @@ public enum Gender {
         } else {
             throw new IllegalArgumentException("Unknown gender \"" + value + "\"");
         }
+    }
+
+    public static Gender random() {
+        return new Die(2).roll() == 1 ? Gender.MALE : Gender.FEMALE;
     }
 }
