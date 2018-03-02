@@ -1,7 +1,7 @@
 CREATE TABLE names_first (
     name TEXT NOT NULL,
     gender CHAR(1) NOT NULL,
-    order SMALLINT,
+    rank SMALLINT,
     weight NUMERIC NOT NULL,
     PRIMARY KEY(gender, name)
 );
@@ -10,7 +10,7 @@ CREATE TABLE names_last (
     name TEXT PRIMARY KEY
 );
 
-INSERT INTO names_first (order, name, gender, weight) VALUES
+INSERT INTO names_first (rank, name, gender, weight) VALUES
 
 (1, 'William', 'M', 1),
 (2, 'John', 'M', 0.95),
@@ -131,11 +131,8 @@ INSERT INTO names_first (order, name, gender, weight) VALUES
 (null, 'Jeremiah', 'M', 0.002),
 (null, 'Job', 'M', 0.002),
 (null, 'Jonas', 'M', 0.002),
-(null, 'Joseph', 'M', 0.002),
-(null, 'Josiah', 'M', 0.002),
 (null, 'Leonard', 'M', 0.002),
 (null, 'Louis', 'M', 0.002),
-(null, 'Luke', 'M', 0.002),
 (null, 'Marmaduke', 'M', 0.002),
 (null, 'Miles', 'M', 0.002),
 (null, 'Nathan', 'M', 0.002),
@@ -144,7 +141,6 @@ INSERT INTO names_first (order, name, gender, weight) VALUES
 (null, 'Solomon', 'M', 0.002),
 (null, 'Theophilus', 'M', 0.002),
 (null, 'Valentine', 'M', 0.002),
-(null, 'William', 'M', 0.002),
 (null, 'Adelaide', 'F', 0.002),
 (null, 'Amelia', 'F', 0.002),
 (null, 'Arabella', 'F', 0.002),
@@ -161,14 +157,12 @@ INSERT INTO names_first (order, name, gender, weight) VALUES
 (null, 'Henrietta', 'F', 0.002),
 (null, 'Hester', 'F', 0.002),
 (null, 'Isabella', 'F', 0.002),
-(null, 'Joanna', 'F', 0.002),
 (null, 'Julia', 'F', 0.002),
 (null, 'Keziah', 'F', 0.002),
 (null, 'Lavinia', 'F', 0.002),
 (null, 'Louisa', 'F', 0.002),
 (null, 'Margery', 'F', 0.002),
 (null, 'Marianne', 'F', 0.002),
-(null, 'Mary', 'F', 0.002),
 (null, 'Matilda', 'F', 0.002),
 (null, 'Mercy', 'F', 0.002),
 (null, 'Olivia', 'F', 0.002),
@@ -198,10 +192,8 @@ INSERT INTO names_first (order, name, gender, weight) VALUES
 (null, 'Helen', 'F', 0.002),
 (null, 'Honora', 'F', 0.002),
 (null, 'Horatia', 'F', 0.002),
-(null, 'Isabella', 'F', 0.002),
 (null, 'Jean', 'F', 0.002),
 (null, 'Jessie', 'F', 0.002),
-(null, 'Joanna', 'F', 0.002),
 (null, 'Joyce', 'F', 0.002),
 (null, 'Juliana', 'F', 0.002),
 (null, 'Juliet', 'F', 0.002),
@@ -209,13 +201,10 @@ INSERT INTO names_first (order, name, gender, weight) VALUES
 (null, 'Leah', 'F', 0.002),
 (null, 'Letitia', 'F', 0.002),
 (null, 'Lilias', 'F', 0.002),
-(null, 'Louisa', 'F', 0.002),
 (null, 'Louisa-Margaretta', 'F', 0.002),
 (null, 'Lucy-Anne', 'F', 0.002),
 (null, 'Madalene', 'F', 0.002),
-(null, 'Marianne', 'F', 0.002),
 (null, 'Marina', 'F', 0.002),
-(null, 'Ann', 'F', 0.002),
 (null, 'Mary-Anne', 'F', 0.002),
 (null, 'Miriam', 'F', 0.002),
 (null, 'Modesty', 'F', 0.002),
@@ -225,7 +214,6 @@ INSERT INTO names_first (order, name, gender, weight) VALUES
 (null, 'Priscilla', 'F', 0.002),
 (null, 'Prudence', 'F', 0.002),
 (null, 'Rose', 'F', 0.002),
-(null, 'Susanna', 'F', 0.002),
 (null, 'Susannah', 'F', 0.002),
 (null, 'Tabitha', 'F', 0.002),
 (null, 'Teresa', 'F', 0.002),
@@ -533,7 +521,6 @@ INSERT INTO names_last (name) VALUES
 ('Storey'),
 ('Sullyard'),
 ('Stay'),
-('Stewart'),
 ('Stickland'),
 ('Stone'),
 ('Sweet'),
