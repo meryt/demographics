@@ -26,4 +26,8 @@ public class PersonParameters {
      */
     private Integer maxAge;
 
+    /**
+     * If set, this birth date will be used. If aliveOnDate is also used, the person will be alive on that date.
+     */
+    private LocalDate birthDate;
 }
