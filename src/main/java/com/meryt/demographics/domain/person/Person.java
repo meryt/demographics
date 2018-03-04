@@ -15,5 +15,6 @@ public class Person {
     private LocalDateTime birthDate;
     private LocalDateTime deathDate;
     private long lifespanInDays;
+    private SocialClass socialClass;
 
 }

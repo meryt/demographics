@@ -2,6 +2,7 @@ package com.meryt.demographics.generator;
 
 import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.request.PersonParameters;
 import com.meryt.demographics.service.LifeTableService;
 import com.meryt.demographics.service.NameService;
@@ -24,7 +25,7 @@ public class PersonGenerator {
         person.setGender(personParameters.getGender() == null ? Gender.random() : personParameters.getGender());
         person.setFirstName(nameService.randomFirstName(person.getGender()));
         person.setLastName(nameService.randomLastName());
-
+        person.setSocialClass(SocialClass.random());
         person.setLifespanInDays(lifeTableService.randomLifeExpectancy(LifeTableService.LifeTablePeriod.VICTORIAN));
 
         return person;
