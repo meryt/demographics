@@ -6,6 +6,7 @@ import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.request.FamilyParameters;
 import com.meryt.demographics.request.PersonParameters;
 import lombok.NonNull;
+import org.apache.commons.math3.distribution.BetaDistribution;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -116,6 +117,11 @@ public class FamilyGenerator {
         }
     }
 
+    /**
+     * Get a random date that can be used as the birth date of a spouse for the given person, if the wedding is on the
+     * given date. If the given person is a man, the birth date for his wife will be below or barely above his own
+     * birth date; if a woman, the husband's birth date will be barely below or above hers.
+     */
     private LocalDate getRandomSpouseBirthDate(@NonNull Person person, @NonNull LocalDate weddingDate) {
         int personAge = person.getAgeInYears(weddingDate);
         BetweenDie die = new BetweenDie();
@@ -124,7 +130,7 @@ public class FamilyGenerator {
             spouseAge = die.roll(FamilyParameters.DEFAULT_MIN_WIFE_AGE + 1, personAge + 2);
         } else {
             int minAge = Math.max(personAge - 1, FamilyParameters.DEFAULT_MIN_HUSBAND_AGE);
-            int maxAge = Math.max(50, minAge);
+            int maxAge = Math.max(FamilyParameters.DEFAULT_MAX_WIFE_AGE, minAge);
             spouseAge = die.roll(minAge, maxAge);
         }
 

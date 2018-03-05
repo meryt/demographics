@@ -1,6 +1,7 @@
 package com.meryt.demographics.domain.family;
 
 import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.time.FormatPeriod;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -19,4 +20,18 @@ public class Family {
     private Person wife;
     private List<Person> children;
     private LocalDate weddingDate;
+
+    public String getHusbandAgeAtMarriage() {
+        if (husband == null || husband.getBirthDate() == null || weddingDate == null) {
+            return null;
+        }
+        return FormatPeriod.diffAsYearsMonthsDays(husband.getBirthDate(), weddingDate);
+    }
+
+    public String getWifeAgeAtMarriage() {
+        if (wife == null || wife.getBirthDate() == null || weddingDate == null) {
+            return null;
+        }
+        return FormatPeriod.diffAsYearsMonthsDays(wife.getBirthDate(), weddingDate);
+    }
 }

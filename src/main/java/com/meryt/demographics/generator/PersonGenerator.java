@@ -16,8 +16,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class PersonGenerator {
 
-    private static final int RAND_DOMESTICITY_ALPHA        = 4;
-	private static final int RAND_DOMESTICITY_BETA         = 5;
+    private static final double RAND_DOMESTICITY_ALPHA        = 1.5;
+	private static final double RAND_DOMESTICITY_BETA         = 2.5;
 	private static final BetaDistribution DOMESTICITY_BETA = new BetaDistribution(RAND_DOMESTICITY_ALPHA,
             RAND_DOMESTICITY_BETA);
 
