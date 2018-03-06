@@ -1,6 +1,6 @@
 package com.meryt.demographics.service;
 
-import com.meryt.demographics.generator.Die;
+import com.meryt.demographics.generator.random.Die;
 import com.meryt.demographics.repository.LifeTableRepository;
 import lombok.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;

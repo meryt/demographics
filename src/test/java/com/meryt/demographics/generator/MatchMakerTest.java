@@ -1,6 +1,7 @@
 package com.meryt.demographics.generator;
 
 import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.generator.family.MatchMaker;
 import org.junit.Test;
 
 import java.time.LocalDate;

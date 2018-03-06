@@ -1,4 +1,4 @@
-package com.meryt.demographics.generator;
+package com.meryt.demographics.generator.random;
 
 import java.util.Random;
 

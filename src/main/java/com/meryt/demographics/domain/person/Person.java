@@ -2,8 +2,8 @@ package com.meryt.demographics.domain.person;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.meryt.demographics.domain.person.fertility.Fertility;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
@@ -25,6 +25,7 @@ public class Person {
     private double domesticity;
     private double comeliness;
     private double charisma;
+    private Fertility fertility;
 
     public int getAgeInYears(@NonNull LocalDate onDate) {
         if (getBirthDate() == null) {
@@ -48,6 +49,11 @@ public class Person {
     @JsonIgnore
     public boolean isFemale() {
         return !isMale();
+    }
+
+    @JsonIgnore
+    public boolean isLiving(@NonNull LocalDate onDate) {
+        return birthDate != null && !onDate.isBefore(birthDate) && (deathDate == null || !onDate.isAfter(deathDate));
     }
 
 }

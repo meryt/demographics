@@ -1,7 +1,7 @@
 package com.meryt.demographics.domain.person;
 
 import com.fasterxml.jackson.annotation.JsonValue;
-import com.meryt.demographics.generator.Die;
+import com.meryt.demographics.generator.random.Die;
 import lombok.Getter;
 
 public enum SocialClass {
@@ -31,6 +31,14 @@ public enum SocialClass {
     @Override
     public String toString() {
         return getDescription();
+    }
+
+    public static SocialClass fromParents(SocialClass fathers, SocialClass mothers) {
+        if (fathers == null && mothers == null) {
+            return random();
+        }
+        // TODO finish
+        return null;
     }
 
     /**

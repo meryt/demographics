@@ -1,8 +1,9 @@
-package com.meryt.demographics.generator;
+package com.meryt.demographics.generator.family;
 
 import java.time.LocalDate;
 import java.time.Period;
 import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.generator.random.PercentDie;
 import lombok.NonNull;
 import org.apache.commons.math3.distribution.BetaDistribution;
 

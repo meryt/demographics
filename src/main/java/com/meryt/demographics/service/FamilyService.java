@@ -1,7 +1,7 @@
 package com.meryt.demographics.service;
 
 import com.meryt.demographics.domain.family.Family;
-import com.meryt.demographics.generator.FamilyGenerator;
+import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.request.FamilyParameters;
 import lombok.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;

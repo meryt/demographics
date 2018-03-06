@@ -3,6 +3,7 @@ package com.meryt.demographics.generator;
 import com.meryt.demographics.domain.place.Realm;
 import com.meryt.demographics.domain.place.RuralArea;
 import com.meryt.demographics.domain.place.Town;
+import com.meryt.demographics.generator.random.Die;
 import com.meryt.demographics.request.RealmParameters;
 
 public class RealmGenerator {

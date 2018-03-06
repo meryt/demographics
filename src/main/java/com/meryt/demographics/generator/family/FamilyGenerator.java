@@ -1,9 +1,17 @@
-package com.meryt.demographics.generator;
+package com.meryt.demographics.generator.family;
 
 import java.time.LocalDate;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.domain.person.SocialClass;
+import com.meryt.demographics.generator.PersonGenerator;
+import com.meryt.demographics.generator.random.BetweenDie;
+import com.meryt.demographics.generator.random.Die;
+import com.meryt.demographics.generator.random.PercentDie;
 import com.meryt.demographics.request.FamilyParameters;
 import com.meryt.demographics.request.PersonParameters;
 import lombok.NonNull;
@@ -15,6 +23,8 @@ import org.springframework.stereotype.Service;
 @Service
 public class FamilyGenerator {
 
+    private static final int MAX_MONTHS_PREMARITAL = 6;
+
     private final PersonGenerator personGenerator;
 
     public FamilyGenerator(@Autowired PersonGenerator personGenerator) {
@@ -24,8 +34,9 @@ public class FamilyGenerator {
     public Family generate(@NonNull FamilyParameters familyParameters) {
         Person person = generateFounder(familyParameters);
 
-        Family family = generateSpouse(person, familyParameters);
-
+        Family family = searchForSpouse(person, familyParameters);
+        // TODO
+        //generateChildren(family, familyParameters);
         return family;
     }
 
@@ -58,7 +69,7 @@ public class FamilyGenerator {
         return personGenerator.generate(personParameters);
     }
 
-    private Family generateSpouse(@NonNull Person person, @NonNull FamilyParameters familyParameters) {
+    private Family searchForSpouse(@NonNull Person person, @NonNull FamilyParameters familyParameters) {
 
         Family family = new Family();
 
@@ -149,6 +160,32 @@ public class FamilyGenerator {
 
         // The birth date is this many years (minus a random number of days) ago.
         return weddingDate.minusDays((365 * spouseAge) + new Die(364).roll());
+    }
+
+    private void generateChildren(@NonNull Family family, @NonNull FamilyParameters familyParameters) {
+        if (family.getHusband() == null || family.getWife() == null || family.getWeddingDate() == null
+                || family.getHusband().getDeathDate() == null || family.getWife().getDeathDate() == null) {
+            return;
+        }
+
+        boolean allowPremarital = (family.getWife().getSocialClass().ordinal()
+                <= SocialClass.LANDOWNER_OR_CRAFTSMAN.ordinal());
+        LocalDate fromDate = family.getWeddingDate();
+        List<LocalDate> dates = Arrays.asList(familyParameters.getReferenceDate(), family.getHusband().getDeathDate(),
+                family.getWife().getDeathDate());
+        LocalDate toDate = dates.stream().min(Comparator.comparing(LocalDate::toEpochDay)).get();
+
+        if (allowPremarital) {
+            fromDate = fromDate.minusDays(new Die(30 * MAX_MONTHS_PREMARITAL).roll());
+        }
+
+        if (fromDate.isAfter(toDate)) {
+            return;
+        }
+
+        PregnancyChecker checker = new PregnancyChecker(personGenerator, family.getWife(), false);
+        checker.checkDateRange(family.getHusband(), fromDate, toDate, false);
+
     }
 
 }

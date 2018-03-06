@@ -1,6 +1,7 @@
 package com.meryt.demographics.generator;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
@@ -8,6 +9,7 @@ import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.request.PersonParameters;
 import com.meryt.demographics.service.LifeTableService;
 import com.meryt.demographics.service.NameService;
+import lombok.NonNull;
 import org.apache.commons.math3.distribution.BetaDistribution;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -79,6 +81,16 @@ public class PersonGenerator {
         return person;
     }
 
+    public List<Person> generateChildrenForParents(@NonNull Person father,
+                                                   @NonNull Person mother,
+                                                   @NonNull LocalDate birthDate,
+                                                   boolean includeIdenticalTwin,
+                                                   boolean includeFraternalTwin) {
+        Gender childGender = Gender.random();
+        SocialClass childClass = SocialClass.fromParents(father.getSocialClass(), mother.getSocialClass());
+        // TODO
+        return null;
+    }
 
     double randomDomesticity() {
         return DOMESTICITY_BETA.sample();
