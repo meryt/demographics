@@ -20,6 +20,7 @@ public class PersonGenerator {
 	private static final double RAND_DOMESTICITY_BETA         = 2.5;
 	private static final BetaDistribution DOMESTICITY_BETA = new BetaDistribution(RAND_DOMESTICITY_ALPHA,
             RAND_DOMESTICITY_BETA);
+	private static final BetaDistribution TRAIT_BETA = new BetaDistribution(2, 1.8);
 
     private final NameService nameService;
     private final LifeTableService lifeTableService;
@@ -72,12 +73,18 @@ public class PersonGenerator {
         }
 
         person.setDomesticity(randomDomesticity());
+        person.setCharisma(randomTrait());
+        person.setComeliness(randomTrait());
 
         return person;
     }
 
 
-    public double randomDomesticity() {
+    double randomDomesticity() {
         return DOMESTICITY_BETA.sample();
+    }
+
+    private double randomTrait() {
+        return TRAIT_BETA.sample();
     }
 }

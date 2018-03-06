@@ -1,5 +1,6 @@
 package com.meryt.demographics.generator;
 
+import java.time.LocalDate;
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
@@ -9,8 +10,6 @@ import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
-import java.time.LocalDate;
 
 @Slf4j
 @Service
@@ -25,7 +24,7 @@ public class FamilyGenerator {
     public Family generate(@NonNull FamilyParameters familyParameters) {
         Person person = generateFounder(familyParameters);
 
-        Family family = generateSpouse(person, familyParameters.getReferenceDate());
+        Family family = generateSpouse(person, familyParameters);
 
         return family;
     }
@@ -59,19 +58,18 @@ public class FamilyGenerator {
         return personGenerator.generate(personParameters);
     }
 
-    private Family generateSpouse(@NonNull Person person, LocalDate untilDate) {
+    private Family generateSpouse(@NonNull Person person, @NonNull FamilyParameters familyParameters) {
 
         Family family = new Family();
 
-        int minMarriageAge;
-        Gender spouseGender;
+        LocalDate untilDate = familyParameters.getReferenceDate();
+
+        int minMarriageAge = person.isMale()
+                ? familyParameters.getMinHusbandAgeOrDefault()
+                : familyParameters.getMinWifeAgeOrDefault();
         if (person.isMale()) {
-            minMarriageAge = FamilyParameters.DEFAULT_MIN_HUSBAND_AGE;
-            spouseGender = Gender.FEMALE;
             family.setHusband(person);
         } else {
-            minMarriageAge = FamilyParameters.DEFAULT_MIN_WIFE_AGE;
-            spouseGender = Gender.MALE;
             family.setWife(person);
         }
 
@@ -83,7 +81,21 @@ public class FamilyGenerator {
         }
 
         LocalDate startDate = person.getBirthDate().plusYears(minMarriageAge);
+        attemptToFindSpouse(startDate, endDate, family, person, familyParameters);
 
+        return family;
+    }
+
+    /**
+     * Run a loop from start date to end date and attempt to find a spouse during that time.
+     * @param startDate date to begin looping at (e.g. when person reaches marriageable age)
+     * @param endDate date to stop looping
+     * @param family the family on which to set the spouse and wedding date, if one is found
+     * @param person the person seeking a spouse
+     */
+    private void attemptToFindSpouse(@NonNull LocalDate startDate, @NonNull LocalDate endDate, @NonNull Family family,
+                                     @NonNull Person person, @NonNull FamilyParameters familyParameters) {
+        Gender spouseGender = person.isFemale() ? Gender.MALE : Gender.FEMALE;
         PercentDie die = new PercentDie();
         for (LocalDate currentDate = startDate; currentDate.isBefore(endDate) ; currentDate = currentDate.plusDays(1)) {
             double percentPerDay = MatchMaker.getDesireToMarryProbability(person, currentDate);
@@ -91,25 +103,19 @@ public class FamilyGenerator {
                 // He wants to get married. Can he find a spouse? Generate a random person of the appropriate gender
                 // and age, and do a random check against the domesticity. If success, do a marriage. Otherwise
                 // discard the random person and continue searching.
-                LocalDate birthDate = getRandomSpouseBirthDate(person, currentDate);
+                LocalDate birthDate = getRandomSpouseBirthDate(person, currentDate, familyParameters);
                 PersonParameters spouseParameters = new PersonParameters();
                 spouseParameters.setGender(spouseGender);
                 spouseParameters.setBirthDate(birthDate);
                 spouseParameters.setAliveOnDate(currentDate);
                 Person potentialSpouse = personGenerator.generate(spouseParameters);
-                if (die.roll() < potentialSpouse.getDomesticity()) {
+                if (MatchMaker.checkCompatibility(person, potentialSpouse)) {
                     family.setWeddingDate(currentDate);
-                    if (potentialSpouse.isFemale()) {
-                        family.setWife(potentialSpouse);
-                    } else {
-                        family.setHusband(potentialSpouse);
-                    }
+                    family.addSpouse(potentialSpouse);
                     break;
                 }
             }
         }
-
-        return family;
     }
 
     private void validate(FamilyParameters familyParameters) {
@@ -122,21 +128,27 @@ public class FamilyGenerator {
      * Get a random date that can be used as the birth date of a spouse for the given person, if the wedding is on the
      * given date. If the given person is a man, the birth date for his wife will be below or barely above his own
      * birth date; if a woman, the husband's birth date will be barely below or above hers.
+     *
+     * @param person the person who is looking for a spouse
+     * @param weddingDate the desired wedding date
      */
-    private LocalDate getRandomSpouseBirthDate(@NonNull Person person, @NonNull LocalDate weddingDate) {
+    private LocalDate getRandomSpouseBirthDate(@NonNull Person person, @NonNull LocalDate weddingDate,
+                                               @NonNull FamilyParameters familyParameters) {
         int personAge = person.getAgeInYears(weddingDate);
         BetweenDie die = new BetweenDie();
         int spouseAge;
         if (person.isMale()) {
-            spouseAge = die.roll(FamilyParameters.DEFAULT_MIN_WIFE_AGE, personAge + 2);
+            int minAge = Math.min(familyParameters.getMinWifeAgeOrDefault(), personAge);
+            int maxAge = Math.max(familyParameters.getMinWifeAgeOrDefault(), personAge + 2);
+            spouseAge = die.roll(minAge, maxAge);
         } else {
-            int minAge = Math.max(personAge - 1, FamilyParameters.DEFAULT_MIN_HUSBAND_AGE);
-            int maxAge = Math.max(FamilyParameters.DEFAULT_MAX_WIFE_AGE, minAge);
+            int minAge = familyParameters.getMinHusbandAgeOrDefault(personAge);
+            int maxAge = Math.max(familyParameters.getMaxHusbandAgeOrDefault(), minAge);
             spouseAge = die.roll(minAge, maxAge);
         }
 
         // The birth date is this many years (minus a random number of days) ago.
-        return weddingDate.minusDays((365 * spouseAge) - new Die(364).roll());
+        return weddingDate.minusDays((365 * spouseAge) + new Die(364).roll());
     }
 
 }

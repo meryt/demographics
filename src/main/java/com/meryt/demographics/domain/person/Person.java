@@ -23,6 +23,8 @@ public class Person {
     private long lifespanInDays;
     private SocialClass socialClass;
     private double domesticity;
+    private double comeliness;
+    private double charisma;
 
     public int getAgeInYears(@NonNull LocalDate onDate) {
         if (getBirthDate() == null) {
@@ -46,10 +48,6 @@ public class Person {
     @JsonIgnore
     public boolean isFemale() {
         return !isMale();
-    }
-
-    public double getDailyDesireToMarryProbability(LocalDate onDate) {
-        return getDomesticity() * BASE_PER_DAY_MARRY_DESIRE_FACTOR;
     }
 
 }
