@@ -6,12 +6,13 @@ import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.request.FamilyParameters;
 import com.meryt.demographics.request.PersonParameters;
 import lombok.NonNull;
-import org.apache.commons.math3.distribution.BetaDistribution;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 
+@Slf4j
 @Service
 public class FamilyGenerator {
 
@@ -65,11 +66,11 @@ public class FamilyGenerator {
         int minMarriageAge;
         Gender spouseGender;
         if (person.isMale()) {
-            minMarriageAge = FamilyParameters.DEFAULT_MIN_WIFE_AGE;
+            minMarriageAge = FamilyParameters.DEFAULT_MIN_HUSBAND_AGE;
             spouseGender = Gender.FEMALE;
             family.setHusband(person);
         } else {
-            minMarriageAge = FamilyParameters.DEFAULT_MIN_HUSBAND_AGE;
+            minMarriageAge = FamilyParameters.DEFAULT_MIN_WIFE_AGE;
             spouseGender = Gender.MALE;
             family.setWife(person);
         }
@@ -81,11 +82,11 @@ public class FamilyGenerator {
             endDate = untilDate;
         }
 
-        LocalDate startDate = person.getBirthDate().plusDays(365 * minMarriageAge);
+        LocalDate startDate = person.getBirthDate().plusYears(minMarriageAge);
 
         PercentDie die = new PercentDie();
-        for (LocalDate currentDate = startDate; currentDate.isBefore(endDate) ; currentDate.plusDays(1)) {
-            double percentPerDay = person.getDailyDesireToMarryProbability(currentDate);
+        for (LocalDate currentDate = startDate; currentDate.isBefore(endDate) ; currentDate = currentDate.plusDays(1)) {
+            double percentPerDay = MatchMaker.getDesireToMarryProbability(person, currentDate);
             if (die.roll() <= percentPerDay) {
                 // He wants to get married. Can he find a spouse? Generate a random person of the appropriate gender
                 // and age, and do a random check against the domesticity. If success, do a marriage. Otherwise
@@ -127,7 +128,7 @@ public class FamilyGenerator {
         BetweenDie die = new BetweenDie();
         int spouseAge;
         if (person.isMale()) {
-            spouseAge = die.roll(FamilyParameters.DEFAULT_MIN_WIFE_AGE + 1, personAge + 2);
+            spouseAge = die.roll(FamilyParameters.DEFAULT_MIN_WIFE_AGE, personAge + 2);
         } else {
             int minAge = Math.max(personAge - 1, FamilyParameters.DEFAULT_MIN_HUSBAND_AGE);
             int maxAge = Math.max(FamilyParameters.DEFAULT_MAX_WIFE_AGE, minAge);
@@ -137,4 +138,5 @@ public class FamilyGenerator {
         // The birth date is this many years (minus a random number of days) ago.
         return weddingDate.minusDays((365 * spouseAge) - new Die(364).roll());
     }
+
 }

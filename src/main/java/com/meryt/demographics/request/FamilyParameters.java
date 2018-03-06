@@ -41,6 +41,9 @@ public class FamilyParameters {
      */
     private Integer maxWifeAge;
 
+    /**
+     * Determines how likely the founder of a random family is to be a man. Defaults to 0.8.
+     */
     private Double percentMaleFounders;
 
     public int getMinHusbandAgeOrDefault() {
