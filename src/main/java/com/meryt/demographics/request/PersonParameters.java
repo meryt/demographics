@@ -1,7 +1,9 @@
 package com.meryt.demographics.request;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.meryt.demographics.domain.person.Gender;
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.Setter;
 
 import java.time.LocalDate;
@@ -9,6 +11,8 @@ import java.time.LocalDate;
 @Getter
 @Setter
 public class PersonParameters {
+
+    private static final LocalDate DEFAULT_ALIVE_ON = LocalDate.of(1700, 1, 1);
 
     private Gender gender;
     /**
@@ -30,4 +34,11 @@ public class PersonParameters {
      * If set, this birth date will be used. If aliveOnDate is also used, the person will be alive on that date.
      */
     private LocalDate birthDate;
+
+    @JsonIgnore
+    @NonNull
+    public LocalDate getAliveOnDateOrDefault() {
+        return aliveOnDate == null ? DEFAULT_ALIVE_ON : aliveOnDate;
+    }
+
 }

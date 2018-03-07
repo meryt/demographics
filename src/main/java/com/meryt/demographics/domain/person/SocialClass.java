@@ -4,27 +4,34 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.meryt.demographics.generator.random.Die;
 import lombok.Getter;
 
+import java.util.Arrays;
+import java.util.List;
+
 public enum SocialClass {
-    PAUPER("Itinerant laborer, beggar, prisoner"),
-    LABORER("Laborer, servant, tenant farmer, sailor, soldier"),
-    LANDOWNER_OR_CRAFTSMAN("Freehold farmer, craftsman, small merchant, footman, lady's maid, lieutenant"),
-    YEOMAN_OR_MERCHANT("Yeoman farmer, merchant, clerk, steward, valet, butler, captain"),
-    GENTLEMAN("Gentleman farmer, clergyman, doctor, lawyer, agent, military officer, major"),
-    BARONET("Baronet, estate owner, knighted or high-ranking officer"),
-    BARON("Baron, abbot, bishop, colonel, Knight of the Garter"),
-    VISCOUNT("Viscount"),
-    EARL("Earl, archbishop"),
-    MARQUESS("Marquess"),
-    DUKE("Duke, Cardinal"),
-    PRINCE("Prince"),
-    MONARCH("King, emperor, pope")
+    PAUPER(1, "Itinerant laborer, beggar, prisoner"),
+    LABORER(2, "Laborer, servant, tenant farmer, sailor, soldier"),
+    LANDOWNER_OR_CRAFTSMAN(3, "Freehold farmer, craftsman, small merchant, footman, lady's maid, lieutenant"),
+    YEOMAN_OR_MERCHANT(4, "Yeoman farmer, merchant, clerk, steward, valet, butler, captain"),
+    GENTLEMAN(5, "Gentleman farmer, clergyman, doctor, lawyer, agent, military officer, major"),
+    BARONET(6, "Baronet, estate owner, knighted or high-ranking officer"),
+    BARON(7, "Baron, abbot, bishop, colonel, Knight of the Garter"),
+    VISCOUNT(8, "Viscount"),
+    EARL(9, "Earl, archbishop"),
+    MARQUESS(10, "Marquess"),
+    DUKE(11, "Duke, Cardinal"),
+    PRINCE(12, "Prince"),
+    MONARCH(13, "King, emperor, pope")
     ;
+
+    @Getter
+    private final int rank;
 
     @Getter
     @JsonValue
     private final String description;
 
-    SocialClass(String description) {
+    SocialClass(int rank, String description) {
+        this.rank = rank;
         this.description = description;
     }
 
@@ -33,12 +40,23 @@ public enum SocialClass {
         return getDescription();
     }
 
-    public static SocialClass fromParents(SocialClass fathers, SocialClass mothers) {
-        if (fathers == null && mothers == null) {
-            return random();
+    /**
+     * Gets a class from the 1-based index.
+     * @param rank an index between 1 and 13 inclusive
+     * @throws IllegalArgumentException if the rank is not in range
+     * @throws IllegalStateException if the enum value and rank don't match
+     */
+    public static SocialClass fromRank(int rank) {
+        if (rank < PAUPER.getRank() || rank > MONARCH.getRank()) {
+            throw new IllegalArgumentException("No SocialClass exists for rank " + rank);
         }
-        // TODO finish
-        return null;
+        List<SocialClass> classes = Arrays.asList(PAUPER, LABORER, LANDOWNER_OR_CRAFTSMAN, YEOMAN_OR_MERCHANT,
+                GENTLEMAN, BARONET, BARON, VISCOUNT, EARL, MARQUESS, DUKE, PRINCE, MONARCH);
+        SocialClass socialClass = classes.get(rank -1);
+        if (socialClass.getRank() != rank) {
+            throw new IllegalStateException("Class " + socialClass.name() + " does not have expected rank of " + rank);
+        }
+        return socialClass;
     }
 
     /**

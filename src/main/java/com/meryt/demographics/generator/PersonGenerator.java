@@ -3,10 +3,12 @@ package com.meryt.demographics.generator;
 import java.time.LocalDate;
 import java.util.List;
 
+import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.request.PersonParameters;
+import com.meryt.demographics.service.FamilyService;
 import com.meryt.demographics.service.LifeTableService;
 import com.meryt.demographics.service.NameService;
 import lombok.NonNull;
@@ -26,10 +28,14 @@ public class PersonGenerator {
 
     private final NameService nameService;
     private final LifeTableService lifeTableService;
+    private final FamilyService familyService;
 
-    public PersonGenerator(@Autowired NameService nameService, @Autowired LifeTableService lifeTableService) {
+    public PersonGenerator(@Autowired NameService nameService,
+                           @Autowired LifeTableService lifeTableService,
+                           @Autowired FamilyService familyService) {
         this.nameService = nameService;
         this.lifeTableService = lifeTableService;
+        this.familyService = familyService;
     }
 
     public Person generate(PersonParameters personParameters) {
@@ -39,39 +45,31 @@ public class PersonGenerator {
         person.setLastName(nameService.randomLastName());
         person.setSocialClass(SocialClass.random());
 
-        LocalDate aliveOnDate = personParameters.getAliveOnDate();
+        LocalDate aliveOnDate = personParameters.getAliveOnDateOrDefault();
         Integer minAge = personParameters.getMinAge() == null ? 0 : personParameters.getMinAge();
-        if (aliveOnDate != null) {
-            if (personParameters.getBirthDate() != null) {
-                person.setBirthDate(personParameters.getBirthDate());
-                // Get a random death date such that the person is alive on the reference date if born on this
-                // date
-                long lifespan;
-                do {
-                    lifespan = lifeTableService.randomLifeExpectancy(LifeTableService.LifeTablePeriod.VICTORIAN,
-                            person.getBirthDate().until(aliveOnDate).getYears(), null);
-                } while (person.getBirthDate().plusDays(lifespan).isBefore(aliveOnDate));
-                person.setDeathDate(person.getBirthDate().plusDays(lifespan));
-                person.setLifespanInDays(lifespan);
-            } else {
-                // Get a random age such that the person is at least minAge / at most maxAge on this reference date.
-                // From this we get a birth date (not the actual lifespan).
-                long ageAtReference = lifeTableService.randomLifeExpectancy(LifeTableService.LifeTablePeriod.VICTORIAN,
-                        minAge, personParameters.getMaxAge());
-                person.setBirthDate(aliveOnDate.minusDays(ageAtReference));
-
-                // Now get a lifespan at least as old as he was determined to be at the reference date
-                long lifespan = lifeTableService.randomLifeExpectancy(LifeTableService.LifeTablePeriod.VICTORIAN,
-                        (int) Math.ceil(ageAtReference / 365.0), null);
-                LocalDate deathDate = person.getBirthDate().plusDays(lifespan);
-                // From this we can set a death date and the actual lifespan.
-                person.setDeathDate(deathDate);
-                person.setLifespanInDays(lifespan);
-            }
-
+        if (personParameters.getBirthDate() != null) {
+            person.setBirthDate(personParameters.getBirthDate());
+            // Get a random death date such that the person is alive on the reference date if born on this
+            // date
+            long lifespan;
+            do {
+                lifespan = lifeTableService.randomLifeExpectancy(LifeTableService.LifeTablePeriod.VICTORIAN,
+                        person.getBirthDate().until(aliveOnDate).getYears(), null);
+            } while (person.getBirthDate().plusDays(lifespan).isBefore(aliveOnDate));
+            person.setDeathDate(person.getBirthDate().plusDays(lifespan));
         } else {
-            person.setLifespanInDays(lifeTableService.randomLifeExpectancy(LifeTableService.LifeTablePeriod.VICTORIAN,
-                    minAge, personParameters.getMaxAge()));
+            // Get a random age such that the person is at least minAge / at most maxAge on this reference date.
+            // From this we get a birth date (not the actual lifespan).
+            long ageAtReference = lifeTableService.randomLifeExpectancy(LifeTableService.LifeTablePeriod.VICTORIAN,
+                    minAge, personParameters.getMaxAge());
+            person.setBirthDate(aliveOnDate.minusDays(ageAtReference));
+
+            // Now get a lifespan at least as old as he was determined to be at the reference date
+            long lifespan = lifeTableService.randomLifeExpectancy(LifeTableService.LifeTablePeriod.VICTORIAN,
+                    (int) Math.ceil(ageAtReference / 365.0), null);
+            LocalDate deathDate = person.getBirthDate().plusDays(lifespan);
+            // From this we can set a death date and the actual lifespan.
+            person.setDeathDate(deathDate);
         }
 
         person.setDomesticity(randomDomesticity());
@@ -81,13 +79,12 @@ public class PersonGenerator {
         return person;
     }
 
-    public List<Person> generateChildrenForParents(@NonNull Person father,
-                                                   @NonNull Person mother,
+    public List<Person> generateChildrenForParents(@NonNull Family family,
                                                    @NonNull LocalDate birthDate,
                                                    boolean includeIdenticalTwin,
                                                    boolean includeFraternalTwin) {
         Gender childGender = Gender.random();
-        SocialClass childClass = SocialClass.fromParents(father.getSocialClass(), mother.getSocialClass());
+        SocialClass childClass = familyService.getCalculatedChildSocialClass(family, null, false);
         // TODO
         return null;
     }

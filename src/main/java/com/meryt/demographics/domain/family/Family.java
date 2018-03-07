@@ -1,6 +1,7 @@
 package com.meryt.demographics.domain.family;
 
 import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.time.FormatPeriod;
 import lombok.Getter;
 import lombok.NonNull;
@@ -51,4 +52,5 @@ public class Family {
             wife = spouse;
         }
     }
+
 }

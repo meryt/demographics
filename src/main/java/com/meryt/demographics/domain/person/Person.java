@@ -20,7 +20,7 @@ public class Person {
     private String lastName;
     private LocalDate birthDate;
     private LocalDate deathDate;
-    private long lifespanInDays;
+    private Long familyId;
     private SocialClass socialClass;
     private double domesticity;
     private double comeliness;
@@ -55,5 +55,4 @@ public class Person {
     public boolean isLiving(@NonNull LocalDate onDate) {
         return birthDate != null && !onDate.isBefore(birthDate) && (deathDate == null || !onDate.isAfter(deathDate));
     }
-
 }
