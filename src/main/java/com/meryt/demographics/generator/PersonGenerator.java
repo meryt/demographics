@@ -1,12 +1,14 @@
 package com.meryt.demographics.generator;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.SocialClass;
+import com.meryt.demographics.generator.random.PercentDie;
 import com.meryt.demographics.request.PersonParameters;
 import com.meryt.demographics.service.FamilyService;
 import com.meryt.demographics.service.LifeTableService;
@@ -20,6 +22,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class PersonGenerator {
 
+    private static final double CHILDBIRTH_DEATH_PROBABILITY  = 0.02;
     private static final double RAND_DOMESTICITY_ALPHA        = 1.5;
 	private static final double RAND_DOMESTICITY_BETA         = 2.5;
 	private static final BetaDistribution DOMESTICITY_BETA = new BetaDistribution(RAND_DOMESTICITY_ALPHA,
@@ -42,7 +45,9 @@ public class PersonGenerator {
         Person person = new Person();
         person.setGender(personParameters.getGender() == null ? Gender.random() : personParameters.getGender());
         person.setFirstName(nameService.randomFirstName(person.getGender()));
-        person.setLastName(nameService.randomLastName());
+        person.setLastName(personParameters.getLastName() != null
+                ? personParameters.getLastName()
+                : nameService.randomLastName());
         person.setSocialClass(SocialClass.random());
 
         LocalDate aliveOnDate = personParameters.getAliveOnDateOrDefault();
@@ -79,14 +84,62 @@ public class PersonGenerator {
         return person;
     }
 
+    /**
+     * Generates children for this family, given a birthdate. The new children will be added to the existing list
+     * of children in the family.
+     *
+     * @param family
+     * @param birthDate
+     * @param includeIdenticalTwin
+     * @param includeFraternalTwin
+     * @return
+     */
     public List<Person> generateChildrenForParents(@NonNull Family family,
                                                    @NonNull LocalDate birthDate,
                                                    boolean includeIdenticalTwin,
                                                    boolean includeFraternalTwin) {
-        Gender childGender = Gender.random();
-        SocialClass childClass = familyService.getCalculatedChildSocialClass(family, null, false);
-        // TODO
-        return null;
+        PersonParameters personParameters = new PersonParameters();
+        personParameters.setBirthDate(birthDate);
+        if (family.isMarriage()) {
+            personParameters.setLastName(family.getHusband().getLastName());
+        } else {
+            personParameters.setLastName(family.getWife().getLastName(birthDate));
+        }
+
+        List<Person> children = new ArrayList<>();
+        children.add(generate(personParameters));
+
+        if (includeIdenticalTwin) {
+            personParameters.setGender(children.get(0).getGender());
+            children.add(generate(personParameters));
+            matchIdenticalTwinParameters(children.get(0), children.get(1));
+        }
+        if (includeFraternalTwin) {
+            children.add(generateChildrenForParents(family, birthDate, false, false).get(0));
+        }
+
+        family.getChildren().addAll(children);
+
+        // Chance of child death increases with number of children
+        PercentDie die = new PercentDie();
+        double chanceDeath = children.size() * CHILDBIRTH_DEATH_PROBABILITY;
+        for (Person child : children) {
+            if (die.roll() <= chanceDeath) {
+                child.setDeathDate(birthDate);
+            }
+            child.setSocialClass(familyService.getCalculatedChildSocialClass(family, child, false, birthDate));
+        }
+
+        return children;
+    }
+
+    /**
+     * Copies some properties from twin1 to twin2 when identical twins are created.
+     * @param twin1 the twin to use as the template
+     * @param twin2 the twin who gets the values applied
+     */
+    private void matchIdenticalTwinParameters(@NonNull Person twin1, @NonNull Person twin2) {
+        twin2.setComeliness(twin1.getComeliness());
     }
 
     double randomDomesticity() {

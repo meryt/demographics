@@ -1,14 +1,13 @@
 package com.meryt.demographics.domain.family;
 
+import java.time.LocalDate;
+import java.util.List;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.meryt.demographics.domain.person.Person;
-import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.time.FormatPeriod;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
-
-import java.time.LocalDate;
-import java.util.List;
 
 /**
  * A Family consists of a male and female and optionally any biological children. The two people may or may not be
@@ -51,6 +50,14 @@ public class Family {
         } else {
             wife = spouse;
         }
+    }
+
+    /**
+     * Determines whether the family relationship is a marriage or not
+     */
+    @JsonIgnore
+    public boolean isMarriage() {
+        return weddingDate != null;
     }
 
 }

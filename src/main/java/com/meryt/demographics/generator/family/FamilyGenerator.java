@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
@@ -35,8 +36,7 @@ public class FamilyGenerator {
         Person person = generateFounder(familyParameters);
 
         Family family = searchForSpouse(person, familyParameters);
-        // TODO
-        //generateChildren(family, familyParameters);
+        generateChildren(family, familyParameters);
         return family;
     }
 
@@ -162,6 +162,12 @@ public class FamilyGenerator {
         return weddingDate.minusDays((365 * spouseAge) + new Die(364).roll());
     }
 
+    /**
+     * Generates children for the family given the parameters, and adds them to the existing list of children.
+     *
+     * @param family a family that is expected to include a husband and wife and wedding date
+     * @param familyParameters the parameters for random family generation
+     */
     private void generateChildren(@NonNull Family family, @NonNull FamilyParameters familyParameters) {
         if (family.getHusband() == null || family.getWife() == null || family.getWeddingDate() == null
                 || family.getHusband().getDeathDate() == null || family.getWife().getDeathDate() == null) {
@@ -171,9 +177,14 @@ public class FamilyGenerator {
         boolean allowPremarital = (family.getWife().getSocialClass().ordinal()
                 <= SocialClass.LANDOWNER_OR_CRAFTSMAN.ordinal());
         LocalDate fromDate = family.getWeddingDate();
+
         List<LocalDate> dates = Arrays.asList(familyParameters.getReferenceDate(), family.getHusband().getDeathDate(),
                 family.getWife().getDeathDate());
-        LocalDate toDate = dates.stream().min(Comparator.comparing(LocalDate::toEpochDay)).get();
+        Optional<LocalDate> minDate = dates.stream().min(Comparator.comparing(LocalDate::toEpochDay));
+        LocalDate toDate = familyParameters.getReferenceDate();
+        if (minDate.isPresent()) {
+            toDate = minDate.get();
+        }
 
         if (allowPremarital) {
             fromDate = fromDate.minusDays(new Die(30 * MAX_MONTHS_PREMARITAL).roll());

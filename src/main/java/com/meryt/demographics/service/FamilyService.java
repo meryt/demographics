@@ -1,5 +1,6 @@
 package com.meryt.demographics.service;
 
+import java.time.LocalDate;
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.SocialClass;
@@ -30,26 +31,43 @@ public class FamilyService {
      */
     public SocialClass getCalculatedChildSocialClass(@NonNull Family family,
                                                      Person child,
-                                                     boolean forceCalculation) {
+                                                     boolean forceCalculation,
+                                                     LocalDate onDate) {
         Person father = family.getHusband();
         Person mother = family.getWife();
         if (father == null) {
             if (mother == null) {
                 return null;
             } else {
-                return getCalculatedChildSocialClassFromMother(mother, forceCalculation);
+                return getCalculatedChildSocialClassFromMother(mother, forceCalculation, onDate);
             }
+        } else if (mother == null) {
+            return getCalculatedChildSocialClassFromFather(father, forceCalculation, child, onDate);
         } else {
-            if (mother == null) {
-                return getCalculatedChildSocialClassFromFather(father, forceCalculation, child);
+            // Neither parent is null
+            SocialClass fathersCalculatedClass = getCalculatedSocialClass(father, forceCalculation, onDate);
+            if (fathersCalculatedClass == null) {
+                return getCalculatedChildSocialClassFromMother(mother, forceCalculation, onDate);
+            }
+            SocialClass mothersCalculatedClass = getCalculatedSocialClass(mother, forceCalculation, onDate);
+            if (mothersCalculatedClass == null) {
+                return getCalculatedChildSocialClassFromFather(father, forceCalculation, child, onDate);
+            }
+            // Neither parent's class is null
+            if (mothersCalculatedClass.getRank() > (fathersCalculatedClass.getRank() + 2)) {
+                return SocialClass.fromRank(mothersCalculatedClass.getRank() - 2);
+            } else if (mothersCalculatedClass.getRank() > fathersCalculatedClass.getRank()) {
+                return fathersCalculatedClass;
+            } else {
+                return getCalculatedChildSocialClassFromFather(father, forceCalculation, child, onDate);
             }
         }
-        // TODO
-        return null;
     }
 
-    private SocialClass getCalculatedChildSocialClassFromMother(@NonNull Person mother, boolean forceCalculation) {
-        SocialClass mothers = getCalculatedSocialClass(mother, forceCalculation);
+    private SocialClass getCalculatedChildSocialClassFromMother(@NonNull Person mother,
+                                                                boolean forceCalculation,
+                                                                LocalDate onDate) {
+        SocialClass mothers = getCalculatedSocialClass(mother, forceCalculation, onDate);
         if (mothers == null) {
             return null;
         } else if (SocialClass.LANDOWNER_OR_CRAFTSMAN.getRank() < mothers.getRank()) {
@@ -61,19 +79,49 @@ public class FamilyService {
         }
     }
 
-    private SocialClass getCalculatedChildSocialClassFromFather(@NonNull Person father, boolean forceCalculation,
-                                                                Person child) {
-        SocialClass fathers = getCalculatedSocialClass(father, forceCalculation);
+    private SocialClass getCalculatedChildSocialClassFromFather(@NonNull Person father,
+                                                                boolean forceCalculation,
+                                                                Person child,
+                                                                LocalDate onDate) {
+        SocialClass fathers = getCalculatedSocialClass(father, forceCalculation, onDate);
         if (fathers == null) {
             return null;
         }
         // If father and grandfather are both gentlemen, child remains a gentleman.
         if (fathers == SocialClass.GENTLEMAN) {
             Family fathersFamily = loadFamily(father.getFamilyId());
-            //if (fathersFamily != null && )
+            Person grandfather = fathersFamily == null ? null : fathersFamily.getHusband();
+            if (grandfather == null) {
+                return getChildSocialClassFromFather(father, fathers, child, onDate);
+            }
         }
 
         return null;
+    }
+
+    /**
+     * Get the child's social class based on the father's. If the is the firstborn living son, he has the same social
+     * class, otherwise is minus one.
+     *
+     * @param father the child's father
+     * @param fathersCalculatedClass the calculated class for the father
+     * @param child optionally include the child since we may need to know whether he is the firstborn son
+     * @param onDate optionally pass in a date for determining whether he is firstborn surviving son
+     * @return the calculated child's class based only on the father's
+     */
+    private SocialClass getChildSocialClassFromFather(@NonNull Person father,
+                                                      @NonNull SocialClass fathersCalculatedClass,
+                                                      Person child,
+                                                      LocalDate onDate) {
+        if (child == null) {
+            return fathersCalculatedClass.minusOne();
+        } else if (onDate != null && father.isLiving(onDate)) {
+            return fathersCalculatedClass.minusOne();
+        } else if (child != null && child.isFirstbornSurvivingSonOfFather(onDate)) {
+            return fathersCalculatedClass;
+        } else {
+            return fathersCalculatedClass.minusOne();
+        }
     }
 
     /**
@@ -82,7 +130,9 @@ public class FamilyService {
      * @param forceCalculation if false, will return the existing value if set
      * @return the calculated social class
      */
-    public SocialClass getCalculatedSocialClass(@NonNull Person person, boolean forceCalculation) {
+    private SocialClass getCalculatedSocialClass(@NonNull Person person,
+                                                boolean forceCalculation,
+                                                LocalDate onDate) {
         SocialClass socialClass = person.getSocialClass();
         if (socialClass != null && !forceCalculation) {
             return socialClass;
@@ -92,7 +142,7 @@ public class FamilyService {
         if (family == null) {
             return socialClass;
         }
-        SocialClass calculatedClass = getCalculatedChildSocialClass(family, null, forceCalculation);
+        SocialClass calculatedClass = getCalculatedChildSocialClass(family, null, forceCalculation, onDate);
         if (calculatedClass == null) {
             return socialClass;
         } else {
@@ -110,7 +160,7 @@ public class FamilyService {
      * @param familyId the ID of the family
      * @return a Family or null if none found
      */
-    public Family loadFamily(Long familyId) {
+    private Family loadFamily(Long familyId) {
         // TODO implement repository method
         return null;
     }

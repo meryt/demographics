@@ -3,6 +3,7 @@ package com.meryt.demographics.domain.person;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.meryt.demographics.generator.random.Die;
 import lombok.Getter;
+import lombok.NonNull;
 
 import java.util.Arrays;
 import java.util.List;
@@ -57,6 +58,17 @@ public enum SocialClass {
             throw new IllegalStateException("Class " + socialClass.name() + " does not have expected rank of " + rank);
         }
         return socialClass;
+    }
+
+    /**
+     * Returns the next lower class, or the lowest if it's already the lowest
+     */
+    public SocialClass minusOne() {
+        if (this == PAUPER) {
+            return PAUPER;
+        } else {
+            return fromRank(this.getRank() - 1);
+        }
     }
 
     /**

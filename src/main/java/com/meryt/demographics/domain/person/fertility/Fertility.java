@@ -1,5 +1,10 @@
 package com.meryt.demographics.domain.person.fertility;
 
-public abstract class Fertility {
+import lombok.Getter;
+import lombok.Setter;
 
+@Getter
+@Setter
+public abstract class Fertility {
+    private double fertilityFactor;
 }

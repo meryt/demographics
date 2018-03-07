@@ -35,6 +35,11 @@ public class PersonParameters {
      */
     private LocalDate birthDate;
 
+    /**
+     * If set, this last name will be used.
+     */
+    private String lastName;
+
     @JsonIgnore
     @NonNull
     public LocalDate getAliveOnDateOrDefault() {
