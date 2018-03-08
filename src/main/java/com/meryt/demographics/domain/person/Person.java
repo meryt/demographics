@@ -32,8 +32,11 @@ public class Person {
     private Long familyId;
     private SocialClass socialClass;
     private double domesticity;
-    private double comeliness;
     private double charisma;
+    private double comeliness;
+    private double intelligence;
+    private double morality;
+    private double strength;
     private Fertility fertility;
     private Family family;
 

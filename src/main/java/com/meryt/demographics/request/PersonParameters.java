@@ -5,6 +5,7 @@ import java.util.HashSet;
 import java.util.Set;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.meryt.demographics.domain.person.Gender;
+import com.meryt.demographics.domain.person.Person;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
@@ -45,6 +46,10 @@ public class PersonParameters {
      * If non-empty, the following names will not be used
      */
     private Set<String> excludeNames = new HashSet<>();
+
+    private Person father;
+
+    private Person mother;
 
     @JsonIgnore
     @NonNull

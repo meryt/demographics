@@ -5,6 +5,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import lombok.NonNull;
+import org.apache.commons.math3.distribution.BetaDistribution;
+import org.apache.commons.math3.distribution.NormalDistribution;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
@@ -12,17 +18,13 @@ import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.domain.person.fertility.Maternity;
 import com.meryt.demographics.domain.person.fertility.Paternity;
 import com.meryt.demographics.generator.random.BetweenDie;
+import com.meryt.demographics.generator.random.Die;
 import com.meryt.demographics.generator.random.PercentDie;
 import com.meryt.demographics.math.FunkyBetaDistribution;
 import com.meryt.demographics.request.PersonParameters;
 import com.meryt.demographics.service.FamilyService;
 import com.meryt.demographics.service.LifeTableService;
 import com.meryt.demographics.service.NameService;
-import lombok.NonNull;
-import org.apache.commons.math3.distribution.BetaDistribution;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-
 
 @Service
 public class PersonGenerator {
@@ -52,7 +54,7 @@ public class PersonGenerator {
     private final LifeTableService lifeTableService;
     private final FamilyService familyService;
 
-    public PersonGenerator(@Autowired NameService nameService,
+    PersonGenerator(@Autowired NameService nameService,
                            @Autowired LifeTableService lifeTableService,
                            @Autowired FamilyService familyService) {
         this.nameService = nameService;
@@ -96,9 +98,8 @@ public class PersonGenerator {
             person.setDeathDate(deathDate);
         }
 
-        person.setDomesticity(randomDomesticity());
-        person.setCharisma(randomTrait());
-        person.setComeliness(randomTrait());
+        generateAndSetTraits(personParameters, person);
+
         if (person.isMale()) {
             person.setFertility(randomPaternity());
         } else {
@@ -140,6 +141,9 @@ public class PersonGenerator {
                 .collect(Collectors.toSet());
         personParameters.getExcludeNames().addAll(alreadyUsedNames);
 
+        personParameters.setFather(family.getHusband());
+        personParameters.setMother(family.getWife());
+
         List<Person> children = new ArrayList<>();
         children.add(generate(personParameters));
         personParameters.getExcludeNames().add(children.get(0).getFirstName());
@@ -169,6 +173,44 @@ public class PersonGenerator {
         return children;
     }
 
+    private void generateAndSetTraits(@NonNull PersonParameters personParameters, @NonNull Person person) {
+        Person favoredParent = null;
+        Person otherParent = null;
+        Person father = personParameters.getFather();
+        Person mother = personParameters.getMother();
+        if (father != null && mother != null) {
+            if (new Die(2).roll() == 1) {
+                favoredParent = father;
+                otherParent = mother;
+            } else {
+                favoredParent = mother;
+                otherParent = father;
+            }
+        } else if (father != null) {
+            favoredParent = father;
+        } else if (mother != null) {
+            favoredParent = mother;
+        }
+
+        person.setDomesticity(randomDomesticity());
+        person.setCharisma(randomTrait());
+        if (favoredParent != null) {
+            person.setComeliness(randomTrait(favoredParent.getComeliness(),
+                    otherParent == null ? null : otherParent.getComeliness()));
+            person.setStrength(randomTrait(favoredParent.getStrength(),
+                    otherParent == null ? null : otherParent.getStrength()));
+        } else {
+            person.setComeliness(randomTrait());
+            person.setStrength(randomTrait());
+        }
+        if (mother != null) {
+            person.setIntelligence(randomTrait(mother.getIntelligence(), father == null ? null : father.getIntelligence()));
+        } else {
+            person.setIntelligence(randomTrait());
+        }
+        person.setMorality(randomTrait());
+    }
+
     /**
      * Copies some properties from twin1 to twin2 when identical twins are created.
      * @param twin1 the twin to use as the template
@@ -184,6 +226,25 @@ public class PersonGenerator {
 
     private double randomTrait() {
         return TRAIT_BETA.sample();
+    }
+
+    /**
+     * Get a random trait based on parents' traits.
+     *
+     * @param parentTrait if non-null, use a normal distribution with this as the mean
+     * @param otherParentTrait if also non-null, shift the mean a little towards this parent's value
+     * @return a double value for the trait based on the parent, or a random value if both are null
+     */
+    private double randomTrait(Double parentTrait, Double otherParentTrait) {
+        if (parentTrait == null) {
+            return randomTrait();
+        }
+        Double mean = parentTrait;
+        if (otherParentTrait != null) {
+            double diff = ((parentTrait - otherParentTrait) / 3);
+            mean -= diff;
+        }
+        return new NormalDistribution(mean, 0.1).sample();
     }
 
     private Maternity randomMaternity(@NonNull Person woman) {
