@@ -2,7 +2,9 @@ package com.meryt.demographics.repository;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
 import com.meryt.demographics.database.QueryStore;
+import lombok.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -20,12 +22,16 @@ public class NameRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public String randomFirstName(Gender gender) {
-        String query = queryStore.getQuery("random-first-name");
-        MapSqlParameterSource params = new MapSqlParameterSource();
-        params.addValue("gender", gender.getAbbreviation());
-        Map<String, Object> result = jdbcTemplate.queryForMap(query, params);
-        return (String) result.get("name");
+    public String randomFirstName(@NonNull Gender gender, @NonNull Set<String> excludeNames) {
+        String name;
+        do {
+            String query = queryStore.getQuery("random-first-name");
+            MapSqlParameterSource params = new MapSqlParameterSource();
+            params.addValue("gender", gender.getAbbreviation());
+            Map<String, Object> result = jdbcTemplate.queryForMap(query, params);
+            name = (String) result.get("name");
+        } while (excludeNames.contains(name));
+        return name;
     }
 
     public String randomLastName() {

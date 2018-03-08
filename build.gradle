@@ -21,6 +21,7 @@ apply plugin: 'java'
 apply plugin: 'eclipse'
 apply plugin: 'org.springframework.boot'
 apply plugin: 'io.spring.dependency-management'
+apply plugin: 'jacoco'
 
 group = 'com.meryt'
 version = '0.0.1-SNAPSHOT'
@@ -49,4 +50,15 @@ dependencies {
 	compileOnly("org.projectlombok:lombok:${lombokVersion}")
 
 	testCompile('org.springframework.boot:spring-boot-starter-test')
+    testCompileOnly("org.projectlombok:lombok:${lombokVersion}")
 }
+
+test {
+	jvmArgs '-noverify'
+	outputs.upToDateWhen { false }
+	finalizedBy jacocoTestReport
+    testLogging {
+        showStandardStreams = true
+    }
+}
+

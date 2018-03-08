@@ -1,12 +1,10 @@
 package com.meryt.demographics.domain.person;
 
+import java.util.Arrays;
+import java.util.List;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.meryt.demographics.generator.random.Die;
 import lombok.Getter;
-import lombok.NonNull;
-
-import java.util.Arrays;
-import java.util.List;
 
 public enum SocialClass {
     PAUPER(1, "Itinerant laborer, beggar, prisoner"),

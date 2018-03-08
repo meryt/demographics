@@ -51,6 +51,9 @@ public class PregnancyChecker {
         this.personGenerator = personGenerator;
     }
 
+    /**
+     * Loop over dates so long as the mother is living and check for births etc.
+     */
     public void checkDateRange(@NonNull LocalDate startDate,
                                @NonNull LocalDate endDate) {
 
@@ -169,7 +172,7 @@ public class PregnancyChecker {
             maternity.setDueDate(maternity.getDueDate().minusDays(15));
         }
 
-        log.info(String.format("%s conceived on %s, due %s, to father %s",
+        log.debug(String.format("%s conceived on %s, due %s, to father %s",
                 mother.getName(),
                 day,
                 maternity.getDueDate(),

@@ -188,6 +188,49 @@ public class Maternity extends Fertility {
         return lastCycleDate.plusDays(28);
     }
 
+    private LocalDate getPrevCycleDate() {
+        if (lastCycleDate == null) {
+            return null;
+        }
+        return lastCycleDate.minusDays(cycleLength);
+    }
+
+    /**
+     * Advances/retreats the last cycle date to near a given date.  If the current last cycle date is null, sets it to
+     * the given date.
+     *
+     * @param toDate the target date
+     * @param forceLessThan - if true, the last cycle date will be less than the given date.  If false it will be
+     *                      greater than.
+     *
+     * @return the new last cycle date
+     */
+    public LocalDate cycleToDate(@NonNull LocalDate toDate, boolean forceLessThan) {
+        if (lastCycleDate == null || lastCycleDate.equals(toDate)) {
+            setLastCycleDate(toDate);
+            return toDate;
+        }
+
+        if (lastCycleDate.isBefore(toDate)) {
+            while (lastCycleDate.isBefore(toDate)) {
+                LocalDate d = getNextCycleDate();
+                if (d == null) {
+                    break;
+                }
+                lastCycleDate = d;
+            }
+            if (forceLessThan && lastCycleDate.isAfter(toDate)) {
+                setLastCycleDate(getPrevCycleDate());
+            }
+        } else {
+            while (lastCycleDate.isAfter(toDate)) {
+                setLastCycleDate(getPrevCycleDate());
+            }
+        }
+
+        return lastCycleDate;
+    }
+
     private double getBreastfeedingFertilityFactor(@NonNull LocalDate day) {
         if (getLastBirthDate() == null || getBreastfeedingTill() == null
                 || day.isBefore(getLastBirthDate())) {

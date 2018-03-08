@@ -3,7 +3,8 @@ package com.meryt.demographics.generator;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-
+import java.util.Set;
+import java.util.stream.Collectors;
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
@@ -12,6 +13,7 @@ import com.meryt.demographics.domain.person.fertility.Maternity;
 import com.meryt.demographics.domain.person.fertility.Paternity;
 import com.meryt.demographics.generator.random.BetweenDie;
 import com.meryt.demographics.generator.random.PercentDie;
+import com.meryt.demographics.math.FunkyBetaDistribution;
 import com.meryt.demographics.request.PersonParameters;
 import com.meryt.demographics.service.FamilyService;
 import com.meryt.demographics.service.LifeTableService;
@@ -26,15 +28,15 @@ import org.springframework.stereotype.Service;
 public class PersonGenerator {
 
     private static final double CHILDBIRTH_DEATH_PROBABILITY  = 0.02;
-    private static final double RAND_DOMESTICITY_ALPHA        = 1.5;
-	private static final double RAND_DOMESTICITY_BETA         = 2.5;
-    private static final double RAND_FERTILITY_ALPHA          = 8;
-    private static final double RAND_FERTILITY_BETA           = 3;
+    private static final double RAND_DOMESTICITY_ALPHA        = 4;
+	private static final double RAND_DOMESTICITY_BETA         = 5;
+    private static final double RAND_FERTILITY_ALPHA          = 2.5;
+    private static final double RAND_FERTILITY_BETA           = 5;
     private static final double RAND_FIRST_PERIOD_ALPHA		  = 1.1;
     private static final double RAND_FIRST_PERIOD_BETA		  = 5;
     private static final double RAND_FREQUENCY_ALPHA          = 4; // 4:5 makes a sort of bell curve
     private static final double RAND_FREQUENCY_BETA           = 5;
-    private static final double RAND_WITHDRAWAL_ALPHA         = 4;
+    private static final double RAND_WITHDRAWAL_ALPHA         = 1.1;
     private static final double RAND_WITHDRAWAL_BETA          = 9;
 
 
@@ -42,7 +44,7 @@ public class PersonGenerator {
     private static final int  FIRST_PERIOD_BASE_MAX_AGE_YEARS = 16;
 
 
-    private static final BetaDistribution DOMESTICITY_BETA = new BetaDistribution(RAND_DOMESTICITY_ALPHA,
+    private static final BetaDistribution DOMESTICITY_BETA = new FunkyBetaDistribution(RAND_DOMESTICITY_ALPHA,
             RAND_DOMESTICITY_BETA);
 	private static final BetaDistribution TRAIT_BETA = new BetaDistribution(2, 1.8);
 
@@ -61,7 +63,7 @@ public class PersonGenerator {
     public Person generate(PersonParameters personParameters) {
         Person person = new Person();
         person.setGender(personParameters.getGender() == null ? Gender.random() : personParameters.getGender());
-        person.setFirstName(nameService.randomFirstName(person.getGender()));
+        person.setFirstName(nameService.randomFirstName(person.getGender(), personParameters.getExcludeNames()));
         person.setLastName(personParameters.getLastName() != null
                 ? personParameters.getLastName()
                 : nameService.randomLastName());
@@ -131,13 +133,22 @@ public class PersonGenerator {
             personParameters.setLastName(family.getWife().getLastName(birthDate));
         }
 
+        // Don't name kids after other kids already born and not yet dead
+        Set<String> alreadyUsedNames = family.getChildren().stream()
+                .filter(p -> p.isLiving(birthDate))
+                .map(Person::getFirstName)
+                .collect(Collectors.toSet());
+        personParameters.getExcludeNames().addAll(alreadyUsedNames);
+
         List<Person> children = new ArrayList<>();
         children.add(generate(personParameters));
+        personParameters.getExcludeNames().add(children.get(0).getFirstName());
 
         if (includeIdenticalTwin) {
             personParameters.setGender(children.get(0).getGender());
             children.add(generate(personParameters));
             matchIdenticalTwinParameters(children.get(0), children.get(1));
+            personParameters.getExcludeNames().add(children.get(1).getFirstName());
         }
         if (includeFraternalTwin) {
             children.add(generateChildrenForParents(family, birthDate, false, false).get(0));
@@ -194,15 +205,15 @@ public class PersonGenerator {
     }
 
     private double randFertilityFactor() {
-        return new BetaDistribution(RAND_FERTILITY_ALPHA, RAND_FERTILITY_BETA).sample();
+        return new FunkyBetaDistribution(RAND_FERTILITY_ALPHA, RAND_FERTILITY_BETA).sample();
     }
 
     private double randFrequencyFactor() {
-        return new BetaDistribution(RAND_FREQUENCY_ALPHA, RAND_FREQUENCY_BETA).sample();
+        return new FunkyBetaDistribution(RAND_FREQUENCY_ALPHA, RAND_FREQUENCY_BETA).sample();
     }
 
     private double randWithdrawalFactor() {
-        return new BetaDistribution(RAND_WITHDRAWAL_ALPHA, RAND_WITHDRAWAL_BETA).sample();
+        return new FunkyBetaDistribution(RAND_WITHDRAWAL_ALPHA, RAND_WITHDRAWAL_BETA).sample();
     }
 
     private int randCycleLength() {
@@ -213,6 +224,6 @@ public class PersonGenerator {
         double betaVal = new BetaDistribution(RAND_FIRST_PERIOD_ALPHA, RAND_FIRST_PERIOD_BETA).sample();
         int minAge = FIRST_PERIOD_BASE_MIN_AGE_YEARS * 365;
         int maxAge = FIRST_PERIOD_BASE_MAX_AGE_YEARS * 365;
-        return birthDate.plusDays(new BetweenDie().roll(minAge, maxAge));
+        return birthDate.plusDays((long) Math.floor((betaVal * (maxAge - minAge)) + minAge));
     }
 }

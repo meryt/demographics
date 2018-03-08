@@ -20,6 +20,6 @@ SELECT
   rand.randval
 FROM y
   CROSS JOIN rand
-WHERE y.cum_weight <= rand.randval
+WHERE y.cum_weight - y.weight <= rand.randval
 ORDER BY cum_weight DESC
 LIMIT 1;

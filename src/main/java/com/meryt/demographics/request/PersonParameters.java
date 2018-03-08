@@ -1,12 +1,13 @@
 package com.meryt.demographics.request;
 
+import java.time.LocalDate;
+import java.util.HashSet;
+import java.util.Set;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.meryt.demographics.domain.person.Gender;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
-
-import java.time.LocalDate;
 
 @Getter
 @Setter
@@ -39,6 +40,11 @@ public class PersonParameters {
      * If set, this last name will be used.
      */
     private String lastName;
+
+    /**
+     * If non-empty, the following names will not be used
+     */
+    private Set<String> excludeNames = new HashSet<>();
 
     @JsonIgnore
     @NonNull

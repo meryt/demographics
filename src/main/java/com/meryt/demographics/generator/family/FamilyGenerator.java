@@ -9,6 +9,7 @@ import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.SocialClass;
+import com.meryt.demographics.domain.person.fertility.Maternity;
 import com.meryt.demographics.generator.PersonGenerator;
 import com.meryt.demographics.generator.random.BetweenDie;
 import com.meryt.demographics.generator.random.Die;
@@ -36,7 +37,19 @@ public class FamilyGenerator {
         Person person = generateFounder(familyParameters);
 
         Family family = searchForSpouse(person, familyParameters);
+        if (family.getHusband() != null && family.getWife() != null) {
+            log.info(String.format("%s married %s on %s", family.getHusband().getName(), family.getWife().getName(),
+                    family.getWeddingDate()));
+        }
+
         generateChildren(family, familyParameters);
+
+        for (Person p : Arrays.asList(family.getWife(), family.getHusband())) {
+            if (p != null && !p.isLiving(familyParameters.getReferenceDate())) {
+                log.info(String.format("%s died on %s", p.getName(), p.getDeathDate()));
+            }
+        }
+
         return family;
     }
 
@@ -174,8 +187,10 @@ public class FamilyGenerator {
             return;
         }
 
-        boolean allowPremarital = (family.getWife().getSocialClass().ordinal()
-                <= SocialClass.LANDOWNER_OR_CRAFTSMAN.ordinal());
+        ((Maternity) family.getWife().getFertility()).cycleToDate(family.getWeddingDate(), true);
+
+        boolean allowPremarital = (family.getWife().getSocialClass().getRank()
+                <= SocialClass.LANDOWNER_OR_CRAFTSMAN.getRank());
         LocalDate fromDate = family.getWeddingDate();
 
         List<LocalDate> dates = Arrays.asList(familyParameters.getReferenceDate(), family.getHusband().getDeathDate(),

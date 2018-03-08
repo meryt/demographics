@@ -80,10 +80,25 @@ public class FamilyService {
             Person grandfather = fathersFamily == null ? null : fathersFamily.getHusband();
             if (grandfather == null) {
                 return getChildSocialClassFromFather(father, fathers, child, onDate);
+            } else {
+                SocialClass grandfathers = getCalculatedSocialClass(grandfather, forceCalculation, onDate);
+                if (grandfathers.getRank() >= SocialClass.GENTLEMAN.getRank()) {
+                    return SocialClass.GENTLEMAN;
+                } else {
+                    return getChildSocialClassFromFather(father, fathers, child, onDate);
+                }
             }
         }
 
-        return null;
+        // If the father has a high nobility, the child loses 1 point unless firstborn
+        else if (fathers.getRank() > SocialClass.GENTLEMAN.getRank()) {
+            return getChildSocialClassFromFather(father, fathers, child, onDate);
+        }
+
+        // Otherwise if father is lowborn, child is at same rank
+        else {
+            return fathers;
+        }
     }
 
     /**

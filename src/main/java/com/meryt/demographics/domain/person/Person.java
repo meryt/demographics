@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.fertility.Fertility;
+import com.meryt.demographics.time.FormatPeriod;
 import com.meryt.demographics.time.LocalDateComparator;
 import lombok.Getter;
 import lombok.NonNull;
@@ -65,6 +66,14 @@ public class Person {
         return LocalDateComparator.daysBetween(birthDate, onDate);
     }
 
+    public String getAgeAtDeath() {
+        if (getBirthDate() == null || getDeathDate() == null) {
+            return null;
+        } else {
+            return FormatPeriod.asYearsMonthsDays(getBirthDate().until(deathDate));
+        }
+    }
+
     /**
      * Determines whether this person is male. If gender is null, defaults to true.
      */
@@ -86,6 +95,7 @@ public class Person {
         return birthDate != null && !onDate.isBefore(birthDate) && (deathDate == null || !onDate.isAfter(deathDate));
     }
 
+    @JsonIgnore
     public String getName() {
         return (firstName + " " + lastName).trim();
     }
