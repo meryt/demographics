@@ -19,7 +19,13 @@ public class Maternity extends Fertility {
     // Chance of identical twins is same for all women
 	public static final double IDENTICAL_TWIN_PROBABILITY = 0.004;
     private static final double FRATERNAL_TWIN_BASE_PROBABILITY = 0.01;
+    // Should equal MONTHLY_CONCEPTION_PROBABILITY_WITH_WITHDRAWAL
+    // divided by MONTHLY_CONCEPTION_PROBABILITY.
+    // This is the "multiplier" factor used against base fertility chance when
+    // using perfect withdrawal
+	private static final double WITHDRAWAL_FACTOR = 0.0863;
 
+    @JsonIgnore
     private Person father;
     private LocalDate conceptionDate;
     private LocalDate miscarriageDate;
@@ -34,7 +40,9 @@ public class Maternity extends Fertility {
     private int numMiscarriages;
     private LocalDate lastBirthDate;
     private double frequencyFactor;
+    private double withdrawalFactor;
     private boolean havingRelations;
+    private int cycleLength = 28;
 
     public boolean isPregnant(@NonNull LocalDate onDate) {
         return null != conceptionDate && conceptionDate.isBefore(onDate) && null != dueDate
@@ -72,17 +80,39 @@ public class Maternity extends Fertility {
     }
 
     @JsonIgnore
-    public double getConceptionProbability(@NonNull LocalDate day) {
+    public double getConceptionProbability(@NonNull LocalDate mothersBirthDate, @NonNull LocalDate day) {
         if (isPregnant(day) || isLastCycleDateNullOrInFuture(day)) {
             return 0;
         }
 
+        double percentChance;
         if (lastBirthDate != null && day.isAfter(lastBirthDate)
                 && LocalDateComparator.daysBetween(lastBirthDate, day) < 30) {
-            return 0.00045;
+            percentChance = 0.00045;
         } else {
-            return getDailyConceptionProbability(day);
+            percentChance = getDailyConceptionProbability(day);
         }
+
+        if (0 < getWithdrawalFactor()) {
+            double wdFactor = 1 - getWithdrawalFactor() * (1 - WITHDRAWAL_FACTOR);
+            percentChance *= wdFactor;
+        }
+
+        // If she is breastfeeding there may be a multiplying factor that will
+        // reduce percent chance
+        percentChance *= getBreastfeedingFertilityFactor(day);
+        // Age may affect fertility
+        percentChance *= getAgeFertilityFactor(mothersBirthDate, day);
+
+        // Apply the woman's base fertility factor. This is 1 for a perfectly
+        // fertile woman, else a multiplier less than 1 to reduce percent chance
+        percentChance *= getFertilityFactor();
+
+        // Apply frequency factor
+        percentChance *= getFrequencyFactor();
+
+        // This is her chance with a perfectly fertile man
+        return percentChance;
     }
 
     private double getDailyConceptionProbability(@NonNull LocalDate day) {
@@ -156,6 +186,54 @@ public class Maternity extends Fertility {
         }
 
         return lastCycleDate.plusDays(28);
+    }
+
+    private double getBreastfeedingFertilityFactor(@NonNull LocalDate day) {
+        if (getLastBirthDate() == null || getBreastfeedingTill() == null
+                || day.isBefore(getLastBirthDate())) {
+            return 1;
+        }
+
+        // Get the number of days she has been breast-feeding
+        int bfSince = (int) LocalDateComparator.daysBetween(getLastBirthDate(), day);
+        if (bfSince < 6 * 30)       { return 0.0112; }
+        else if (bfSince < 7 * 30)  { return 0.05; }
+        else if (bfSince < 8 * 30)  { return 0.15; }
+        else if (bfSince < 9 * 30)  { return 0.25; }
+        else if (bfSince < 10 * 30) { return 0.30; }
+        else if (bfSince < 11 * 30) { return 0.35; }
+        else if (bfSince < 12 * 30) { return 0.40; }
+        else if (bfSince < 13 * 30) { return 0.45; }
+        else if (bfSince < 15 * 30) { return 0.55; }
+        else if (bfSince < 17 * 30) { return 0.65; }
+        else if (bfSince < 19 * 30) { return 0.75; }
+        else if (bfSince < 21 * 30) { return 0.85; }
+        else if (bfSince < 23 * 30) { return 0.95; }
+		else {
+            return 1;
+        }
+    }
+
+    private double getAgeFertilityFactor(@NonNull LocalDate mothersBirthDate, @NonNull LocalDate day) {
+        int ageInYears = mothersBirthDate.until(day).getYears();
+
+        if      (25 > ageInYears) { return 1; }
+        else if (30 > ageInYears) { return 0.95; }
+        else if (35 > ageInYears) { return 0.83; }
+        else if (36 > ageInYears) { return 0.75; }
+        else if (37 > ageInYears) { return 0.70; }
+        else if (38 > ageInYears) { return 0.65; }
+        else if (39 > ageInYears) { return 0.60; }
+        else if (40 > ageInYears) { return 0.55; }
+        else if (41 > ageInYears) { return 0.50; }
+        else if (42 > ageInYears) { return 0.45; }
+        else if (43 > ageInYears) { return 0.40; }
+        else if (44 > ageInYears) { return 0.30; }
+        else if (45 > ageInYears) { return 0.25; }
+        else if (46 > ageInYears) { return 0.15; }
+        else if (47 > ageInYears) { return 0.10; }
+        else if (48 > ageInYears) { return 0.05; }
+		else { return 0; }
     }
 
 }

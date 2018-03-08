@@ -1,4 +1,4 @@
-package com.meryt.demographics.generator;
+package com.meryt.demographics.generator.family;
 
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.generator.family.MatchMaker;

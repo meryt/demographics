@@ -194,8 +194,8 @@ public class FamilyGenerator {
             return;
         }
 
-        PregnancyChecker checker = new PregnancyChecker(personGenerator, family.getWife(), false);
-        checker.checkDateRange(family.getHusband(), fromDate, toDate, false);
+        PregnancyChecker checker = new PregnancyChecker(personGenerator, family, false);
+        checker.checkDateRange(fromDate, toDate);
 
     }
 

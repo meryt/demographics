@@ -4,24 +4,11 @@ import java.time.LocalDate;
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.SocialClass;
-import com.meryt.demographics.generator.family.FamilyGenerator;
-import com.meryt.demographics.request.FamilyParameters;
 import lombok.NonNull;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
 public class FamilyService {
-
-    private final FamilyGenerator familyGenerator;
-
-    public FamilyService(@Autowired FamilyGenerator familyGenerator) {
-        this.familyGenerator = familyGenerator;
-    }
-
-    public Family generateFamily(@NonNull FamilyParameters familyParameters) {
-        return familyGenerator.generate(familyParameters);
-    }
 
     /**
      * Get the calculated social class for a child of this relationship.
@@ -117,7 +104,7 @@ public class FamilyService {
             return fathersCalculatedClass.minusOne();
         } else if (onDate != null && father.isLiving(onDate)) {
             return fathersCalculatedClass.minusOne();
-        } else if (child != null && child.isFirstbornSurvivingSonOfFather(onDate)) {
+        } else if (child.isFirstbornSurvivingSonOfFather(onDate)) {
             return fathersCalculatedClass;
         } else {
             return fathersCalculatedClass.minusOne();

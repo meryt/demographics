@@ -37,8 +37,17 @@ public class PregnancyChecker {
         this.family = family;
         this.father = family.getHusband();
         this.mother = family.getWife();
+        if (this.father == null) {
+            throw new NullPointerException("The husband in the family record cannot be null");
+        }
+        if (this.mother == null) {
+            throw new NullPointerException("The wife in the family record cannot be null");
+        }
         this.allowMaternalDeath = allowMaternalDeath;
         this.maternity = (Maternity) mother.getFertility();
+        if (this.maternity == null) {
+            throw new IllegalArgumentException("The mother has no maternity record");
+        }
         this.personGenerator = personGenerator;
     }
 
@@ -58,7 +67,7 @@ public class PregnancyChecker {
         if (maternity.isPregnant(day)) {
             if (day.isEqual(maternity.getDueDate())) {
                 giveBirth(day);
-            } else if (day.isEqual(maternity.getMiscarriageDate())) {
+            } else if (maternity.getMiscarriageDate() != null && day.isEqual(maternity.getMiscarriageDate())) {
                 miscarry(day);
             }
         } else {
@@ -136,7 +145,7 @@ public class PregnancyChecker {
             return;
         }
 
-        double percentChance = maternity.getConceptionProbability(day);
+        double percentChance = maternity.getConceptionProbability(mother.getBirthDate(), day);
         percentChance *= ((Paternity) father.getFertility()).getAdjustedFertilityFactor(father.getAgeInDays(day));
 
         if (new PercentDie().roll() < percentChance) {

@@ -1,6 +1,7 @@
 package com.meryt.demographics.domain.family;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.meryt.demographics.domain.person.Person;
@@ -19,7 +20,7 @@ public class Family {
 
     private Person husband;
     private Person wife;
-    private List<Person> children;
+    private List<Person> children = new ArrayList<>();
     private LocalDate weddingDate;
 
     public String getHusbandAgeAtMarriage() {
