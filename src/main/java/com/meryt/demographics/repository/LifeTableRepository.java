@@ -1,9 +1,13 @@
 package com.meryt.demographics.repository;
 
+import javax.annotation.Nullable;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import com.meryt.demographics.database.QueryStore;
+import com.meryt.demographics.domain.person.Gender;
+
+import lombok.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -23,18 +27,23 @@ public class LifeTableRepository {
      * Get the lx values for the given time period (e.g. "victorian" era).
      *
      * The lx values are an array of doubles such that the index is the age and the value is the percent likelihood
-     * that a person will live to at least that age. The value of getLxvalues()[0] is 1.0 and decreases from there.
+     * that a person will live to at least that age. The value of getLxValues()[0] is 1.0 and decreases from there.
      *
      * @param period the period from the life table (e.g. "victorian" or "medieval"
      * @return an array of 0-indexed lx values such that the index 0 is age 0 and so forth.
      */
-    public double[] getLxValues(String period) {
+    public double[] getLxValues(@NonNull String period, @Nullable Gender gender) {
+        String column = "total_living";
+        if (gender != null) {
+            column = gender == Gender.MALE ? "male_living" : "female_living";
+        }
+
         String query =
-                "SELECT "
-                + "total_living::numeric / (SELECT total_living FROM life_table WHERE age = 0 AND period = :period) AS lx "
+                String.format("SELECT "
+                + "%s::numeric / (SELECT %s FROM life_table WHERE age = 0 AND period = :period) AS lx "
                 + "FROM life_table "
                 + "WHERE period = :period "
-                + "ORDER BY age";
+                + "ORDER BY age", column, column);
 
         MapSqlParameterSource params = new MapSqlParameterSource();
         params.addValue("period", period);
@@ -46,5 +55,7 @@ public class LifeTableRepository {
         }
         return lxValues;
     }
+
+
 
 }

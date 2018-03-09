@@ -63,6 +63,8 @@ public class PersonGenerator {
     }
 
     public Person generate(PersonParameters personParameters) {
+        verifyPersonParameters(personParameters);
+
         Person person = new Person();
         person.setGender(personParameters.getGender() == null ? Gender.random() : personParameters.getGender());
         person.setFirstName(nameService.randomFirstName(person.getGender(), personParameters.getExcludeNames()));
@@ -71,28 +73,29 @@ public class PersonGenerator {
                 : nameService.randomLastName());
         person.setSocialClass(SocialClass.random());
 
-        LocalDate aliveOnDate = personParameters.getAliveOnDateOrDefault();
+        LocalDate aliveOnDate = personParameters.getAliveOnDate();
         Integer minAge = personParameters.getMinAge() == null ? 0 : personParameters.getMinAge();
         if (personParameters.getBirthDate() != null) {
             person.setBirthDate(personParameters.getBirthDate());
             // Get a random death date such that the person is alive on the reference date if born on this
             // date
             long lifespan;
+            Integer minAgeYears = aliveOnDate != null ? person.getBirthDate().until(aliveOnDate).getYears() : null;
             do {
                 lifespan = lifeTableService.randomLifeExpectancy(LifeTableService.LifeTablePeriod.VICTORIAN,
-                        person.getBirthDate().until(aliveOnDate).getYears(), null);
-            } while (person.getBirthDate().plusDays(lifespan).isBefore(aliveOnDate));
+                        minAgeYears, null, person.getGender());
+            } while (aliveOnDate != null && person.getBirthDate().plusDays(lifespan).isBefore(aliveOnDate));
             person.setDeathDate(person.getBirthDate().plusDays(lifespan));
-        } else {
+        } else if (aliveOnDate != null) {
             // Get a random age such that the person is at least minAge / at most maxAge on this reference date.
             // From this we get a birth date (not the actual lifespan).
             long ageAtReference = lifeTableService.randomLifeExpectancy(LifeTableService.LifeTablePeriod.VICTORIAN,
-                    minAge, personParameters.getMaxAge());
+                    minAge, personParameters.getMaxAge(), person.getGender());
             person.setBirthDate(aliveOnDate.minusDays(ageAtReference));
 
             // Now get a lifespan at least as old as he was determined to be at the reference date
             long lifespan = lifeTableService.randomLifeExpectancy(LifeTableService.LifeTablePeriod.VICTORIAN,
-                    (int) Math.ceil(ageAtReference / 365.0), null);
+                    (int) Math.ceil(ageAtReference / 365.0), null, person.getGender());
             LocalDate deathDate = person.getBirthDate().plusDays(lifespan);
             // From this we can set a death date and the actual lifespan.
             person.setDeathDate(deathDate);
@@ -218,6 +221,7 @@ public class PersonGenerator {
      */
     private void matchIdenticalTwinParameters(@NonNull Person twin1, @NonNull Person twin2) {
         twin2.setComeliness(twin1.getComeliness());
+        twin2.setStrength(twin1.getStrength());
     }
 
     double randomDomesticity() {
@@ -286,5 +290,12 @@ public class PersonGenerator {
         int minAge = FIRST_PERIOD_BASE_MIN_AGE_YEARS * 365;
         int maxAge = FIRST_PERIOD_BASE_MAX_AGE_YEARS * 365;
         return birthDate.plusDays((long) Math.floor((betaVal * (maxAge - minAge)) + minAge));
+    }
+
+    private void verifyPersonParameters(@NonNull PersonParameters personParameters) {
+        if (personParameters.getBirthDate() == null && personParameters.getAliveOnDate() == null) {
+            throw new IllegalArgumentException(
+                    "Cannot generate a person without at least one of birthDate or aliveOnDate");
+        }
     }
 }

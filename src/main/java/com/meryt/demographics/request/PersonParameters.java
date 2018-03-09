@@ -3,18 +3,14 @@ package com.meryt.demographics.request;
 import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
 import lombok.Getter;
-import lombok.NonNull;
 import lombok.Setter;
 
 @Getter
 @Setter
 public class PersonParameters {
-
-    private static final LocalDate DEFAULT_ALIVE_ON = LocalDate.of(1700, 1, 1);
 
     private Gender gender;
     /**
@@ -50,11 +46,5 @@ public class PersonParameters {
     private Person father;
 
     private Person mother;
-
-    @JsonIgnore
-    @NonNull
-    public LocalDate getAliveOnDateOrDefault() {
-        return aliveOnDate == null ? DEFAULT_ALIVE_ON : aliveOnDate;
-    }
 
 }

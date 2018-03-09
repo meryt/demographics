@@ -1,5 +1,8 @@
 package com.meryt.demographics.service;
 
+import javax.annotation.Nullable;
+
+import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.generator.random.Die;
 import com.meryt.demographics.repository.LifeTableRepository;
 import lombok.NonNull;
@@ -20,27 +23,18 @@ public class LifeTableService {
     }
 
     /**
-     * Get a random life expectancy in days
-     * @return life expectancy in days
-     */
-    public long randomLifeExpectancy(@NonNull LifeTablePeriod period) {
-        return randomLifeExpectancy(period, 0, null);
-    }
-
-    /**
-     * Get a random life expectancy in days such that the age in years is less than or equal to the specified age
-     * @return life expectancy in days
-     */
-    public long randomLifeExpectancy(@NonNull LifeTablePeriod period, @NonNull Integer maxAgeYears) {
-        return randomLifeExpectancy(period, 0, maxAgeYears);
-    }
-
-    /**
      * Get a random life expectancy such that the age in years is greater than or equal to the min and less than or
      * equal to the max.
      * @return life expectancy in days
      */
-    public long randomLifeExpectancy(@NonNull LifeTablePeriod period, @NonNull Integer minAgeYears, Integer maxAgeYears) {
+    public long randomLifeExpectancy(@NonNull LifeTablePeriod period,
+                                     @Nullable Integer minAgeYears,
+                                     @Nullable Integer maxAgeYears,
+                                     @Nullable Gender gender) {
+
+        if (minAgeYears == null) {
+            minAgeYears = 0;
+        }
 
         if (maxAgeYears != null && minAgeYears > maxAgeYears) {
             throw new IllegalArgumentException(String.format("minAgeYears (%d) cannot be less than maxAgeYears (%d)",
@@ -52,7 +46,7 @@ public class LifeTableService {
             return (minAgeYears * 365) + new Die(365).roll() - 1;
         }
 
-        double[] lx = lifeTableRepository.getLxValues(period.name().toLowerCase());
+        double[] lx = lifeTableRepository.getLxValues(period.name().toLowerCase(), gender);
 
         double maxLx = 0.0;
         if (maxAgeYears != null && maxAgeYears < lx.length) {
