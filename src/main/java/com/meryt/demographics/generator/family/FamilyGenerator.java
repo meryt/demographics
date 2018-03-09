@@ -10,7 +10,7 @@ import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.domain.person.fertility.Maternity;
-import com.meryt.demographics.generator.PersonGenerator;
+import com.meryt.demographics.generator.person.PersonGenerator;
 import com.meryt.demographics.generator.random.BetweenDie;
 import com.meryt.demographics.generator.random.Die;
 import com.meryt.demographics.generator.random.PercentDie;
@@ -133,7 +133,7 @@ public class FamilyGenerator {
                 spouseParameters.setBirthDate(birthDate);
                 spouseParameters.setAliveOnDate(currentDate);
                 Person potentialSpouse = personGenerator.generate(spouseParameters);
-                if (MatchMaker.checkCompatibility(person, potentialSpouse)) {
+                if (MatchMaker.checkCompatibility(person, potentialSpouse, currentDate)) {
                     family.setWeddingDate(currentDate);
                     family.addSpouse(potentialSpouse);
                     break;

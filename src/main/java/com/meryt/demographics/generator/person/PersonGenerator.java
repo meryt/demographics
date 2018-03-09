@@ -1,4 +1,4 @@
-package com.meryt.demographics.generator;
+package com.meryt.demographics.generator.person;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -15,9 +15,6 @@ import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.SocialClass;
-import com.meryt.demographics.domain.person.fertility.Maternity;
-import com.meryt.demographics.domain.person.fertility.Paternity;
-import com.meryt.demographics.generator.random.BetweenDie;
 import com.meryt.demographics.generator.random.Die;
 import com.meryt.demographics.generator.random.PercentDie;
 import com.meryt.demographics.math.FunkyBetaDistribution;
@@ -32,23 +29,12 @@ public class PersonGenerator {
     private static final double CHILDBIRTH_DEATH_PROBABILITY  = 0.02;
     private static final double RAND_DOMESTICITY_ALPHA        = 4;
 	private static final double RAND_DOMESTICITY_BETA         = 5;
-    private static final double RAND_FERTILITY_ALPHA          = 2.5;
-    private static final double RAND_FERTILITY_BETA           = 5;
-    private static final double RAND_FIRST_PERIOD_ALPHA		  = 1.1;
-    private static final double RAND_FIRST_PERIOD_BETA		  = 5;
-    private static final double RAND_FREQUENCY_ALPHA          = 4; // 4:5 makes a sort of bell curve
-    private static final double RAND_FREQUENCY_BETA           = 5;
-    private static final double RAND_WITHDRAWAL_ALPHA         = 1.1;
-    private static final double RAND_WITHDRAWAL_BETA          = 9;
-
-
-    private static final int  FIRST_PERIOD_BASE_MIN_AGE_YEARS = 11;
-    private static final int  FIRST_PERIOD_BASE_MAX_AGE_YEARS = 16;
-
+	private static final double RAND_TRAIT_ALPHA              = 2;
+    private static final double RAND_TRAIT_BETA               = 1.8;
 
     private static final BetaDistribution DOMESTICITY_BETA = new FunkyBetaDistribution(RAND_DOMESTICITY_ALPHA,
             RAND_DOMESTICITY_BETA);
-	private static final BetaDistribution TRAIT_BETA = new BetaDistribution(2, 1.8);
+	private static final BetaDistribution TRAIT_BETA = new BetaDistribution(RAND_TRAIT_ALPHA, RAND_TRAIT_BETA);
 
     private final NameService nameService;
     private final LifeTableService lifeTableService;
@@ -62,8 +48,11 @@ public class PersonGenerator {
         this.familyService = familyService;
     }
 
+    /**
+     * Generates a random person according to some parameters. The person is not saved.
+     */
     public Person generate(PersonParameters personParameters) {
-        verifyPersonParameters(personParameters);
+        validatePersonParameters(personParameters);
 
         Person person = new Person();
         person.setGender(personParameters.getGender() == null ? Gender.random() : personParameters.getGender());
@@ -71,49 +60,28 @@ public class PersonGenerator {
         person.setLastName(personParameters.getLastName() != null
                 ? personParameters.getLastName()
                 : nameService.randomLastName());
-        person.setSocialClass(SocialClass.random());
 
-        LocalDate aliveOnDate = personParameters.getAliveOnDate();
-        Integer minAge = personParameters.getMinAge() == null ? 0 : personParameters.getMinAge();
-        if (personParameters.getBirthDate() != null) {
-            person.setBirthDate(personParameters.getBirthDate());
-            // Get a random death date such that the person is alive on the reference date if born on this
-            // date
-            long lifespan;
-            Integer minAgeYears = aliveOnDate != null ? person.getBirthDate().until(aliveOnDate).getYears() : null;
-            do {
-                lifespan = lifeTableService.randomLifeExpectancy(LifeTableService.LifeTablePeriod.VICTORIAN,
-                        minAgeYears, null, person.getGender());
-            } while (aliveOnDate != null && person.getBirthDate().plusDays(lifespan).isBefore(aliveOnDate));
-            person.setDeathDate(person.getBirthDate().plusDays(lifespan));
-        } else if (aliveOnDate != null) {
-            // Get a random age such that the person is at least minAge / at most maxAge on this reference date.
-            // From this we get a birth date (not the actual lifespan).
-            long ageAtReference = lifeTableService.randomLifeExpectancy(LifeTableService.LifeTablePeriod.VICTORIAN,
-                    minAge, personParameters.getMaxAge(), person.getGender());
-            person.setBirthDate(aliveOnDate.minusDays(ageAtReference));
+        generatePersonLifespan(personParameters, person);
 
-            // Now get a lifespan at least as old as he was determined to be at the reference date
-            long lifespan = lifeTableService.randomLifeExpectancy(LifeTableService.LifeTablePeriod.VICTORIAN,
-                    (int) Math.ceil(ageAtReference / 365.0), null, person.getGender());
-            LocalDate deathDate = person.getBirthDate().plusDays(lifespan);
-            // From this we can set a death date and the actual lifespan.
-            person.setDeathDate(deathDate);
-        }
+        // Set the social class from the parents if they are present.
+        SocialClass socialClass = familyService.getCalculatedChildSocialClass(personParameters.getFather(),
+                personParameters.getMother(), person, false, person.getBirthDate());
+        person.setSocialClass(socialClass != null ? socialClass : SocialClass.random());
 
         generateAndSetTraits(personParameters, person);
 
+        FertilityGenerator fertilityGenerator = new FertilityGenerator();
         if (person.isMale()) {
-            person.setFertility(randomPaternity());
+            person.setFertility(fertilityGenerator.randomPaternity());
         } else {
-            person.setFertility(randomMaternity(person));
+            person.setFertility(fertilityGenerator.randomMaternity(person));
         }
 
         return person;
     }
 
     /**
-     * Generates a child or children (if twins are requested) for this family, given a birthdate. The new children will
+     * Generates a child or children (if twins are requested) for this family, given a birth date. The new children will
      * be added to the existing list of children in the family object, and will also be returned from this method.
      *
      * @param family a family that must include a husband and wife
@@ -149,12 +117,15 @@ public class PersonGenerator {
 
         List<Person> children = new ArrayList<>();
         children.add(generate(personParameters));
+        // Add the child's own name to the excluded names in case we generate twins
         personParameters.getExcludeNames().add(children.get(0).getFirstName());
 
         if (includeIdenticalTwin) {
             personParameters.setGender(children.get(0).getGender());
             children.add(generate(personParameters));
+            // Some traits such as physical appearance must match
             matchIdenticalTwinParameters(children.get(0), children.get(1));
+            // Add the child's own name to the excluded names in case we generate fraternal twin too
             personParameters.getExcludeNames().add(children.get(1).getFirstName());
         }
         if (includeFraternalTwin) {
@@ -170,12 +141,51 @@ public class PersonGenerator {
             if (die.roll() <= chanceDeath) {
                 child.setDeathDate(birthDate);
             }
-            child.setSocialClass(familyService.getCalculatedChildSocialClass(family, child, false, birthDate));
+            // Set social class in the same loop because a firstborn son may have higher class than the others
+            child.setSocialClass(familyService.getCalculatedChildSocialClass(family.getHusband(), family.getWife(),
+                    child, false, birthDate));
         }
 
         return children;
     }
 
+    private void generatePersonLifespan(@NonNull PersonParameters personParameters, @NonNull Person person) {
+        LocalDate aliveOnDate = personParameters.getAliveOnDate();
+        Integer minAge = personParameters.getMinAge() == null ? 0 : personParameters.getMinAge();
+        if (personParameters.getBirthDate() != null) {
+            person.setBirthDate(personParameters.getBirthDate());
+            // Get a random death date such that the person is alive on the reference date if born on this
+            // date
+            long lifespan;
+            Integer minAgeYears = aliveOnDate != null ? person.getBirthDate().until(aliveOnDate).getYears() : null;
+            do {
+                lifespan = lifeTableService.randomLifeExpectancy(LifeTableService.LifeTablePeriod.VICTORIAN,
+                        minAgeYears, null, person.getGender());
+            } while (aliveOnDate != null && person.getBirthDate().plusDays(lifespan).isBefore(aliveOnDate));
+            person.setDeathDate(person.getBirthDate().plusDays(lifespan));
+        } else if (aliveOnDate != null) {
+            // Get a random age such that the person is at least minAge / at most maxAge on this reference date.
+            // From this we get a birth date (not the actual lifespan).
+            long ageAtReference = lifeTableService.randomLifeExpectancy(LifeTableService.LifeTablePeriod.VICTORIAN,
+                    minAge, personParameters.getMaxAge(), person.getGender());
+            person.setBirthDate(aliveOnDate.minusDays(ageAtReference));
+
+            // Now get a lifespan at least as old as he was determined to be at the reference date
+            long lifespan = lifeTableService.randomLifeExpectancy(LifeTableService.LifeTablePeriod.VICTORIAN,
+                    (int) Math.ceil(ageAtReference / 365.0), null, person.getGender());
+            LocalDate deathDate = person.getBirthDate().plusDays(lifespan);
+            // From this we can set a death date and the actual lifespan.
+            person.setDeathDate(deathDate);
+        }
+    }
+
+    /**
+     * Generate some person traits for the person. If father and/or mother are set on the PersonParameters, they will
+     * be used for some traits so that children resemble their parents
+     *
+     * @param personParameters person parameters (only father & mother are used, if present)
+     * @param person the person whose traits will be set
+     */
     private void generateAndSetTraits(@NonNull PersonParameters personParameters, @NonNull Person person) {
         Person favoredParent = null;
         Person otherParent = null;
@@ -195,6 +205,20 @@ public class PersonGenerator {
             favoredParent = mother;
         }
 
+        generateAndSetTraitsFromParents(person, father, mother, favoredParent, otherParent);
+    }
+
+    /**
+     * Generate and set traits for a person given their parents (if available)
+
+     * @param person the person whose traits till be set
+     * @param father the person's father, if available
+     * @param mother the person's mother, as intelligence is based on the mother
+     * @param favoredParent if non-null, be one of the father or mother
+     * @param otherParent if non-null, must be the other one of the father or mother
+     */
+    private void generateAndSetTraitsFromParents(@NonNull Person person, Person father, Person mother,
+                                                 Person favoredParent, Person otherParent) {
         person.setDomesticity(randomDomesticity());
         person.setCharisma(randomTrait());
         if (favoredParent != null) {
@@ -224,16 +248,25 @@ public class PersonGenerator {
         twin2.setStrength(twin1.getStrength());
     }
 
+    /**
+     * Get a random value for domesticity using a special beta distribution
+     *
+     * @return a number between 0 and 1
+     */
     double randomDomesticity() {
         return DOMESTICITY_BETA.sample();
     }
 
+    /**
+     * Get a random value for a trait given no information about parents
+     * @return a number between 0 and 1
+     */
     private double randomTrait() {
         return TRAIT_BETA.sample();
     }
 
     /**
-     * Get a random trait based on parents' traits.
+     * Get a random trait based on parents' traits. If the parentTrait is null, just returns a random value.
      *
      * @param parentTrait if non-null, use a normal distribution with this as the mean
      * @param otherParentTrait if also non-null, shift the mean a little towards this parent's value
@@ -251,48 +284,13 @@ public class PersonGenerator {
         return new NormalDistribution(mean, 0.1).sample();
     }
 
-    private Maternity randomMaternity(@NonNull Person woman) {
-        Maternity maternity = new Maternity();
-        maternity.setFertilityFactor(randFertilityFactor());
-        maternity.setLastCycleDate(randFirstCycleDate(woman.getBirthDate()));
-        maternity.setLastCheckDate(maternity.getLastCycleDate());
-        maternity.setFrequencyFactor(randFrequencyFactor());
-        maternity.setWithdrawalFactor(randWithdrawalFactor());
-        maternity.setCycleLength(randCycleLength());
-        maternity.setHavingRelations(true);
-        return maternity;
-    }
-
-    private Paternity randomPaternity() {
-        Paternity paternity = new Paternity();
-        paternity.setFertilityFactor(randFertilityFactor());
-        return paternity;
-    }
-
-    private double randFertilityFactor() {
-        return new FunkyBetaDistribution(RAND_FERTILITY_ALPHA, RAND_FERTILITY_BETA).sample();
-    }
-
-    private double randFrequencyFactor() {
-        return new FunkyBetaDistribution(RAND_FREQUENCY_ALPHA, RAND_FREQUENCY_BETA).sample();
-    }
-
-    private double randWithdrawalFactor() {
-        return new FunkyBetaDistribution(RAND_WITHDRAWAL_ALPHA, RAND_WITHDRAWAL_BETA).sample();
-    }
-
-    private int randCycleLength() {
-        return new BetweenDie().roll(26,32);
-    }
-
-    private LocalDate randFirstCycleDate(@NonNull LocalDate birthDate) {
-        double betaVal = new BetaDistribution(RAND_FIRST_PERIOD_ALPHA, RAND_FIRST_PERIOD_BETA).sample();
-        int minAge = FIRST_PERIOD_BASE_MIN_AGE_YEARS * 365;
-        int maxAge = FIRST_PERIOD_BASE_MAX_AGE_YEARS * 365;
-        return birthDate.plusDays((long) Math.floor((betaVal * (maxAge - minAge)) + minAge));
-    }
-
-    private void verifyPersonParameters(@NonNull PersonParameters personParameters) {
+    /**
+     * Validate the person parameters used to generate a new person.
+     *
+     * @throws IllegalArgumentException if the parameters are missing required values or have invalid combinations of
+     * values
+     */
+    private void validatePersonParameters(@NonNull PersonParameters personParameters) {
         if (personParameters.getBirthDate() == null && personParameters.getAliveOnDate() == null) {
             throw new IllegalArgumentException(
                     "Cannot generate a person without at least one of birthDate or aliveOnDate");

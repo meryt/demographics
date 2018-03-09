@@ -4,20 +4,26 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.meryt.demographics.domain.person.Person;
-import com.meryt.demographics.time.FormatPeriod;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
+
+import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.time.FormatPeriod;
 
 /**
  * A Family consists of a male and female and optionally any biological children. The two people may or may not be
  * married.
  */
+//@Entity
+//@Table(name = "families")
 @Getter
 @Setter
 public class Family {
 
+    //@Id
+    //@GeneratedValue(strategy = GenerationType.AUTO)
+    private long id;
     private Person husband;
     private Person wife;
     private List<Person> children = new ArrayList<>();

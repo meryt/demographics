@@ -1,6 +1,8 @@
-package com.meryt.demographics.generator;
+package com.meryt.demographics.generator.person;
 
 import org.junit.Test;
+
+import com.meryt.demographics.generator.person.PersonGenerator;
 
 import static org.junit.Assert.assertTrue;
 

@@ -6,7 +6,7 @@ import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.fertility.Maternity;
 import com.meryt.demographics.domain.person.fertility.Paternity;
-import com.meryt.demographics.generator.PersonGenerator;
+import com.meryt.demographics.generator.person.PersonGenerator;
 import com.meryt.demographics.generator.random.Die;
 import com.meryt.demographics.generator.random.PercentDie;
 import lombok.NonNull;

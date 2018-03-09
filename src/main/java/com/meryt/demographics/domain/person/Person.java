@@ -8,20 +8,25 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.meryt.demographics.domain.family.Family;
-import com.meryt.demographics.domain.person.fertility.Fertility;
-import com.meryt.demographics.time.FormatPeriod;
-import com.meryt.demographics.time.LocalDateComparator;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
 
+import com.meryt.demographics.domain.family.Family;
+import com.meryt.demographics.domain.person.fertility.Fertility;
+import com.meryt.demographics.time.FormatPeriod;
+import com.meryt.demographics.time.LocalDateComparator;
+
+//@Entity
+//@Table(name = "persons")
 @Getter
 @Setter
 public class Person {
 
     private static final double BASE_PER_DAY_MARRY_DESIRE_FACTOR = 0.0019;
 
+    //@Id
+    //@GeneratedValue(strategy = GenerationType.AUTO)
     private long id;
     private Gender gender;
     private String firstName;
@@ -29,7 +34,6 @@ public class Person {
     private String lastName;
     private LocalDate birthDate;
     private LocalDate deathDate;
-    private Long familyId;
     private SocialClass socialClass;
     private double domesticity;
     private double charisma;
@@ -37,7 +41,9 @@ public class Person {
     private double intelligence;
     private double morality;
     private double strength;
+    //@OneToOne
     private Fertility fertility;
+    //@ManyToOne
     private Family family;
 
     /**

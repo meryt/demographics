@@ -5,13 +5,16 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.meryt.demographics.domain.person.Person;
-import com.meryt.demographics.generator.random.Die;
-import com.meryt.demographics.time.LocalDateComparator;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
 
+import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.generator.random.Die;
+import com.meryt.demographics.time.LocalDateComparator;
+
+//@Entity
+//@Table(name = "maternities")
 @Getter
 @Setter
 public class Maternity extends Fertility {
@@ -26,6 +29,8 @@ public class Maternity extends Fertility {
 	private static final double WITHDRAWAL_FACTOR = 0.0863;
 
     @JsonIgnore
+    //@ManyToOne
+    //@JoinTable(name = "persons", joinColumns = { @JoinColumn(name = "fatherId", referencedColumnName = "id")})
     private Person father;
     private LocalDate conceptionDate;
     private LocalDate miscarriageDate;

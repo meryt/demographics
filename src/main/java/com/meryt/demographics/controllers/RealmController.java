@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class RealmController {
 
-    @RequestMapping("/realm/random")
+    @RequestMapping("/realms/random")
     public Realm randomRealm(@RequestBody RealmParameters realmParameters) {
         RealmGenerator generator = new RealmGenerator();
         return generator.generate(realmParameters);

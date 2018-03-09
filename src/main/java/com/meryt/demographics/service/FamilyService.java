@@ -16,12 +16,11 @@ public class FamilyService {
      * @param forceCalculation if false, an existing value will not be replaced
      * @return the calculated class
      */
-    public SocialClass getCalculatedChildSocialClass(@NonNull Family family,
+    public SocialClass getCalculatedChildSocialClass(Person father,
+                                                     Person mother,
                                                      Person child,
                                                      boolean forceCalculation,
                                                      LocalDate onDate) {
-        Person father = family.getHusband();
-        Person mother = family.getWife();
         if (father == null) {
             if (mother == null) {
                 return null;
@@ -76,7 +75,7 @@ public class FamilyService {
         }
         // If father and grandfather are both gentlemen, child remains a gentleman.
         if (fathers == SocialClass.GENTLEMAN) {
-            Family fathersFamily = loadFamily(father.getFamilyId());
+            Family fathersFamily = father.getFamily();
             Person grandfather = fathersFamily == null ? null : fathersFamily.getHusband();
             if (grandfather == null) {
                 return getChildSocialClassFromFather(father, fathers, child, onDate);
@@ -140,11 +139,12 @@ public class FamilyService {
             return socialClass;
         }
 
-        Family family = loadFamily(person.getFamilyId());
+        Family family = person.getFamily();
         if (family == null) {
             return socialClass;
         }
-        SocialClass calculatedClass = getCalculatedChildSocialClass(family, null, forceCalculation, onDate);
+        SocialClass calculatedClass = getCalculatedChildSocialClass(family.getHusband(), family.getWife(), null,
+                forceCalculation, onDate);
         if (calculatedClass == null) {
             return socialClass;
         } else {

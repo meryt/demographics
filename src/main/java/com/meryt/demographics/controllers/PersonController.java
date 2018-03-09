@@ -1,12 +1,13 @@
 package com.meryt.demographics.controllers;
 
-import com.meryt.demographics.domain.person.Person;
-import com.meryt.demographics.generator.PersonGenerator;
-import com.meryt.demographics.request.PersonParameters;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.generator.person.PersonGenerator;
+import com.meryt.demographics.request.PersonParameters;
 
 @RestController
 public class PersonController {
@@ -21,5 +22,12 @@ public class PersonController {
     public Person randomPerson(@RequestBody PersonParameters personParameters) {
         return personGenerator.generate(personParameters == null ? new PersonParameters() : personParameters);
     }
+
+    /*
+    @RequestMapping(path = "/persons", method = RequestMethod.POST)
+    public Person postPerson(@RequestBody Person person) {
+        return personRepository.save(person);
+    }
+    */
 
 }
