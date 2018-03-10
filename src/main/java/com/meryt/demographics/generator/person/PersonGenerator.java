@@ -72,9 +72,9 @@ public class PersonGenerator {
 
         FertilityGenerator fertilityGenerator = new FertilityGenerator();
         if (person.isMale()) {
-            person.setFertility(fertilityGenerator.randomPaternity());
+            person.setPaternity(fertilityGenerator.randomPaternity());
         } else {
-            person.setFertility(fertilityGenerator.randomMaternity(person));
+            person.setMaternity(fertilityGenerator.randomMaternity(person));
         }
 
         return person;

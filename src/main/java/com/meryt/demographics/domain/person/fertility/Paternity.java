@@ -1,7 +1,10 @@
 package com.meryt.demographics.domain.person.fertility;
 
-//@Entity
-//@Table(name = "paternities")
+import javax.persistence.Entity;
+import javax.persistence.Table;
+
+@Entity
+@Table(name = "paternities")
 public class Paternity extends Fertility {
 
     public double getAdjustedFertilityFactor(long ageInDays) {

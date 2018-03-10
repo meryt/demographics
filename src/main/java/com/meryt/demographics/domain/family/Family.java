@@ -1,5 +1,6 @@
 package com.meryt.demographics.domain.family;
 
+import javax.persistence.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,17 +16,21 @@ import com.meryt.demographics.time.FormatPeriod;
  * A Family consists of a male and female and optionally any biological children. The two people may or may not be
  * married.
  */
-//@Entity
-//@Table(name = "families")
+@Entity
+@Table(name = "families")
 @Getter
 @Setter
 public class Family {
 
-    //@Id
-    //@GeneratedValue(strategy = GenerationType.AUTO)
+    @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private long id;
+
+    @ManyToOne
     private Person husband;
+    @ManyToOne
     private Person wife;
+    @OneToMany
     private List<Person> children = new ArrayList<>();
     private LocalDate weddingDate;
 

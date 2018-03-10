@@ -1,5 +1,13 @@
 package com.meryt.demographics.domain.person;
 
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
+import javax.persistence.OneToOne;
+import javax.persistence.Table;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -14,19 +22,21 @@ import lombok.Setter;
 
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.fertility.Fertility;
+import com.meryt.demographics.domain.person.fertility.Maternity;
+import com.meryt.demographics.domain.person.fertility.Paternity;
 import com.meryt.demographics.time.FormatPeriod;
 import com.meryt.demographics.time.LocalDateComparator;
 
-//@Entity
-//@Table(name = "persons")
+@Entity
+@Table(name = "persons")
 @Getter
 @Setter
 public class Person {
 
     private static final double BASE_PER_DAY_MARRY_DESIRE_FACTOR = 0.0019;
 
-    //@Id
-    //@GeneratedValue(strategy = GenerationType.AUTO)
+    @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private long id;
     private Gender gender;
     private String firstName;
@@ -41,10 +51,19 @@ public class Person {
     private double intelligence;
     private double morality;
     private double strength;
-    //@OneToOne
-    private Fertility fertility;
-    //@ManyToOne
+    @OneToOne
+    @JoinColumn(name = "id")
+    private Maternity maternity;
+    @OneToOne
+    @JoinColumn(name = "id")
+    private Paternity paternity;
+    @ManyToOne
     private Family family;
+
+    @JsonIgnore
+    public Fertility getFertility() {
+        return gender == null ? null : (isMale() ? getPaternity() : getMaternity());
+    }
 
     /**
      * Gets the person's age in years on a given date. Does not check death date to ensure person is still alive.
@@ -192,5 +211,19 @@ public class Person {
     public List<Family> getFamilies() {
         // TODO
         return Collections.emptyList();
+    }
+
+    public void setMaternity(Maternity maternity) {
+        if (maternity != null && gender != null && !isFemale()) {
+            throw new IllegalArgumentException("Cannot set Maternity on a male Person");
+        }
+        this.maternity = maternity;
+    }
+
+    public void setPaternity(Paternity paternity) {
+        if (paternity != null && gender != null && !isMale()) {
+            throw new IllegalArgumentException("Cannot set Paternity on a female Person");
+        }
+        this.paternity = paternity;
     }
 }

@@ -1,5 +1,9 @@
 package com.meryt.demographics.domain.person.fertility;
 
+import javax.persistence.Entity;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
+import javax.persistence.Table;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
@@ -13,8 +17,8 @@ import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.generator.random.Die;
 import com.meryt.demographics.time.LocalDateComparator;
 
-//@Entity
-//@Table(name = "maternities")
+@Entity
+@Table(name = "maternities")
 @Getter
 @Setter
 public class Maternity extends Fertility {
@@ -29,9 +33,10 @@ public class Maternity extends Fertility {
 	private static final double WITHDRAWAL_FACTOR = 0.0863;
 
     @JsonIgnore
-    //@ManyToOne
-    //@JoinTable(name = "persons", joinColumns = { @JoinColumn(name = "fatherId", referencedColumnName = "id")})
+    @ManyToOne
+    @JoinColumn(name = "father_id", referencedColumnName = "id")
     private Person father;
+
     private LocalDate conceptionDate;
     private LocalDate miscarriageDate;
     private LocalDate dueDate;

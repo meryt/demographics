@@ -4,8 +4,8 @@ buildscript {
         flywayVersion = '5.0.7'
         guavaVersion = '24.0-jre'
         lombokVersion = '1.16.20'
-        postgresqlVersion = '42.1.4'
-		springBootVersion = '2.0.0.RC2'
+        postgresqlVersion = '42.2.1'
+		springBootVersion = '2.0.0.RELEASE'
 	}
 	repositories {
 		mavenCentral()
@@ -39,7 +39,7 @@ dependencies {
 		exclude module: "spring-boot-starter-tomcat"
 	}
 
-    //compile("org.springframework.boot:spring-boot-starter-data-jpa")
+    compile("org.springframework.boot:spring-boot-starter-data-jpa")
     compile("org.springframework.boot:spring-boot-starter-jetty")
     compile("org.springframework.boot:spring-boot-starter-jdbc")
     compile("org.postgresql:postgresql:${postgresqlVersion}")
