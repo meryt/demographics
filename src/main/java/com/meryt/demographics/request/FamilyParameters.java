@@ -46,6 +46,11 @@ public class FamilyParameters {
      */
     private Double percentMaleFounders;
 
+    /**
+     * If true, will save the family after generating.
+     */
+    private boolean persist;
+
     public int getMinHusbandAgeOrDefault() {
         return minHusbandAge == null ? DEFAULT_MIN_HUSBAND_AGE : minHusbandAge;
     }

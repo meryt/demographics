@@ -132,7 +132,7 @@ public class PersonGenerator {
             children.add(generateChildrenForParents(family, birthDate, false, false).get(0));
         }
 
-        family.getChildren().addAll(children);
+        family.addChildren(children);
 
         // Chance of child death increases with number of children
         PercentDie die = new PercentDie();

@@ -3,6 +3,7 @@ package com.meryt.demographics.domain.family;
 import javax.persistence.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Getter;
@@ -23,14 +24,15 @@ import com.meryt.demographics.time.FormatPeriod;
 public class Family {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @SequenceGenerator(name="families_id_seq", sequenceName="families_id_seq", allocationSize=1)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator="families_id_seq")
     private long id;
 
-    @ManyToOne
+    @ManyToOne(cascade = {CascadeType.ALL})
     private Person husband;
-    @ManyToOne
+    @ManyToOne(cascade = {CascadeType.ALL})
     private Person wife;
-    @OneToMany
+    @OneToMany(mappedBy = "family", cascade = { CascadeType.ALL })
     private List<Person> children = new ArrayList<>();
     private LocalDate weddingDate;
 
@@ -61,6 +63,17 @@ public class Family {
             husband = spouse;
         } else {
             wife = spouse;
+        }
+    }
+
+    public void addChild(@NonNull Person child) {
+        child.setFamily(this);
+        this.children.add(child);
+    }
+
+    public void addChildren(Collection<Person> children) {
+        for (Person child : children) {
+            addChild(child);
         }
     }
 

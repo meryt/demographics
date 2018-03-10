@@ -4,11 +4,24 @@ import java.time.LocalDate;
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.SocialClass;
+import com.meryt.demographics.repository.FamilyRepository;
+
 import lombok.NonNull;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
 public class FamilyService {
+
+    private final FamilyRepository familyRepository;
+
+    public FamilyService(@Autowired FamilyRepository familyRepository) {
+        this.familyRepository = familyRepository;
+    }
+
+    public Family save(@NonNull Family family) {
+        return familyRepository.save(family);
+    }
 
     /**
      * Get the calculated social class for a child of this relationship.

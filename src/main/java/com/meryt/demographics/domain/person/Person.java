@@ -2,6 +2,8 @@ package com.meryt.demographics.domain.person;
 
 import javax.persistence.CascadeType;
 import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
@@ -9,6 +11,7 @@ import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToOne;
 import javax.persistence.PrimaryKeyJoinColumn;
+import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -38,8 +41,10 @@ public class Person {
     private static final double BASE_PER_DAY_MARRY_DESIRE_FACTOR = 0.0019;
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @SequenceGenerator(name="persons_id_seq", sequenceName="persons_id_seq", allocationSize=1)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator="persons_id_seq")
     private long id;
+    @Enumerated(EnumType.STRING)
     private Gender gender;
     private String firstName;
     private String middleNames;
@@ -48,6 +53,7 @@ public class Person {
     private LocalDate deathDate;
     private String birthPlace;
     private String deathPlace;
+    @Enumerated(EnumType.STRING)
     private SocialClass socialClass;
     private double domesticity;
     private double charisma;
@@ -62,6 +68,7 @@ public class Person {
     @PrimaryKeyJoinColumn
     private Paternity paternity;
     @ManyToOne
+    @JsonIgnore
     private Family family;
 
     @JsonIgnore
@@ -222,6 +229,7 @@ public class Person {
             throw new IllegalArgumentException("Cannot set Maternity on a male Person");
         }
         this.maternity = maternity;
+        this.maternity.setPerson(this);
     }
 
     public void setPaternity(Paternity paternity) {
@@ -229,5 +237,6 @@ public class Person {
             throw new IllegalArgumentException("Cannot set Paternity on a female Person");
         }
         this.paternity = paternity;
+        this.paternity.setPerson(this);
     }
 }

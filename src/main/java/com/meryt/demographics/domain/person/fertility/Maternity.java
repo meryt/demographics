@@ -1,5 +1,6 @@
 package com.meryt.demographics.domain.person.fertility;
 
+import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
@@ -42,7 +43,9 @@ public class Maternity extends Fertility {
     private LocalDate dueDate;
     private LocalDate lastCycleDate;
     private LocalDate lastCheckDate;
+    @Column(name = "identical_twins")
     private boolean carryingIdenticalTwins;
+    @Column(name = "fraternal_twins")
     private boolean carryingFraternalTwins;
     private LocalDate breastfeedingTill;
     private boolean hadTwins;
