@@ -1,5 +1,6 @@
 package com.meryt.demographics.domain.person;
 
+import javax.persistence.CascadeType;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
@@ -7,6 +8,7 @@ import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToOne;
+import javax.persistence.PrimaryKeyJoinColumn;
 import javax.persistence.Table;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -44,6 +46,8 @@ public class Person {
     private String lastName;
     private LocalDate birthDate;
     private LocalDate deathDate;
+    private String birthPlace;
+    private String deathPlace;
     private SocialClass socialClass;
     private double domesticity;
     private double charisma;
@@ -51,11 +55,11 @@ public class Person {
     private double intelligence;
     private double morality;
     private double strength;
-    @OneToOne
-    @JoinColumn(name = "id")
+    @OneToOne(cascade = CascadeType.ALL)
+    @PrimaryKeyJoinColumn
     private Maternity maternity;
-    @OneToOne
-    @JoinColumn(name = "id")
+    @OneToOne(cascade = CascadeType.ALL)
+    @PrimaryKeyJoinColumn
     private Paternity paternity;
     @ManyToOne
     private Family family;
