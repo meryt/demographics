@@ -8,7 +8,7 @@ import lombok.Setter;
 /**
  * An administrative unit of some sort
  */
-public class Realm implements DwellingPlace {
+public class Realm {
 
     @Getter
     @Setter
@@ -22,6 +22,6 @@ public class Realm implements DwellingPlace {
     private final List<DwellingPlace> dwellingPlaces = new ArrayList<>();
 
     public long getPopulation() {
-        return dwellingPlaces.stream().mapToLong(DwellingPlace::getPopulation).sum();
+        return 0; // dwellingPlaces.stream().mapToLong(DwellingPlace::getPopulation).sum();
     }
 }

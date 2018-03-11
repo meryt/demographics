@@ -100,11 +100,11 @@ public enum SocialClass {
         if (val > total) {
             return SocialClass.VISCOUNT;
         }
-        total -= 1000;
+        total -= 5000;
         if (val > total) {
             return SocialClass.BARON;
         }
-        total -= 5000;
+        total -= 50_000;
         if (val > total) {
             return SocialClass.BARONET;
         }

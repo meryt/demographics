@@ -5,9 +5,8 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class RuralArea implements DwellingPlace {
+public class RuralArea {
 
     private String name;
     private long population;
-
 }

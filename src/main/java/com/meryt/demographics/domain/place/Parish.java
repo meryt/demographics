@@ -10,15 +10,15 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@DiscriminatorValue(value = "TOWN")
-public class Town extends DwellingPlace {
+@DiscriminatorValue(value = "PARISH")
+public class Parish extends DwellingPlace {
 
+    /**
+     * A Parish can contain any type
+     * @param newMember a DwellingPlace of a type appropriate to belong to this place
+     */
     @Override
     public void addDwellingPlace(@NonNull DwellingPlace newMember) {
-        if (newMember instanceof Parish) {
-            throw new IllegalArgumentException("A Town cannot contain a Parish");
-        }
         this.getDwellingPlaces().add(newMember);
     }
-
 }
