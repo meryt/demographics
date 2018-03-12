@@ -8,6 +8,8 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
+import javax.persistence.JoinTable;
+import javax.persistence.ManyToMany;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToOne;
 import javax.persistence.PrimaryKeyJoinColumn;
@@ -29,6 +31,7 @@ import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.fertility.Fertility;
 import com.meryt.demographics.domain.person.fertility.Maternity;
 import com.meryt.demographics.domain.person.fertility.Paternity;
+import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.time.FormatPeriod;
 import com.meryt.demographics.time.LocalDateComparator;
 
@@ -44,32 +47,61 @@ public class Person {
     @SequenceGenerator(name="persons_id_seq", sequenceName="persons_id_seq", allocationSize=1)
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator="persons_id_seq")
     private long id;
+
     @Enumerated(EnumType.STRING)
     private Gender gender;
+
     private String firstName;
+
     private String middleNames;
+
     private String lastName;
+
     private LocalDate birthDate;
+
     private LocalDate deathDate;
+
     private String birthPlace;
+
     private String deathPlace;
+
     @Enumerated(EnumType.STRING)
     private SocialClass socialClass;
+
     private double domesticity;
+
     private double charisma;
+
     private double comeliness;
+
     private double intelligence;
+
     private double morality;
+
     private double strength;
+
     @OneToOne(cascade = CascadeType.ALL)
     @PrimaryKeyJoinColumn
     private Maternity maternity;
+
     @OneToOne(cascade = CascadeType.ALL)
     @PrimaryKeyJoinColumn
     private Paternity paternity;
+
     @ManyToOne
     @JsonIgnore
     private Family family;
+
+    /**
+     * A list of the households the person has been a part of, over time
+     */
+    @ManyToMany
+    @JoinTable(
+            name = "household_inhabitants",
+            joinColumns = @JoinColumn(name = "person_id", referencedColumnName = "id"),
+            inverseJoinColumns = @JoinColumn(name = "household_id", referencedColumnName = "id")
+    )
+    private List<Household> households;
 
     @JsonIgnore
     public Fertility getFertility() {

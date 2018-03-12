@@ -13,6 +13,7 @@ public class RealmParameters {
     private long populationPerSquareMile = 40;
     private long minTownPopulation = 50;
     private Date referenceDate;
+    private boolean persist;
 
     public long getPopulation() {
         return Math.round(squareMiles * populationPerSquareMile);

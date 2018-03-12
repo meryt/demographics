@@ -30,10 +30,13 @@ public class Family {
 
     @ManyToOne(cascade = {CascadeType.ALL})
     private Person husband;
+
     @ManyToOne(cascade = {CascadeType.ALL})
     private Person wife;
+
     @OneToMany(mappedBy = "family", cascade = { CascadeType.ALL })
     private List<Person> children = new ArrayList<>();
+
     private LocalDate weddingDate;
 
     public String getHusbandAgeAtMarriage() {

@@ -1,5 +1,6 @@
 package com.meryt.demographics.generator;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -7,65 +8,84 @@ import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 
 import com.meryt.demographics.domain.Occupation;
-import com.meryt.demographics.domain.place.Realm;
-import com.meryt.demographics.domain.place.RuralArea;
+import com.meryt.demographics.domain.place.Parish;
 import com.meryt.demographics.domain.place.Town;
 import com.meryt.demographics.generator.random.Die;
 import com.meryt.demographics.request.RealmParameters;
 import com.meryt.demographics.service.OccupationService;
 
 @Slf4j
-public class RealmGenerator {
+public class ParishGenerator {
+
+    private static final double ACRES_PER_SQUARE_MILE = 640;
 
     private final Die d4 = new Die(4);
 
     private final OccupationService occupationService;
 
-    public RealmGenerator(@NonNull OccupationService occupationService) {
+    public ParishGenerator(@NonNull OccupationService occupationService) {
         this.occupationService = occupationService;
     }
 
     /**
-     * Generates a random realm given the parameters. Includes the towns, their populations, and any occupations that
-     * are expected to be found in those towns, and one RuralArea with the remaining.
-     *
-     * @return a realm containing zero or more towns and a RuralArea
+     * Generates a parish with its towns, households, and inhabitants. Does not save.
      */
-    public Realm generate(RealmParameters realmParameters) {
-        Realm realm = new Realm();
-        realm.setAreaSquareMiles(realmParameters.getSquareMiles());
+    public Parish generateParish(@NonNull RealmParameters realmParameters) {
+        if (realmParameters.getReferenceDate() == null) {
+            throw new IllegalArgumentException("Reference date is required when creating a parish");
+        }
+
+        Parish parish = new Parish();
+        parish.setAcres(realmParameters.getSquareMiles() * ACRES_PER_SQUARE_MILE);
+        parish.setName("Parish 1");
 
         long totalPopulation = realmParameters.getPopulation();
+        long currentPopulation = 0;
+
+        log.info(String.format("Created the Parish %s with expected population %d", parish.getName(), totalPopulation));
 
         long lastPopulation = largestTownPopulation(totalPopulation);
+        currentPopulation += lastPopulation;
+        List<TownTemplate> towns = new ArrayList<>();
         TownTemplate town1 = createTown("Town 1", lastPopulation);
-        realm.getDwellingPlaces().add(town1.getTown());
+        towns.add(town1);
+        parish.addDwellingPlace(town1.getTown());
 
         int townIndex = 2;
-        // FIXME this is pretty broken at this point
-        while (canAddAnotherTown(realmParameters, realm.getPopulation(), lastPopulation)) {
+        while (canAddAnotherTown(realmParameters, currentPopulation, lastPopulation)) {
             if (townIndex == 2) {
                 lastPopulation = secondTownPopulation(lastPopulation);
             } else {
                 lastPopulation = furtherTownPopulation(lastPopulation);
             }
 
-            // Don't add another town if it would take the people remaining below 0
-            if (lastPopulation > remainingRealmPopulation(realmParameters, realm.getPopulation())) {
+            // Don't add this town if it would take the remaining population below 0
+            if (lastPopulation > remainingRealmPopulation(realmParameters, currentPopulation)) {
                 break;
             }
-            TownTemplate town = createTown("Town " + townIndex++, lastPopulation);
 
-            realm.getDwellingPlaces().add(town.getTown());
+            currentPopulation += lastPopulation;
+
+            TownTemplate town = createTown("Town " + townIndex++, lastPopulation);
+            parish.addDwellingPlace(town.getTown());
+            towns.add(town);
         }
 
-        long remainingPopulation = totalPopulation - realm.getPopulation();
-        RuralArea ruralArea = new RuralArea();
-        ruralArea.setPopulation(remainingPopulation);
-        ruralArea.setName("Rural areas");
-        //realm.getDwellingPlaces().add(ruralArea);
+        long remainingPopulation = totalPopulation - currentPopulation;
+        log.info(String.format(
+                "%d people remain outside of towns, and their households will be added directly to the parish",
+                remainingPopulation));
 
-        return realm;
+        ParishTemplate template = new ParishTemplate();
+        template.setParish(parish);
+        template.setTowns(towns);
+        template.setExpectedTotalPopulation(totalPopulation);
+        template.setExpectedRuralPopulation(remainingPopulation);
+
+        ParishPopulator populator = new ParishPopulator();
+        populator.populateParish(template);
+
+        return parish;
     }
 
     private TownTemplate createTown(String name, long population) {
@@ -82,6 +102,18 @@ public class RealmGenerator {
                 population));
 
         return townTemplate;
+    }
+
+
+    /**
+     * Determines how many people are not yet assigned to towns in the realm
+     *
+     * @param realmParameters so we can get the total population
+     * @param currentPopulation its current population
+     * @return the people remaining to assign
+     */
+    private long remainingRealmPopulation(@NonNull RealmParameters realmParameters, long currentPopulation) {
+        return realmParameters.getPopulation() - currentPopulation;
     }
 
     /**
@@ -113,17 +145,6 @@ public class RealmGenerator {
         double percent = d4.roll(2) * 0.05;
         long pop = Math.round(lastTownPopulation * percent);
         return pop == 0 ? 1 : pop;
-    }
-
-    /**
-     * Determines how many people are not yet assigned to towns in the realm
-     *
-     * @param realmParameters so we can get the total population
-     * @param currentPopulation its current population
-     * @return the people remaining to assign
-     */
-    private long remainingRealmPopulation(@NonNull RealmParameters realmParameters, long currentPopulation) {
-        return realmParameters.getPopulation() - currentPopulation;
     }
 
     /**

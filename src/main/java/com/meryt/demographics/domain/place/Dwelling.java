@@ -8,7 +8,8 @@ import lombok.NonNull;
 import lombok.Setter;
 
 /**
- * A Dwelling is a house or other structure that one or more households lives in.
+ * A Dwelling is a house or other structure that one or more households lives in. It cannot contain
+ * any other type of dwelling place.
  */
 @Getter
 @Setter
@@ -18,9 +19,6 @@ public class Dwelling extends DwellingPlace {
 
     @Override
     public void addDwellingPlace(@NonNull DwellingPlace newMember) {
-        if (!(newMember instanceof Household)) {
-            throw new IllegalArgumentException("A Dwelling can only contain Households");
-        }
-        this.getDwellingPlaces().add(newMember);
+        throw new IllegalArgumentException("A Dwelling can only contain Households");
     }
 }

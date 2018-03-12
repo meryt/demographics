@@ -1,9 +1,9 @@
 package com.meryt.demographics.domain.place;
 
-import javax.persistence.DiscriminatorValue;
-import javax.persistence.Entity;
 import java.time.LocalDate;
-
+import javax.persistence.Entity;
+import javax.persistence.Id;
+import javax.persistence.ManyToOne;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
@@ -11,15 +11,20 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@DiscriminatorValue(value = "HOUSEHOLD")
-public class Household extends DwellingPlace {
+public class Household {
 
-    @Override
-    public void addDwellingPlace(@NonNull DwellingPlace newMember) {
-        throw new IllegalArgumentException("Households cannot contain anything besides people");
-    }
+    @Id
+    private long id;
 
-    @Override
+    private String name;
+
+    /**
+     * The place where the household is located. May be a Dwelling (a house), or an Estate or other type of place where
+     * the household is effectively homeless or not yet assigned to a house.
+     */
+    @ManyToOne
+    private DwellingPlace parent;
+
     public long getPopulation(@NonNull LocalDate onDate) {
         // TODO need to load the living household members on that date
         // FIXME

@@ -21,6 +21,6 @@ public class Estate extends DwellingPlace {
         if (newMember instanceof Town) {
             throw new IllegalArgumentException("An Estate cannot contain a Town");
         }
-        this.getDwellingPlaces().add(newMember);
+        super.addDwellingPlace(newMember);
     }
 }
