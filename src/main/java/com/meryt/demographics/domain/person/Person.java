@@ -11,6 +11,7 @@ import javax.persistence.JoinColumn;
 import javax.persistence.JoinTable;
 import javax.persistence.ManyToMany;
 import javax.persistence.ManyToOne;
+import javax.persistence.OneToMany;
 import javax.persistence.OneToOne;
 import javax.persistence.PrimaryKeyJoinColumn;
 import javax.persistence.SequenceGenerator;
@@ -32,6 +33,7 @@ import com.meryt.demographics.domain.person.fertility.Fertility;
 import com.meryt.demographics.domain.person.fertility.Maternity;
 import com.meryt.demographics.domain.person.fertility.Paternity;
 import com.meryt.demographics.domain.place.Household;
+import com.meryt.demographics.domain.place.HouseholdInhabitantPeriod;
 import com.meryt.demographics.time.FormatPeriod;
 import com.meryt.demographics.time.LocalDateComparator;
 
@@ -95,13 +97,8 @@ public class Person {
     /**
      * A list of the households the person has been a part of, over time
      */
-    @ManyToMany
-    @JoinTable(
-            name = "household_inhabitants",
-            joinColumns = @JoinColumn(name = "person_id", referencedColumnName = "id"),
-            inverseJoinColumns = @JoinColumn(name = "household_id", referencedColumnName = "id")
-    )
-    private List<Household> households;
+    @OneToMany(mappedBy = "personId")
+    private List<HouseholdInhabitantPeriod> households;
 
     @JsonIgnore
     public Fertility getFertility() {
@@ -270,5 +267,22 @@ public class Person {
         }
         this.paternity = paternity;
         this.paternity.setPerson(this);
+    }
+
+    public void addToHousehold(@NonNull Household household, @NonNull LocalDate fromDate, boolean isHead) {
+        for (HouseholdInhabitantPeriod period : getHouseholds()) {
+            if (period.getFromDate().isBefore(fromDate) &&
+                    (period.getToDate() == null || period.getToDate().isAfter(fromDate))) {
+                period.setToDate(fromDate);
+            }
+        }
+        HouseholdInhabitantPeriod newPeriod = new HouseholdInhabitantPeriod();
+        newPeriod.setHousehold(household);
+        household.getInhabitantPeriods().add(newPeriod);
+        newPeriod.setPerson(this);
+        newPeriod.setFromDate(fromDate);
+        newPeriod.setToDate(getDeathDate());
+        newPeriod.setHouseholdHead(isHead);
+        getHouseholds().add(newPeriod);
     }
 }

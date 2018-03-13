@@ -1,9 +1,12 @@
 package com.meryt.demographics.domain.place;
 
 import java.time.LocalDate;
+import java.util.List;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.ManyToOne;
+import javax.persistence.OneToMany;
+
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
@@ -24,6 +27,12 @@ public class Household {
      */
     @ManyToOne
     private DwellingPlace parent;
+
+    /**
+     * A list of all the people who have ever lived in the household, over time
+     */
+    @OneToMany(mappedBy = "householdId")
+    private List<HouseholdInhabitantPeriod> inhabitantPeriods;
 
     public long getPopulation(@NonNull LocalDate onDate) {
         // TODO need to load the living household members on that date

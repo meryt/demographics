@@ -1,20 +1,30 @@
 package com.meryt.demographics.generator;
 
+import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
+
+import com.meryt.demographics.domain.place.Household;
+import com.meryt.demographics.generator.family.HouseholdGenerator;
+import com.meryt.demographics.request.FamilyParameters;
 
 @Slf4j
 class ParishPopulator {
 
-    ParishPopulator() {
+    private final HouseholdGenerator householdGenerator;
 
+    ParishPopulator(@NonNull HouseholdGenerator householdGenerator) {
+        this.householdGenerator = householdGenerator;
     }
 
     void populateParish(ParishTemplate template) {
         log.info("Beginning population of Parish " + template.getParish().getName());
 
+        FamilyParameters familyParameters = new FamilyParameters();
+        familyParameters.setReferenceDate(template.getReferenceDate());
+
         long currentPopulation = 0;
         while (currentPopulation < template.getExpectedTotalPopulation()) {
-            currentPopulation += addHousehold();
+            currentPopulation += addHousehold(familyParameters);
         }
     }
 
@@ -24,8 +34,10 @@ class ParishPopulator {
      *
      * @return the number of living people in the household on the reference date
      */
-    int addHousehold() {
+    int addHousehold(@NonNull FamilyParameters familyParameters) {
         // FIXME actually do add the household!
+        Household household = householdGenerator.generateHousehold(familyParameters);
+
         return 1;
     }
 

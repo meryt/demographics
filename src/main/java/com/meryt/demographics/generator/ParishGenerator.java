@@ -10,6 +10,8 @@ import lombok.extern.slf4j.Slf4j;
 import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.place.Parish;
 import com.meryt.demographics.domain.place.Town;
+import com.meryt.demographics.generator.family.FamilyGenerator;
+import com.meryt.demographics.generator.family.HouseholdGenerator;
 import com.meryt.demographics.generator.random.Die;
 import com.meryt.demographics.request.RealmParameters;
 import com.meryt.demographics.service.OccupationService;
@@ -23,8 +25,11 @@ public class ParishGenerator {
 
     private final OccupationService occupationService;
 
-    public ParishGenerator(@NonNull OccupationService occupationService) {
+    private final FamilyGenerator familyGenerator;
+
+    public ParishGenerator(@NonNull OccupationService occupationService, @NonNull FamilyGenerator familyGenerator) {
         this.occupationService = occupationService;
+        this.familyGenerator = familyGenerator;
     }
 
     /**
@@ -81,8 +86,9 @@ public class ParishGenerator {
         template.setTowns(towns);
         template.setExpectedTotalPopulation(totalPopulation);
         template.setExpectedRuralPopulation(remainingPopulation);
+        template.setReferenceDate(realmParameters.getReferenceDate());
 
-        ParishPopulator populator = new ParishPopulator();
+        ParishPopulator populator = new ParishPopulator(new HouseholdGenerator(familyGenerator));
         populator.populateParish(template);
 
         return parish;
