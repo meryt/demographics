@@ -13,7 +13,7 @@ import com.meryt.demographics.domain.place.Town;
 import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.generator.family.HouseholdGenerator;
 import com.meryt.demographics.generator.random.Die;
-import com.meryt.demographics.request.RealmParameters;
+import com.meryt.demographics.request.ParishParameters;
 import com.meryt.demographics.service.OccupationService;
 
 @Slf4j
@@ -35,16 +35,19 @@ public class ParishGenerator {
     /**
      * Generates a parish with its towns, households, and inhabitants. Does not save.
      */
-    public Parish generateParish(@NonNull RealmParameters realmParameters) {
-        if (realmParameters.getReferenceDate() == null) {
+    public Parish generateParish(@NonNull ParishParameters parishParameters) {
+        if (parishParameters.getFamilyParameters() == null) {
+            throw new IllegalArgumentException("FamilyParameters are required when creating a parish");
+        }
+        if (parishParameters.getFamilyParameters().getReferenceDate() == null) {
             throw new IllegalArgumentException("Reference date is required when creating a parish");
         }
 
         Parish parish = new Parish();
-        parish.setAcres(realmParameters.getSquareMiles() * ACRES_PER_SQUARE_MILE);
+        parish.setAcres(parishParameters.getSquareMiles() * ACRES_PER_SQUARE_MILE);
         parish.setName("Parish 1");
 
-        long totalPopulation = realmParameters.getPopulation();
+        long totalPopulation = parishParameters.getPopulation();
         long currentPopulation = 0;
 
         log.info(String.format("Created the Parish %s with expected population %d", parish.getName(), totalPopulation));
@@ -57,7 +60,7 @@ public class ParishGenerator {
         parish.addDwellingPlace(town1.getTown());
 
         int townIndex = 2;
-        while (canAddAnotherTown(realmParameters, currentPopulation, lastPopulation)) {
+        while (canAddAnotherTown(parishParameters, currentPopulation, lastPopulation)) {
             if (townIndex == 2) {
                 lastPopulation = secondTownPopulation(lastPopulation);
             } else {
@@ -65,7 +68,7 @@ public class ParishGenerator {
             }
 
             // Don't add this town if it would take the remaining population below 0
-            if (lastPopulation > remainingRealmPopulation(realmParameters, currentPopulation)) {
+            if (lastPopulation > remainingRealmPopulation(parishParameters, currentPopulation)) {
                 break;
             }
 
@@ -86,7 +89,7 @@ public class ParishGenerator {
         template.setTowns(towns);
         template.setExpectedTotalPopulation(totalPopulation);
         template.setExpectedRuralPopulation(remainingPopulation);
-        template.setReferenceDate(realmParameters.getReferenceDate());
+        template.setFamilyParameters(parishParameters.getFamilyParameters());
 
         ParishPopulator populator = new ParishPopulator(new HouseholdGenerator(familyGenerator));
         populator.populateParish(template);
@@ -114,12 +117,12 @@ public class ParishGenerator {
     /**
      * Determines how many people are not yet assigned to towns in the realm
      *
-     * @param realmParameters so we can get the total population
+     * @param parishParameters so we can get the total population
      * @param currentPopulation its current population
      * @return the people remaining to assign
      */
-    private long remainingRealmPopulation(@NonNull RealmParameters realmParameters, long currentPopulation) {
-        return realmParameters.getPopulation() - currentPopulation;
+    private long remainingRealmPopulation(@NonNull ParishParameters parishParameters, long currentPopulation) {
+        return parishParameters.getPopulation() - currentPopulation;
     }
 
     /**
@@ -156,16 +159,16 @@ public class ParishGenerator {
     /**
      * Checks to see whether there is enough remaining population to add another town
      *
-     * @param realmParameters which includes the calcuated total population
+     * @param parishParameters which includes the calcuated total population
      * @param currentTownPopulation current population across all towns
      * @param previousTownPopulation the population of the last generated town
      * @return boolean if there is enough population left to allocate it to another town
      */
-    private boolean canAddAnotherTown(@NonNull RealmParameters realmParameters,
+    private boolean canAddAnotherTown(@NonNull ParishParameters parishParameters,
                                       long currentTownPopulation,
                                       long previousTownPopulation) {
-        return ((realmParameters.getPopulation() - currentTownPopulation) > realmParameters.getMinTownPopulation())
-                && previousTownPopulation > realmParameters.getMinTownPopulation();
+        return ((parishParameters.getPopulation() - currentTownPopulation) > parishParameters.getMinTownPopulation())
+                && previousTownPopulation > parishParameters.getMinTownPopulation();
     }
 
 }

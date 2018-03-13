@@ -34,10 +34,11 @@ public class Household {
     @OneToMany(mappedBy = "householdId")
     private List<HouseholdInhabitantPeriod> inhabitantPeriods;
 
-    public long getPopulation(@NonNull LocalDate onDate) {
-        // TODO need to load the living household members on that date
-        // FIXME
-        return 0;
+    public int getPopulation(@NonNull LocalDate onDate) {
+        return (int) getInhabitantPeriods().stream()
+                .filter(p -> (p.getFromDate().isEqual(onDate) || p.getFromDate().isBefore(onDate))
+                        && (p.getToDate() == null || p.getToDate().isAfter(onDate)))
+                .count();
     }
 
 }

@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import lombok.NonNull;
 
 import com.meryt.demographics.domain.family.Family;
+import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.request.FamilyParameters;
 
@@ -34,11 +35,17 @@ public class HouseholdGenerator {
         Family family = familyGenerator.generate(familyParameters);
         Household household = new Household();
         if (family.getHusband().isLiving(onDate)) {
-            // FIXME need to add members to household
-            //household.a
+            family.getHusband().addToHousehold(household, family.getWeddingDate(), true);
+        }
+        if (family.getWife().isLiving(onDate)) {
+            family.getWife().addToHousehold(household, family.getWeddingDate(), !family.getHusband().isLiving(onDate));
+        }
+        for (Person child : family.getChildren()) {
+            if (child.isLiving(onDate)) {
+                child.addToHousehold(household, child.getBirthDate(), false);
+            }
         }
 
-        // FIXME add wife and children
         return household;
     }
 

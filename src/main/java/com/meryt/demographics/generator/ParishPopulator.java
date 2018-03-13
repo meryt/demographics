@@ -19,12 +19,9 @@ class ParishPopulator {
     void populateParish(ParishTemplate template) {
         log.info("Beginning population of Parish " + template.getParish().getName());
 
-        FamilyParameters familyParameters = new FamilyParameters();
-        familyParameters.setReferenceDate(template.getReferenceDate());
-
         long currentPopulation = 0;
         while (currentPopulation < template.getExpectedTotalPopulation()) {
-            currentPopulation += addHousehold(familyParameters);
+            currentPopulation += addHousehold(template.getFamilyParameters());
         }
     }
 
@@ -38,7 +35,8 @@ class ParishPopulator {
         // FIXME actually do add the household!
         Household household = householdGenerator.generateHousehold(familyParameters);
 
-        return 1;
+
+        return household.getPopulation(familyParameters.getReferenceDate());
     }
 
 }
