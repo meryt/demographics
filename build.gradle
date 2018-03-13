@@ -3,6 +3,7 @@ buildscript {
 		apacheCommonsMathVersion = '3.6.1'
         flywayVersion = '5.0.7'
         guavaVersion = '24.0-jre'
+		hibernateVersion = '5.2.15.Final'
         lombokVersion = '1.16.20'
         postgresqlVersion = '42.2.1'
 		springBootVersion = '2.0.0.RELEASE'
@@ -42,6 +43,7 @@ dependencies {
     compile("org.springframework.boot:spring-boot-starter-data-jpa")
     compile("org.springframework.boot:spring-boot-starter-jetty")
     compile("org.springframework.boot:spring-boot-starter-jdbc")
+    compile("org.hibernate:hibernate-core:${hibernateVersion}")
     compile("org.postgresql:postgresql:${postgresqlVersion}")
 	compile "org.flywaydb:flyway-core:${flywayVersion}"
 

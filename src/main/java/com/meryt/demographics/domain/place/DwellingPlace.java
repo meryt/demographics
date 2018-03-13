@@ -1,8 +1,10 @@
 package com.meryt.demographics.domain.place;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import javax.persistence.CascadeType;
 import javax.persistence.DiscriminatorColumn;
@@ -43,6 +45,12 @@ abstract public class DwellingPlace {
     @OneToMany(mappedBy = "parent", cascade = { CascadeType.ALL })
     private final Set<DwellingPlace> dwellingPlaces = new HashSet<>();
 
+    /**
+     * A list of all the people who have ever lived in the household, over time
+     */
+    @OneToMany(mappedBy = "dwellingPlace", cascade = { CascadeType.ALL })
+    private List<HouseholdLocationPeriod> householdPeriods = new ArrayList<>();
+
     private Double acres;
 
     public long getPopulation(@NonNull LocalDate onDate) {
@@ -77,7 +85,4 @@ abstract public class DwellingPlace {
         }
     }
 
-    public void addHousehold(@NonNull Household household) {
-
-    }
 }

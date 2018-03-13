@@ -1,5 +1,14 @@
 package com.meryt.demographics.domain.person;
 
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import javax.persistence.CascadeType;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
@@ -7,23 +16,14 @@ import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.JoinTable;
-import javax.persistence.ManyToMany;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 import javax.persistence.OneToOne;
 import javax.persistence.PrimaryKeyJoinColumn;
 import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
-import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.stream.Collectors;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
@@ -90,19 +90,34 @@ public class Person {
     @PrimaryKeyJoinColumn
     private Paternity paternity;
 
-    @ManyToOne
+    @ManyToOne(cascade = { CascadeType.ALL })
     @JsonIgnore
     private Family family;
+
+    @OneToMany(mappedBy = "husband", cascade = { CascadeType.ALL })
+    @JsonIgnore
+    @Setter(AccessLevel.PRIVATE)
+    private Set<Family> fatheredFamilies = new HashSet<>();
+
+    @OneToMany(mappedBy = "wife", cascade = { CascadeType.ALL })
+    @JsonIgnore
+    @Setter(AccessLevel.PRIVATE)
+    private Set<Family> motheredFamilies = new HashSet<>();
 
     /**
      * A list of the households the person has been a part of, over time
      */
-    @OneToMany(mappedBy = "personId")
-    private List<HouseholdInhabitantPeriod> households;
+    @OneToMany(mappedBy = "person", cascade = { CascadeType.ALL })
+    private List<HouseholdInhabitantPeriod> households = new ArrayList<>();
 
     @JsonIgnore
     public Fertility getFertility() {
-        return gender == null ? null : (isMale() ? getPaternity() : getMaternity());
+        if (gender == null) {
+            return null;
+        } else {
+            return isMale() ? getPaternity() : getMaternity();
+        }
+
     }
 
     /**
@@ -134,6 +149,12 @@ public class Person {
         return LocalDateComparator.daysBetween(birthDate, onDate);
     }
 
+    /**
+     * Expose the age at death to the JSON
+     *
+     * @return null if there is no death and/or birth date, or the age in years, months, days (a string)
+     */
+    @SuppressWarnings("unused")
     public String getAgeAtDeath() {
         if (getBirthDate() == null || getDeathDate() == null) {
             return null;
@@ -201,12 +222,13 @@ public class Person {
         if (!isMale()) {
             return false;
         }
-        if (getFather() == null) {
+        Person father = getFather();
+        if (father == null) {
             return false;
         }
-        List<Person> legitimateChildren = getFather().getLegitimateChildren();
+        List<Person> legitimateChildren = father.getLegitimateChildren();
         legitimateChildren.sort(Comparator.comparing(Person::getBirthDate));
-        LocalDate fatherDeathDate = getFather().getDeathDate();
+        LocalDate fatherDeathDate = father.getDeathDate();
         if (fatherDeathDate == null) {
             return false;
         }
@@ -218,7 +240,7 @@ public class Person {
     }
 
     @JsonIgnore
-    public Person getFather() {
+    private Person getFather() {
         if (getFamily() == null) {
             return null;
         } else {
@@ -230,8 +252,8 @@ public class Person {
      * Gets all children from this person's marriages. Excludes any children who do not have birth dates.
      */
     @JsonIgnore
-    public List<Person> getLegitimateChildren() {
-        List<Family> families = getFamilies();
+    private List<Person> getLegitimateChildren() {
+        Set<Family> families = getFamilies();
         List<Person> children = new ArrayList<>();
         for (Family fam : families) {
             if (fam.isMarriage()) {
@@ -248,9 +270,20 @@ public class Person {
      * Gets the families of which this person is the father or mother, NOT the one of which he is a child.
      */
     @JsonIgnore
-    public List<Family> getFamilies() {
-        // TODO
-        return Collections.emptyList();
+    public Set<Family> getFamilies() {
+        if (isMale()) {
+            return getFatheredFamilies();
+        } else {
+            return getMotheredFamilies();
+        }
+    }
+
+    private Set<Family> getFatheredFamilies() {
+        return Collections.unmodifiableSet(fatheredFamilies);
+    }
+
+    private Set<Family> getMotheredFamilies() {
+        return Collections.unmodifiableSet(motheredFamilies);
     }
 
     public void setMaternity(Maternity maternity) {
@@ -258,7 +291,9 @@ public class Person {
             throw new IllegalArgumentException("Cannot set Maternity on a male Person");
         }
         this.maternity = maternity;
-        this.maternity.setPerson(this);
+        if (maternity != null) {
+            this.maternity.setPerson(this);
+        }
     }
 
     public void setPaternity(Paternity paternity) {
@@ -266,7 +301,9 @@ public class Person {
             throw new IllegalArgumentException("Cannot set Paternity on a female Person");
         }
         this.paternity = paternity;
-        this.paternity.setPerson(this);
+        if (paternity != null) {
+            this.paternity.setPerson(this);
+        }
     }
 
     public void addToHousehold(@NonNull Household household, @NonNull LocalDate fromDate, boolean isHead) {
@@ -278,11 +315,21 @@ public class Person {
         }
         HouseholdInhabitantPeriod newPeriod = new HouseholdInhabitantPeriod();
         newPeriod.setHousehold(household);
+
         household.getInhabitantPeriods().add(newPeriod);
+
         newPeriod.setPerson(this);
         newPeriod.setFromDate(fromDate);
         newPeriod.setToDate(getDeathDate());
         newPeriod.setHouseholdHead(isHead);
         getHouseholds().add(newPeriod);
+    }
+
+    public void addFatheredFamily(@NonNull Family family) {
+        fatheredFamilies.add(family);
+    }
+
+    public void addMotheredFamily(@NonNull Family family) {
+        motheredFamilies.add(family);
     }
 }

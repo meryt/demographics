@@ -63,13 +63,13 @@ public class Family {
             throw new IllegalStateException("Cannot add spouse; a spouse of this gender already belongs to family.");
         }
         if (spouse.isMale()) {
-            husband = spouse;
+            setHusband(spouse);
         } else {
-            wife = spouse;
+            setWife(spouse);
         }
     }
 
-    public void addChild(@NonNull Person child) {
+    private void addChild(@NonNull Person child) {
         child.setFamily(this);
         this.children.add(child);
     }
@@ -86,6 +86,30 @@ public class Family {
     @JsonIgnore
     public boolean isMarriage() {
         return weddingDate != null;
+    }
+
+    public void setHusband(@NonNull Person husband) {
+        if (!husband.isMale()) {
+            throw new IllegalArgumentException("A husband must male");
+        }
+        this.husband = husband;
+        husband.addFatheredFamily(this);
+    }
+
+    public void setWife(@NonNull Person wife) {
+        if (!wife.isFemale()) {
+            throw new IllegalArgumentException("A wife must be female");
+        }
+        this.wife = wife;
+        wife.addMotheredFamily(this);
+    }
+
+    public boolean isHusbandLiving(@NonNull LocalDate onDate) {
+        return husband != null && husband.isLiving(onDate);
+    }
+
+    public boolean isWifeLiving(@NonNull LocalDate onDate) {
+        return wife != null && wife.isLiving(onDate);
     }
 
 }

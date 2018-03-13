@@ -12,10 +12,10 @@ import lombok.Setter;
 @Getter
 @Setter
 @Embeddable
-public class HouseholdInhabitantPK implements Serializable {
+public class HouseholdLocationPK implements Serializable {
 
-    @Column(name = "person_id")
-    private long personId;
+    @Column(name = "household_id")
+    private long householdId;
 
     @Column(name = "from_date")
     private LocalDate fromDate;

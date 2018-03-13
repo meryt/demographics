@@ -1,7 +1,10 @@
 package com.meryt.demographics.generator.family;
 
 import java.time.LocalDate;
+import java.util.List;
+import java.util.stream.Collectors;
 import lombok.NonNull;
+import lombok.extern.slf4j.Slf4j;
 
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
@@ -12,6 +15,7 @@ import com.meryt.demographics.request.FamilyParameters;
  * Can generate a household on a reference date such that at least one adult person is still alive on the date, and
  * there is a head of the household.
  */
+@Slf4j
 public class HouseholdGenerator {
 
     private final FamilyGenerator familyGenerator;
@@ -32,21 +36,42 @@ public class HouseholdGenerator {
         if (onDate == null) {
             throw new IllegalArgumentException("Cannot generate a household for a null reference date");
         }
-        Family family = familyGenerator.generate(familyParameters);
+        Person founder = familyGenerator.generateFounder(familyParameters);
+        Family family = familyGenerator.generate(founder, familyParameters);
         Household household = new Household();
-        if (family.getHusband().isLiving(onDate)) {
-            family.getHusband().addToHousehold(household, family.getWeddingDate(), true);
+
+        if (family != null) {
+            addFamilyToHousehold(household, family, onDate);
+        } else {
+            founder.addToHousehold(household, founder.getBirthDate(), true);
         }
-        if (family.getWife().isLiving(onDate)) {
-            family.getWife().addToHousehold(household, family.getWeddingDate(), !family.getHusband().isLiving(onDate));
+
+        List<String> inhabitants = household.getInhabitants(familyParameters.getReferenceDate())
+                .stream().map(p -> p.getName() + " (" + p.getAgeInYears(onDate) + ")").collect(Collectors.toList());
+
+        log.info(String.format("On %s the household contained %s", familyParameters.getReferenceDate(),
+                String.join(", ", inhabitants)));
+
+        return household;
+    }
+
+    private void addFamilyToHousehold(@NonNull Household household, @NonNull Family family, @NonNull LocalDate onDate) {
+        LocalDate weddingDate = family.getWeddingDate();
+        if (family.isHusbandLiving(onDate)) {
+            family.getHusband().addToHousehold(household,
+                    weddingDate != null ? weddingDate : family.getHusband().getBirthDate(),
+                    true);
+        }
+        if (family.isWifeLiving(onDate)) {
+            family.getWife().addToHousehold(household,
+                    weddingDate != null ? weddingDate : family.getHusband().getBirthDate(),
+                    !family.getHusband().isLiving(onDate));
         }
         for (Person child : family.getChildren()) {
             if (child.isLiving(onDate)) {
                 child.addToHousehold(household, child.getBirthDate(), false);
             }
         }
-
-        return household;
     }
 
 }

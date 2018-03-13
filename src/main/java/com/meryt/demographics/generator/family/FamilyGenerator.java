@@ -5,6 +5,8 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import javax.annotation.Nullable;
+
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
@@ -33,13 +35,21 @@ public class FamilyGenerator {
         this.personGenerator = personGenerator;
     }
 
+    @Nullable
     public Family generate(@NonNull FamilyParameters familyParameters) {
         Person person = generateFounder(familyParameters);
+        return generate(person, familyParameters);
+    }
 
-        Family family = searchForSpouse(person, familyParameters);
+    @Nullable
+    public Family generate(@NonNull Person founder, @NonNull FamilyParameters familyParameters) {
+
+        Family family = searchForSpouse(founder, familyParameters);
         if (family.getHusband() != null && family.getWife() != null) {
             log.info(String.format("%s married %s on %s", family.getHusband().getName(), family.getWife().getName(),
                     family.getWeddingDate()));
+        } else {
+            return null;
         }
 
         generateChildren(family, familyParameters);
@@ -53,7 +63,13 @@ public class FamilyGenerator {
         return family;
     }
 
-    private Person generateFounder(FamilyParameters familyParameters) {
+    /**
+     * Generates a valid founder given the family parameters
+     *
+     * @return a person suitable to found a family
+     */
+    @NonNull
+    public Person generateFounder(FamilyParameters familyParameters) {
         validate(familyParameters);
 
         PercentDie die = new PercentDie();
