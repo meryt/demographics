@@ -58,6 +58,8 @@ public class ParishGenerator {
         if (parishParameters.getFamilyParameters().getReferenceDate() == null) {
             throw new IllegalArgumentException("Reference date is required when creating a parish");
         }
+        // Ensure that the parish parameters and family parameters have same setting for persist
+        parishParameters.getFamilyParameters().setPersist(parishParameters.isPersist());
 
         Parish parish = new Parish();
         parish.setAcres(parishParameters.getSquareMiles() * ACRES_PER_SQUARE_MILE);

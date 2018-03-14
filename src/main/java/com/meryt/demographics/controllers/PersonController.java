@@ -22,12 +22,4 @@ public class PersonController {
     public Person randomPerson(@RequestBody PersonParameters personParameters) {
         return personGenerator.generate(personParameters == null ? new PersonParameters() : personParameters);
     }
-
-    /*
-    @RequestMapping(path = "/persons", method = RequestMethod.POST)
-    public Person postPerson(@RequestBody Person person) {
-        return personRepository.save(person);
-    }
-    */
-
 }

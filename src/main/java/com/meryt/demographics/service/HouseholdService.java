@@ -1,5 +1,7 @@
 package com.meryt.demographics.service;
 
+import javax.annotation.Nullable;
+
 import lombok.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -18,6 +20,14 @@ public class HouseholdService {
 
     public Household save(@NonNull Household household) {
         return householdRepository.save(household);
+    }
+
+    /**
+     * Finds a household by ID or returns null if none found
+     */
+    @Nullable
+    public Household load(long householdId) {
+        return householdRepository.findById(householdId).orElse(null);
     }
 
 }

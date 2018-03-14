@@ -50,13 +50,20 @@ public class HouseholdGenerator {
         }
         Person founder = familyGenerator.generateFounder(familyParameters);
         Family family = familyGenerator.generate(founder, familyParameters);
-        Household household = householdService.save(new Household());
+        Household household = new Household();
+        if (familyParameters.isPersist()) {
+            household = householdService.save(household);
+        }
 
         if (family != null) {
-            familyService.save(family);
+            if (familyParameters.isPersist()) {
+                familyService.save(family);
+            }
             addFamilyToHousehold(household, family, onDate);
         } else {
-            personService.save(founder);
+            if (familyParameters.isPersist()) {
+                personService.save(founder);
+            }
             founder.addToHousehold(household, founder.getBirthDate(), true);
         }
 
@@ -66,7 +73,11 @@ public class HouseholdGenerator {
         log.info(String.format("On %s the household contained %s", familyParameters.getReferenceDate(),
                 String.join(", ", inhabitants)));
 
-        return householdService.save(household);
+        if (familyParameters.isPersist()) {
+            return householdService.save(household);
+        } else {
+            return household;
+        }
     }
 
     private void addFamilyToHousehold(@NonNull Household household, @NonNull Family family, @NonNull LocalDate onDate) {
