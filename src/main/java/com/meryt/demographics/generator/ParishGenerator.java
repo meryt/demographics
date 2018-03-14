@@ -14,7 +14,10 @@ import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.generator.family.HouseholdGenerator;
 import com.meryt.demographics.generator.random.Die;
 import com.meryt.demographics.request.ParishParameters;
+import com.meryt.demographics.service.FamilyService;
+import com.meryt.demographics.service.HouseholdService;
 import com.meryt.demographics.service.OccupationService;
+import com.meryt.demographics.service.PersonService;
 
 @Slf4j
 public class ParishGenerator {
@@ -27,9 +30,22 @@ public class ParishGenerator {
 
     private final FamilyGenerator familyGenerator;
 
-    public ParishGenerator(@NonNull OccupationService occupationService, @NonNull FamilyGenerator familyGenerator) {
+    private final FamilyService familyService;
+
+    private final PersonService personService;
+
+    private final HouseholdService householdService;
+
+    public ParishGenerator(@NonNull OccupationService occupationService,
+                           @NonNull FamilyGenerator familyGenerator,
+                           @NonNull FamilyService familyService,
+                           @NonNull PersonService personService,
+                           @NonNull HouseholdService householdService) {
         this.occupationService = occupationService;
         this.familyGenerator = familyGenerator;
+        this.householdService = householdService;
+        this.familyService = familyService;
+        this.personService = personService;
     }
 
     /**
@@ -91,7 +107,8 @@ public class ParishGenerator {
         template.setExpectedRuralPopulation(remainingPopulation);
         template.setFamilyParameters(parishParameters.getFamilyParameters());
 
-        ParishPopulator populator = new ParishPopulator(new HouseholdGenerator(familyGenerator));
+        ParishPopulator populator = new ParishPopulator(new HouseholdGenerator(familyGenerator,
+                personService, familyService, householdService));
         populator.populateParish(template);
 
         return parish;

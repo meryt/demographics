@@ -46,7 +46,7 @@ abstract public class DwellingPlace {
     private final Set<DwellingPlace> dwellingPlaces = new HashSet<>();
 
     /**
-     * A list of all the people who have ever lived in the household, over time
+     * A list of all the households who have ever been located directly in this dwelling place, over time
      */
     @OneToMany(mappedBy = "dwellingPlace", cascade = { CascadeType.ALL })
     private List<HouseholdLocationPeriod> householdPeriods = new ArrayList<>();

@@ -37,7 +37,6 @@ public class HouseholdInhabitantPeriod {
 
     @JsonIgnore
     @ManyToOne(cascade = { CascadeType.ALL })
-    @MapsId("household_id")
     @JoinColumn(name = "household_id", referencedColumnName = "id")
     private Household household;
 

@@ -10,6 +10,9 @@ import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.request.FamilyParameters;
+import com.meryt.demographics.service.FamilyService;
+import com.meryt.demographics.service.HouseholdService;
+import com.meryt.demographics.service.PersonService;
 
 /**
  * Can generate a household on a reference date such that at least one adult person is still alive on the date, and
@@ -19,9 +22,18 @@ import com.meryt.demographics.request.FamilyParameters;
 public class HouseholdGenerator {
 
     private final FamilyGenerator familyGenerator;
+    private final PersonService personService;
+    private final FamilyService familyService;
+    private final HouseholdService householdService;
 
-    public HouseholdGenerator(@NonNull FamilyGenerator familyGenerator) {
+    public HouseholdGenerator(@NonNull FamilyGenerator familyGenerator,
+                              @NonNull PersonService personService,
+                              @NonNull FamilyService familyService,
+                              @NonNull HouseholdService householdService) {
         this.familyGenerator = familyGenerator;
+        this.personService = personService;
+        this.familyService = familyService;
+        this.householdService = householdService;
     }
 
     /**
@@ -38,11 +50,13 @@ public class HouseholdGenerator {
         }
         Person founder = familyGenerator.generateFounder(familyParameters);
         Family family = familyGenerator.generate(founder, familyParameters);
-        Household household = new Household();
+        Household household = householdService.save(new Household());
 
         if (family != null) {
+            familyService.save(family);
             addFamilyToHousehold(household, family, onDate);
         } else {
+            personService.save(founder);
             founder.addToHousehold(household, founder.getBirthDate(), true);
         }
 
@@ -52,7 +66,7 @@ public class HouseholdGenerator {
         log.info(String.format("On %s the household contained %s", familyParameters.getReferenceDate(),
                 String.join(", ", inhabitants)));
 
-        return household;
+        return householdService.save(household);
     }
 
     private void addFamilyToHousehold(@NonNull Household household, @NonNull Family family, @NonNull LocalDate onDate) {

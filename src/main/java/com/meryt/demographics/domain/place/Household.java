@@ -102,6 +102,7 @@ public class Household {
         }
 
         HouseholdLocationPeriod newPeriod = new HouseholdLocationPeriod();
+        newPeriod.setHouseholdId(getId());
         newPeriod.setHousehold(this);
         newPeriod.setDwellingPlace(dwellingPlace);
         dwellingPlace.getHouseholdPeriods().add(newPeriod);

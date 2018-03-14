@@ -35,7 +35,6 @@ public class HouseholdLocationPeriod {
 
     @JsonIgnore
     @ManyToOne(cascade = CascadeType.ALL)
-    @MapsId("dwellingPlace_id")
     @JoinColumn(name = "dwelling_place_id", referencedColumnName = "id")
     private DwellingPlace dwellingPlace;
 

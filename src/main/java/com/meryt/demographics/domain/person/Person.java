@@ -314,11 +314,13 @@ public class Person {
             }
         }
         HouseholdInhabitantPeriod newPeriod = new HouseholdInhabitantPeriod();
+
         newPeriod.setHousehold(household);
 
         household.getInhabitantPeriods().add(newPeriod);
 
         newPeriod.setPerson(this);
+        newPeriod.setPersonId(getId());
         newPeriod.setFromDate(fromDate);
         newPeriod.setToDate(getDeathDate());
         newPeriod.setHouseholdHead(isHead);
