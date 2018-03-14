@@ -15,12 +15,10 @@ import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
-import org.hibernate.annotations.Cascade;
 
 import com.meryt.demographics.domain.person.Person;
 

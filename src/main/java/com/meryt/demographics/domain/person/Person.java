@@ -82,6 +82,16 @@ public class Person {
 
     private double strength;
 
+    @JsonIgnore
+    private String eyeGenes;
+
+    @JsonIgnore
+    @Enumerated(EnumType.STRING)
+    private EyeColor eyeColor;
+
+    @JsonIgnore
+    private String hairGenes;
+
     @OneToOne(cascade = CascadeType.ALL)
     @PrimaryKeyJoinColumn
     private Maternity maternity;
@@ -333,5 +343,24 @@ public class Person {
 
     public void addMotheredFamily(@NonNull Family family) {
         motheredFamilies.add(family);
+    }
+
+    /**
+     * Gets the eye color as a JSON-friendly string
+     */
+    public String getEyeColorName() {
+        if (eyeColor == null) {
+            return null;
+        } else {
+            return eyeColor.name().toLowerCase();
+        }
+    }
+
+    /**
+     * Gets the hair color in a JSON-friendly string
+     * @return the hair color as determined by the genes, or null if genes are null
+     */
+    public String getHairColor() {
+        return HairColor.getHairColorFromGenes(hairGenes);
     }
 }

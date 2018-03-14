@@ -1,4 +1,4 @@
-package com.meryt.demographics.mvc;
+package com.meryt.demographics.rest;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -13,8 +13,12 @@ public class RestResponseEntityExceptionHandler extends ResponseEntityExceptionH
 
     @ExceptionHandler(value = { IllegalArgumentException.class })
     protected ResponseEntity<Object> handleIllegalArgument(IllegalArgumentException e) {
-        log.warn("Handled IllegalArgumentException", e);
         return buildResponseEntity(new RestErrorMessage(HttpStatus.BAD_REQUEST, e.getMessage()));
+    }
+
+    @ExceptionHandler(value = { ResourceNotFoundException.class })
+    protected ResponseEntity<Object> handleResourceNotFound(ResourceNotFoundException e) {
+        return buildResponseEntity(new RestErrorMessage(HttpStatus.NOT_FOUND, e.getMessage()));
     }
 
     private ResponseEntity<Object> buildResponseEntity(RestErrorMessage error) {

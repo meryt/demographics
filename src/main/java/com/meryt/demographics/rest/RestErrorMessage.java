@@ -1,4 +1,4 @@
-package com.meryt.demographics.mvc;
+package com.meryt.demographics.rest;
 
 import java.time.LocalDateTime;
 import lombok.Getter;

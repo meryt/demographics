@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.meryt.demographics.domain.family.Family;
+import com.meryt.demographics.domain.person.EyeColor;
 import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.SocialClass;
@@ -236,6 +237,9 @@ public class PersonGenerator {
             person.setIntelligence(randomTrait());
         }
         person.setMorality(randomTrait());
+        person.setEyeGenes(getEyeGenesFromParents(father, mother));
+        person.setEyeColor(EyeColor.randomFromGenes(person.getEyeGenes()));
+        person.setHairGenes(getHairGenesFromParents(father, mother));
     }
 
     /**
@@ -246,6 +250,9 @@ public class PersonGenerator {
     private void matchIdenticalTwinParameters(@NonNull Person twin1, @NonNull Person twin2) {
         twin2.setComeliness(twin1.getComeliness());
         twin2.setStrength(twin1.getStrength());
+        twin2.setEyeGenes(twin1.getEyeGenes());
+        twin2.setEyeColor(twin1.getEyeColor());
+        twin2.setHairGenes(twin1.getHairGenes());
     }
 
     /**
@@ -294,6 +301,73 @@ public class PersonGenerator {
         if (personParameters.getBirthDate() == null && personParameters.getAliveOnDate() == null) {
             throw new IllegalArgumentException(
                     "Cannot generate a person without at least one of birthDate or aliveOnDate");
+        }
+    }
+
+    private String getEyeGenesFromParents(Person father, Person mother) {
+        if (father == null || mother == null || father.getEyeGenes() == null || mother.getEyeGenes() == null) {
+            return getRandomEyeGenes();
+        }
+        Die d2 = new Die(2);
+        char fatherContribution = father.getEyeGenes().charAt(d2.roll() - 1);
+        char motherContribution = mother.getEyeGenes().charAt(d2.roll() - 1);
+        String genes = new String(new char[]{fatherContribution, motherContribution});
+        if (genes.equals("CT")) {
+            // normalize
+            genes = "TC";
+        }
+        return genes;
+    }
+
+    private String getRandomEyeGenes() {
+        int roll = new Die(4).roll();
+        if (roll <= 2) {
+            return "CC";
+        } else if (roll == 3) {
+            return "TC";
+        } else {
+            return "TT";
+        }
+    }
+
+    private String getHairGenesFromParents(Person father, Person mother) {
+        if (father == null || mother == null || father.getHairGenes() == null || mother.getHairGenes() == null) {
+            return getRandomHairGenes();
+        }
+
+        Die d2 = new Die(2);
+        char fatherBrownBlondContribution = father.getHairGenes().charAt(d2.roll() - 1);
+        char motherBrownBlondContribution = mother.getHairGenes().charAt(d2.roll() - 1);
+        char fatherRedContribution = father.getHairGenes().charAt(d2.roll() + 1);
+        char motherRedContribution = mother.getHairGenes().charAt(d2.roll() + 1);
+
+        String result = "";
+        if (fatherBrownBlondContribution == 'b') {
+            result += new String(new char[]{motherBrownBlondContribution, fatherBrownBlondContribution});
+        } else {
+            result += new String(new char[]{fatherBrownBlondContribution, motherBrownBlondContribution});
+        }
+        if (fatherRedContribution == 'r') {
+            result += new String(new char[]{motherRedContribution, fatherRedContribution});
+        } else {
+            result += new String(new char[]{fatherRedContribution, motherRedContribution});
+        }
+        return result;
+    }
+
+    private String getRandomHairGenes() {
+        switch (new Die(9).roll()) {
+            case 1: return "BBRR";
+            case 2: return "BBRr";
+            case 3: return "BbRR";
+            case 4: return "BbRr";
+            case 5: return "bbRR";
+            case 6: return "bbRr";
+            case 7: return "BBrr";
+            case 8: return "Bbrr";
+            case 9:
+            default:
+                return "bbrr";
         }
     }
 }
