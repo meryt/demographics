@@ -27,10 +27,10 @@ class ParishPopulator {
         log.info("Beginning population of Parish " + template.getParish().getName());
 
         long currentPopulation = 0;
-        while (currentPopulation < template.getExpectedTotalPopulation()) {
+        int index = 0;
+        while (currentPopulation < template.getExpectedTotalPopulation() && index < 10) {
             currentPopulation += addHousehold(template);
-            log.info("Done producing a test household; exiting");
-            break;
+            index++;
         }
     }
 
@@ -44,6 +44,7 @@ class ParishPopulator {
 
         FamilyParameters familyParameters = parishTemplate.getFamilyParameters();
 
+        // If persist is true on the family template, the household and its inhabitants will be saved.
         Household household = householdGenerator.generateHousehold(familyParameters);
 
         Person person = household.getHead(parishTemplate.getFamilyParameters().getReferenceDate());
@@ -73,9 +74,21 @@ class ParishPopulator {
             return false;
         }
 
+        LocalDate referenceDate = template.getFamilyParameters().getReferenceDate();
         SocialClass socialClass = person.getSocialClass();
-        boolean anyJobsRemaining = false;
+
         for (TownTemplate townTemplate : template.getTowns()) {
+            if (townTemplate.getExpectedOccupations().size() == 0 &&
+                    (townTemplate.getTown().getPopulation(referenceDate) < townTemplate.getExpectedPopulation())) {
+                log.info(String.format(
+                        "There are no more jobs in %s but there is still population space remaining. " +
+                                "%s (%s) will move in but not take a job.", townTemplate.getTown().getName(),
+                        person.getName(), socialClass.name().toLowerCase()));
+                addHouseholdToDwellingPlaceOnWeddingDate(townTemplate.getTown(), household,
+                        getMoveInDate(person, referenceDate));
+
+                return true;
+            }
             for (Map.Entry<Occupation, Integer> occupationSlot : townTemplate.getExpectedOccupations().entrySet()) {
                 Occupation occupation = occupationSlot.getKey();
                 if (personWillAcceptOccupation(person, occupation) && occupationSlot.getValue() > 0) {
@@ -83,7 +96,7 @@ class ParishPopulator {
                             socialClass.name().toLowerCase(), townTemplate.getTown().getName(),
                             occupationSlot.getKey().getName()));
 
-                    // TODO set the occupation on the person
+                    person.addOccupation(occupation, getJobStartDate(person));
 
                     if (occupationSlot.getValue() == 1) {
                         townTemplate.getExpectedOccupations().remove(occupation);
@@ -128,5 +141,21 @@ class ParishPopulator {
             Family family = person.getFamilies().iterator().next();
             return family.getWeddingDate() == null ? referenceDate : family.getWeddingDate();
         }
+    }
+
+    private LocalDate getJobStartDate(@NonNull Person person) {
+
+        if (person.isLiving(person.getBirthDate().plusYears(16))) {
+            return person.getBirthDate().plusYears(16);
+        }
+
+        if (!person.getFamilies().isEmpty()) {
+            Family family = person.getFamilies().iterator().next();
+            if (family.getWeddingDate() != null) {
+                return family.getWeddingDate();
+            }
+        }
+
+        return person.getDeathDate();
     }
 }

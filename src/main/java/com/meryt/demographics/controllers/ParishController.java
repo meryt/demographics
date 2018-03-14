@@ -42,7 +42,7 @@ public class ParishController {
     @RequestMapping("/parishes/random")
     public Parish randomParish(@RequestBody ParishParameters parishParameters) {
         ParishGenerator generator = new ParishGenerator(occupationService, familyGenerator, familyService,
-                personService, householdService);
+                personService, householdService, dwellingPlaceService);
         Parish parish = generator.generateParish(parishParameters);
         if (parishParameters.isPersist()) {
             return (Parish) dwellingPlaceService.save(parish);

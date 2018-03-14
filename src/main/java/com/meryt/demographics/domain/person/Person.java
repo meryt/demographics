@@ -28,6 +28,7 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
 
+import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.fertility.Fertility;
 import com.meryt.demographics.domain.person.fertility.Maternity;
@@ -117,8 +118,11 @@ public class Person {
     /**
      * A list of the households the person has been a part of, over time
      */
-    @OneToMany(mappedBy = "person", cascade = { CascadeType.ALL })
+    @OneToMany(mappedBy = "person")
     private List<HouseholdInhabitantPeriod> households = new ArrayList<>();
+
+    @OneToMany(mappedBy = "person", cascade = { CascadeType.ALL })
+    private List<PersonOccupationPeriod> occupations = new ArrayList<>();
 
     @JsonIgnore
     public Fertility getFertility() {
@@ -335,6 +339,27 @@ public class Person {
         newPeriod.setToDate(getDeathDate());
         newPeriod.setHouseholdHead(isHead);
         getHouseholds().add(newPeriod);
+    }
+
+    public void addOccupation(@NonNull Occupation occupation, @NonNull LocalDate fromDate) {
+        for (PersonOccupationPeriod period : getOccupations()) {
+            if (period.getFromDate().isBefore(fromDate) &&
+                    (period.getToDate() == null || period.getToDate().isAfter(fromDate))) {
+                period.setToDate(fromDate);
+            }
+        }
+        PersonOccupationPeriod newPeriod = new PersonOccupationPeriod();
+        newPeriod.setOccupation(occupation);
+        newPeriod.setPerson(this);
+        newPeriod.setPersonId(getId());
+        newPeriod.setFromDate(fromDate);
+        LocalDate age60 = getBirthDate().plusYears(60);
+        if (age60.isBefore(getDeathDate())) {
+            newPeriod.setToDate(age60);
+        } else {
+            newPeriod.setToDate(getDeathDate());
+        }
+        getOccupations().add(newPeriod);
     }
 
     public void addFatheredFamily(@NonNull Family family) {

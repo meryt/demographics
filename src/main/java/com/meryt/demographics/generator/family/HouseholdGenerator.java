@@ -1,6 +1,7 @@
 package com.meryt.demographics.generator.family;
 
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.NonNull;
@@ -68,7 +69,10 @@ public class HouseholdGenerator {
         }
 
         List<String> inhabitants = household.getInhabitants(familyParameters.getReferenceDate())
-                .stream().map(p -> p.getName() + " (" + p.getAgeInYears(onDate) + ")").collect(Collectors.toList());
+                .stream()
+                .sorted(Comparator.comparing(Person::getBirthDate))
+                .map(p -> p.getName() + " (" + p.getAgeInYears(onDate) + ")")
+                .collect(Collectors.toList());
 
         log.info(String.format("On %s the household contained %s", familyParameters.getReferenceDate(),
                 String.join(", ", inhabitants)));

@@ -8,12 +8,14 @@ import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 
 import com.meryt.demographics.domain.Occupation;
+import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.Parish;
 import com.meryt.demographics.domain.place.Town;
 import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.generator.family.HouseholdGenerator;
 import com.meryt.demographics.generator.random.Die;
 import com.meryt.demographics.request.ParishParameters;
+import com.meryt.demographics.service.DwellingPlaceService;
 import com.meryt.demographics.service.FamilyService;
 import com.meryt.demographics.service.HouseholdService;
 import com.meryt.demographics.service.OccupationService;
@@ -36,16 +38,20 @@ public class ParishGenerator {
 
     private final HouseholdService householdService;
 
+    private final DwellingPlaceService dwellingPlaceService;
+
     public ParishGenerator(@NonNull OccupationService occupationService,
                            @NonNull FamilyGenerator familyGenerator,
                            @NonNull FamilyService familyService,
                            @NonNull PersonService personService,
-                           @NonNull HouseholdService householdService) {
+                           @NonNull HouseholdService householdService,
+                           @NonNull DwellingPlaceService dwellingPlaceService) {
         this.occupationService = occupationService;
         this.familyGenerator = familyGenerator;
         this.householdService = householdService;
         this.familyService = familyService;
         this.personService = personService;
+        this.dwellingPlaceService = dwellingPlaceService;
     }
 
     /**
@@ -68,12 +74,16 @@ public class ParishGenerator {
         long totalPopulation = parishParameters.getPopulation();
         long currentPopulation = 0;
 
+        if (parishParameters.isPersist()) {
+            parish = (Parish) dwellingPlaceService.save(parish);
+        }
+
         log.info(String.format("Created the Parish %s with expected population %d", parish.getName(), totalPopulation));
 
         long lastPopulation = largestTownPopulation(totalPopulation);
         currentPopulation += lastPopulation;
         List<TownTemplate> towns = new ArrayList<>();
-        TownTemplate town1 = createTown("Town 1", lastPopulation);
+        TownTemplate town1 = createTown("Town 1", lastPopulation, parishParameters.isPersist());
         towns.add(town1);
         parish.addDwellingPlace(town1.getTown());
 
@@ -92,7 +102,7 @@ public class ParishGenerator {
 
             currentPopulation += lastPopulation;
 
-            TownTemplate town = createTown("Town " + townIndex++, lastPopulation);
+            TownTemplate town = createTown("Town " + townIndex++, lastPopulation, parishParameters.isPersist());
             parish.addDwellingPlace(town.getTown());
             towns.add(town);
         }
@@ -116,9 +126,14 @@ public class ParishGenerator {
         return parish;
     }
 
-    private TownTemplate createTown(String name, long population) {
+    private TownTemplate createTown(String name, long population, boolean persist) {
         Town town = new Town();
         town.setName(name);
+
+        if (persist) {
+            town = (Town) dwellingPlaceService.save(town);
+        }
+
         Map<Occupation, Integer> expectedOccupations = new HashMap<>();
         List<Occupation> occupationList = occupationService.occupationsForTownPopulation(population);
         for (Occupation occupation : occupationList) {

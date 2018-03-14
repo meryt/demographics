@@ -1,5 +1,6 @@
 package com.meryt.demographics.service;
 
+import javax.annotation.Nullable;
 import lombok.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -19,4 +20,13 @@ public class PersonService {
     public Person save(@NonNull Person person) {
         return personRepository.save(person);
     }
+
+    /**
+     * Finds a person by ID or returns null if none found
+     */
+    @Nullable
+    public Person load(long personId) {
+        return personRepository.findById(personId).orElse(null);
+    }
+
 }

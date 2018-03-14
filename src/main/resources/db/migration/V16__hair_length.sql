@@ -1,0 +1,1 @@
+ALTER TABLE persons ALTER COLUMN hair_genes TYPE CHAR(4);

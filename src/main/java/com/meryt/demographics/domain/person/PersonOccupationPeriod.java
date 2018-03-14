@@ -1,4 +1,4 @@
-package com.meryt.demographics.domain.place;
+package com.meryt.demographics.domain.person;
 
 import java.time.LocalDate;
 import javax.persistence.CascadeType;
@@ -16,36 +16,33 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
 
-import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.domain.Occupation;
 
 @Entity
-@IdClass(HouseholdInhabitantPK.class)
-@Table(name = "household_inhabitants")
+@IdClass(PersonOccupationPK.class)
+@Table(name = "person_occupations")
 @Getter
 @Setter
-public class HouseholdInhabitantPeriod {
+public class PersonOccupationPeriod {
 
     @Id
     @Column(name = "person_id", updatable = false, insertable = false)
     private long personId;
 
     @JsonIgnore
-    @ManyToOne
+    @ManyToOne(cascade = { CascadeType.ALL })
     @MapsId("person_id")
     @PrimaryKeyJoinColumn(name = "person_id", referencedColumnName = "id")
     private Person person;
 
-    @JsonIgnore
-    @ManyToOne
-    @JoinColumn(name = "household_id", referencedColumnName = "id")
-    private Household household;
+    @ManyToOne(cascade = { CascadeType.ALL })
+    @JoinColumn(name = "occupation_id", referencedColumnName = "id")
+    private Occupation occupation;
 
     @Id
     private LocalDate fromDate;
 
     private LocalDate toDate;
-
-    private boolean isHouseholdHead;
 
     /**
      * Determines whether the date range represented by this object contains the given date. The date range is

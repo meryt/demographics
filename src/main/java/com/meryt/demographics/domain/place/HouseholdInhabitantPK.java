@@ -20,4 +20,8 @@ public class HouseholdInhabitantPK implements Serializable {
     @Column(name = "from_date")
     private LocalDate fromDate;
 
+    @Override
+    public String toString() {
+        return String.format("personId=%d,fromDate=%s", personId, fromDate == null ? "null" : fromDate);
+    }
 }

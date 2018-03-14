@@ -11,7 +11,6 @@ import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
@@ -34,13 +33,6 @@ public class Household {
     private long id;
 
     private String name;
-
-    /**
-     * The place where the household is located. May be a Dwelling (a house), or an Estate or other type of place where
-     * the household is effectively homeless or not yet assigned to a house.
-     */
-    @ManyToOne
-    private DwellingPlace parent;
 
     /**
      * A list of all the people who have ever lived in the household, over time
