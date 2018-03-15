@@ -93,7 +93,7 @@ public class HouseholdGenerator {
         }
         if (family.isWifeLiving(onDate)) {
             family.getWife().addToHousehold(household,
-                    weddingDate != null ? weddingDate : family.getHusband().getBirthDate(),
+                    weddingDate != null ? weddingDate : family.getWife().getBirthDate(),
                     !family.getHusband().isLiving(onDate));
         }
         for (Person child : family.getChildren()) {
