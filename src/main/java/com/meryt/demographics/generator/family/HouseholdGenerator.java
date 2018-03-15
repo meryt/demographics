@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 
@@ -84,23 +85,40 @@ public class HouseholdGenerator {
         }
     }
 
-    private void addFamilyToHousehold(@NonNull Household household, @NonNull Family family, @NonNull LocalDate onDate) {
+    public void addFamilyToHousehold(@NonNull Household household, @NonNull Family family, @NonNull LocalDate onDate) {
         LocalDate weddingDate = family.getWeddingDate();
+        // Will only be non-null if the father is dead and there is a son at least 16
+        Person oldestLivingSon = null;
         if (family.isHusbandLiving(onDate)) {
             family.getHusband().addToHousehold(household,
                     weddingDate != null ? weddingDate : family.getHusband().getBirthDate(),
                     true);
+        } else {
+            oldestLivingSon = getOldestLivingSonOverFifteen(family, onDate);
         }
         if (family.isWifeLiving(onDate)) {
             family.getWife().addToHousehold(household,
                     weddingDate != null ? weddingDate : family.getWife().getBirthDate(),
-                    !family.getHusband().isLiving(onDate));
+                    // She's only the head if she has no husband or son old enough
+                    (!family.getHusband().isLiving(onDate) && oldestLivingSon == null));
         }
         for (Person child : family.getChildren()) {
             if (child.isLiving(onDate)) {
-                child.addToHousehold(household, child.getBirthDate(), false);
+                child.addToHousehold(household, child.getBirthDate(), child.equals(oldestLivingSon));
             }
         }
+    }
+
+    @Nullable
+    private Person getOldestLivingSonOverFifteen(@NonNull Family family, @NonNull LocalDate onDate) {
+        Person oldestLivingSon = null;
+        for (Person child : family.getChildren()) {
+            if (child.isMale() && child.isLiving(onDate) && child.getAgeInYears(onDate) >= 16 &&
+                    (oldestLivingSon == null || child.getBirthDate().isBefore(oldestLivingSon.getBirthDate()))) {
+                oldestLivingSon = child;
+            }
+        }
+        return oldestLivingSon;
     }
 
 }

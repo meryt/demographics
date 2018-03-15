@@ -8,7 +8,6 @@ import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 
 import com.meryt.demographics.domain.Occupation;
-import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.Parish;
 import com.meryt.demographics.domain.place.Town;
 import com.meryt.demographics.generator.family.FamilyGenerator;
@@ -120,7 +119,8 @@ public class ParishGenerator {
         template.setFamilyParameters(parishParameters.getFamilyParameters());
 
         ParishPopulator populator = new ParishPopulator(new HouseholdGenerator(familyGenerator,
-                personService, familyService, householdService));
+                personService, familyService, householdService), familyGenerator, familyService, householdService,
+                personService);
         populator.populateParish(template);
 
         return parish;

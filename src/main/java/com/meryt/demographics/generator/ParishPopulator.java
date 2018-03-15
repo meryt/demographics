@@ -1,7 +1,9 @@
 package com.meryt.demographics.generator;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 
@@ -11,16 +13,36 @@ import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.Household;
+import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.generator.family.HouseholdGenerator;
 import com.meryt.demographics.request.FamilyParameters;
+import com.meryt.demographics.service.FamilyService;
+import com.meryt.demographics.service.HouseholdService;
+import com.meryt.demographics.service.PersonService;
 
 @Slf4j
 class ParishPopulator {
 
     private final HouseholdGenerator householdGenerator;
 
-    ParishPopulator(@NonNull HouseholdGenerator householdGenerator) {
+    private final FamilyGenerator familyGenerator;
+
+    private final FamilyService familyService;
+
+    private final HouseholdService householdService;
+
+    private final PersonService personService;
+
+    ParishPopulator(@NonNull HouseholdGenerator householdGenerator,
+                    @NonNull FamilyGenerator familyGenerator,
+                    @NonNull FamilyService familyService,
+                    @NonNull HouseholdService householdService,
+                    @NonNull PersonService personService) {
         this.householdGenerator = householdGenerator;
+        this.familyGenerator = familyGenerator;
+        this.familyService = familyService;
+        this.householdService = householdService;
+        this.personService = personService;
     }
 
     void populateParish(@NonNull ParishTemplate template) {
@@ -47,15 +69,31 @@ class ParishPopulator {
         // If persist is true on the family template, the household and its inhabitants will be saved.
         Household household = householdGenerator.generateHousehold(familyParameters);
 
-        Person person = household.getHead(parishTemplate.getFamilyParameters().getReferenceDate());
-        boolean placedInTown = findTownForHouseholdHead(parishTemplate, household, person);
+        moveHouseholdToTownOrParish(household, parishTemplate);
+
+        int childHouseholdPopulation = tryMoveOutSons(household, parishTemplate);
+
+        return childHouseholdPopulation + household.getPopulation(familyParameters.getReferenceDate());
+    }
+
+    /**
+     * Look for a job for the head of the household. If one is found in a town, move to that town. Otherwise move to
+     * the parish itself.
+     */
+    private void moveHouseholdToTownOrParish(@NonNull Household household, @NonNull ParishTemplate parishTemplate) {
+        LocalDate onDate = parishTemplate.getFamilyParameters().getReferenceDate();
+        Person person = household.getHead(onDate);
+        boolean placedInTown = findTownWithOccupationForHouseholdHead(parishTemplate, household, person);
 
         if (!placedInTown) {
-            addHouseholdToDwellingPlaceOnWeddingDate(parishTemplate.getParish(), household, getMoveInDate(person,
-                    parishTemplate.getFamilyParameters().getReferenceDate()));
-        }
+            if (parishTemplate.getParish().getPopulation(onDate) < parishTemplate.getExpectedRuralPopulation()) {
 
-        return household.getPopulation(familyParameters.getReferenceDate());
+                addHouseholdToDwellingPlaceOnWeddingDate(parishTemplate.getParish(), household, getMoveInDate(person,
+                        parishTemplate.getFamilyParameters().getReferenceDate()));
+            } else {
+                // TODO add to a random town.
+            }
+        }
     }
 
     /**
@@ -66,9 +104,9 @@ class ParishPopulator {
      * @param household the household of which the head is looking for a job
      * @return true if a job was found and the household was added to a town
      */
-    private boolean findTownForHouseholdHead(@NonNull ParishTemplate template,
-                                             @NonNull Household household,
-                                             Person person) {
+    private boolean findTownWithOccupationForHouseholdHead(@NonNull ParishTemplate template,
+                                                           @NonNull Household household,
+                                                           Person person) {
 
         if (person == null || person.getSocialClass() == null) {
             return false;
@@ -157,5 +195,62 @@ class ParishPopulator {
         }
 
         return person.getDeathDate();
+    }
+
+    private int tryMoveOutSons(@NonNull Household household, @NonNull ParishTemplate parishTemplate) {
+        LocalDate onDate = parishTemplate.getFamilyParameters().getReferenceDate();
+
+        if (household.getHead(onDate) == null) {
+            household.resetHeadAsOf(onDate);
+        }
+        // We don't want to move out a son who is the head of the household due to the death of his father
+        Person head = household.getHead(onDate);
+
+        List<Person> adultSons = household.getInhabitants(onDate).stream()
+                .filter(Person::isMale)
+                .filter(p -> !p.equals(head))
+                .filter(p -> p.getAgeInYears(onDate) >= 18)
+                .collect(Collectors.toList());
+
+        int sonHouseholdPopulation = 0;
+        for (Person adultSon : adultSons) {
+            Family family = familyGenerator.generate(adultSon, parishTemplate.getFamilyParameters());
+            if (family != null) {
+                log.info(String.format("Adult son %s married on %s and moved out", adultSon.getName(),
+                        family.getWeddingDate()));
+                Household sonsHousehold = moveOutSon(household, family, parishTemplate);
+
+                moveHouseholdToTownOrParish(sonsHousehold, parishTemplate);
+
+                sonHouseholdPopulation += sonsHousehold.getPopulation(onDate);
+
+            } else {
+                log.info(String.format("Adult son %s could not find a wife and stayed home", adultSon.getName()));
+            }
+        }
+        return sonHouseholdPopulation;
+    }
+
+    private Household moveOutSon(@NonNull Household oldHousehold,
+                           @NonNull Family family,
+                           @NonNull ParishTemplate parishTemplate) {
+
+        if (parishTemplate.getFamilyParameters().isPersist()) {
+            family = familyService.save(family);
+        }
+
+        LocalDate onDate = parishTemplate.getFamilyParameters().getReferenceDate();
+
+        Household newHousehold = new Household();
+        householdGenerator.addFamilyToHousehold(newHousehold, family, family.getWeddingDate());
+        householdService.save(oldHousehold);
+
+        if (!family.getHusband().isLiving(onDate)) {
+            newHousehold.resetHeadAsOf(family.getHusband().getDeathDate());
+        }
+
+        newHousehold = householdService.save(newHousehold);
+
+        return newHousehold;
     }
 }

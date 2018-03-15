@@ -101,4 +101,65 @@ public class Household {
         getDwellingPlaces().add(newPeriod);
     }
 
+    public void addInhabitantPeriod(@NonNull HouseholdInhabitantPeriod newPeriod) {
+        for (HouseholdInhabitantPeriod period : getInhabitantPeriods()) {
+            if (period.getPersonId() == newPeriod.getPersonId() &&
+                    period.getFromDate().isBefore(newPeriod.getFromDate()) &&
+                    (period.getToDate() == null || period.getToDate().isAfter(newPeriod.getFromDate()))) {
+
+                period.setToDate(newPeriod.getFromDate());
+            }
+
+        }
+        getInhabitantPeriods().add(newPeriod);
+    }
+
+    /**
+     * Tell this household that the person has moved. Cap his current residency period (if any)
+     * @param personId the person
+     * @param fromDate the date upon which the person moved to another household
+     */
+    public void endPersonResidence(long personId, @NonNull LocalDate fromDate) {
+        for (HouseholdInhabitantPeriod period : getInhabitantPeriods()) {
+            if (period.getPersonId() == personId &&
+                    period.getFromDate().isBefore(fromDate) &&
+                    (period.getToDate() == null || period.getToDate().isAfter(fromDate))) {
+
+                period.setToDate(fromDate);
+            }
+        }
+    }
+
+    /**
+     * Use this method to find and set a new head of household as of the given date. Normally used when the current
+     * head of the household dies.
+     *
+     * @param onDate the date the previous head died or left
+     */
+    public void resetHeadAsOf(@NonNull LocalDate onDate) {
+        Person oldestLivingMale = null;
+        Person oldestLivingFemale = null;
+        for (Person person : getInhabitants(onDate)) {
+            if (person.isMale() &&
+                    (oldestLivingMale == null || person.getBirthDate().isBefore(oldestLivingMale.getBirthDate()))) {
+                oldestLivingMale = person;
+            } else if (person.isFemale() &&
+                    (oldestLivingFemale == null || person.getBirthDate().isBefore(oldestLivingFemale.getBirthDate()))) {
+                oldestLivingFemale = person;
+            }
+        }
+        Person newHead;
+        if (oldestLivingMale != null && oldestLivingMale.getAgeInYears(onDate) >= 16) {
+            newHead = oldestLivingMale;
+        } else  if (oldestLivingFemale != null && oldestLivingFemale.getAgeInYears(onDate) >= 16) {
+            newHead = oldestLivingFemale;
+        } else {
+            newHead = oldestLivingMale == null ? oldestLivingFemale : oldestLivingMale;
+        }
+
+        if (newHead != null) {
+            newHead.addToHousehold(this, onDate, true);
+        }
+    }
+
 }

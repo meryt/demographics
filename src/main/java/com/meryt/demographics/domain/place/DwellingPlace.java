@@ -53,9 +53,20 @@ abstract public class DwellingPlace {
 
     private Double acres;
 
+    /**
+     * Gets the population of all households directly in this dwelling place as well as the population of all dwelling
+     * places contained in this dwelling place
+     */
     public long getPopulation(@NonNull LocalDate onDate) {
-        // FIXME should also return the population of the households contained by this dwelling place
-        return dwellingPlaces.stream().mapToLong(d -> d.getPopulation(onDate)).sum();
+        return dwellingPlaces.stream().mapToLong(d -> d.getPopulation(onDate)).sum() + getDirectPopulation(onDate);
+    }
+
+    /**
+     * Gets only the population of households that are living directly in this dwelling place on this date (is not
+     * recursive, unlike getPopulation)
+     */
+    public long getDirectPopulation(@NonNull LocalDate onDate) {
+        return householdPeriods.stream().mapToLong(h -> h.getHousehold().getPopulation(onDate)).sum();
     }
 
     public Set<DwellingPlace> getDwellingPlaces() {

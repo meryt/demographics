@@ -325,13 +325,14 @@ public class Person {
             if (period.getFromDate().isBefore(fromDate) &&
                     (period.getToDate() == null || period.getToDate().isAfter(fromDate))) {
                 period.setToDate(fromDate);
+                period.getHousehold().endPersonResidence(this.getId(), fromDate);
             }
         }
         HouseholdInhabitantPeriod newPeriod = new HouseholdInhabitantPeriod();
 
         newPeriod.setHousehold(household);
 
-        household.getInhabitantPeriods().add(newPeriod);
+        household.addInhabitantPeriod(newPeriod);
 
         newPeriod.setPerson(this);
         newPeriod.setPersonId(getId());
