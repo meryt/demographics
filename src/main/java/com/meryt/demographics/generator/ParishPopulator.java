@@ -15,6 +15,7 @@ import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.generator.family.HouseholdGenerator;
+import com.meryt.demographics.generator.random.Die;
 import com.meryt.demographics.request.FamilyParameters;
 import com.meryt.demographics.service.FamilyService;
 import com.meryt.demographics.service.HouseholdService;
@@ -87,11 +88,38 @@ class ParishPopulator {
 
         if (!placedInTown) {
             if (parishTemplate.getParish().getPopulation(onDate) < parishTemplate.getExpectedRuralPopulation()) {
-
                 addHouseholdToDwellingPlaceOnWeddingDate(parishTemplate.getParish(), household, getMoveInDate(person,
-                        parishTemplate.getFamilyParameters().getReferenceDate()));
+                        onDate));
             } else {
-                // TODO add to a random town.
+                // Add to a random town even without a job. First try to fill out any towns that have room left but
+                // no more jobs.
+                List<TownTemplate> townsWithNoOccupationsLeft = parishTemplate.getTowns().stream()
+                        .filter(t -> t.getExpectedOccupations().isEmpty())
+                        .collect(Collectors.toList());
+                int size = townsWithNoOccupationsLeft.size();
+                if (size > 0) {
+                    TownTemplate townTemplate = townsWithNoOccupationsLeft.get(new Die(size).roll() - 1);
+                    addHouseholdToDwellingPlaceOnWeddingDate(townTemplate.getTown(), household, getMoveInDate(person,
+                            onDate));
+                    return;
+                }
+
+                // Otherwise look for any town that has room
+                List<TownTemplate> townsWithPopulationLeft = parishTemplate.getTowns().stream()
+                        .filter(t -> t.getExpectedPopulation() > t.getTown().getPopulation(onDate))
+                        .collect(Collectors.toList());
+
+                size = townsWithPopulationLeft.size();
+                if (size > 0) {
+                    TownTemplate townTemplate = townsWithPopulationLeft.get(new Die(size).roll() - 1);
+                    addHouseholdToDwellingPlaceOnWeddingDate(townTemplate.getTown(), household, getMoveInDate(person,
+                            onDate));
+                    return;
+                }
+
+                log.info("There was no room in the parish nor in any town. Adding household to parish");
+                addHouseholdToDwellingPlaceOnWeddingDate(parishTemplate.getParish(), household, getMoveInDate(person,
+                        onDate));
             }
         }
     }
