@@ -9,6 +9,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import javax.persistence.CascadeType;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
@@ -388,5 +389,19 @@ public class Person {
      */
     public String getHairColor() {
         return HairColor.getHairColorFromGenes(hairGenes);
+    }
+
+    /**
+     * Gets an occupation that the person held on this date, if any. If he somehow held multiple occupations on the
+     * date, returns an orbitrary one
+     */
+    @Nullable
+    public Occupation getOccupation(@NonNull LocalDate onDate) {
+        Set<Occupation> occupationsOnDate = getOccupations().stream()
+                .filter(o -> o.contains(onDate))
+                .map(PersonOccupationPeriod::getOccupation)
+                .collect(Collectors.toSet());
+
+        return occupationsOnDate.isEmpty() ? null : occupationsOnDate.iterator().next();
     }
 }

@@ -19,8 +19,7 @@ public enum SocialClass {
     MARQUESS(10, "Marquess"),
     DUKE(11, "Duke, Cardinal"),
     PRINCE(12, "Prince"),
-    MONARCH(13, "King, emperor, pope")
-    ;
+    MONARCH(13, "King, emperor, pope");
 
     @Getter
     private final int rank;
@@ -67,6 +66,10 @@ public enum SocialClass {
         } else {
             return fromRank(this.getRank() - 1);
         }
+    }
+
+    public String getFriendlyName() {
+        return name().toLowerCase().replace("_", " ");
     }
 
     /**

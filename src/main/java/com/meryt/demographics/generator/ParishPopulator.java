@@ -1,6 +1,7 @@
 package com.meryt.demographics.generator;
 
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -10,16 +11,16 @@ import lombok.extern.slf4j.Slf4j;
 import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
-import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.Household;
+import com.meryt.demographics.domain.place.Parish;
+import com.meryt.demographics.domain.place.Town;
 import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.generator.family.HouseholdGenerator;
 import com.meryt.demographics.generator.random.Die;
 import com.meryt.demographics.request.FamilyParameters;
 import com.meryt.demographics.service.FamilyService;
 import com.meryt.demographics.service.HouseholdService;
-import com.meryt.demographics.service.PersonService;
 
 @Slf4j
 class ParishPopulator {
@@ -32,28 +33,46 @@ class ParishPopulator {
 
     private final HouseholdService householdService;
 
-    private final PersonService personService;
-
     ParishPopulator(@NonNull HouseholdGenerator householdGenerator,
                     @NonNull FamilyGenerator familyGenerator,
                     @NonNull FamilyService familyService,
-                    @NonNull HouseholdService householdService,
-                    @NonNull PersonService personService) {
+                    @NonNull HouseholdService householdService) {
         this.householdGenerator = householdGenerator;
         this.familyGenerator = familyGenerator;
         this.familyService = familyService;
         this.householdService = householdService;
-        this.personService = personService;
     }
 
+    /**
+     * Populate an entire parish. Generates households and adds them to the parish or towns in the parish, until the
+     * expected population is at least met.
+     *
+     * @param template the template containing the parameters for the parish
+     */
     void populateParish(@NonNull ParishTemplate template) {
         log.info("Beginning population of Parish " + template.getParish().getName());
 
         long currentPopulation = 0;
-        int index = 0;
-        while (currentPopulation < template.getExpectedTotalPopulation() && index < 10) {
+        while (currentPopulation < template.getExpectedTotalPopulation()) {
             currentPopulation += addHousehold(template);
-            index++;
+        }
+
+        for (TownTemplate town : template.getTowns()) {
+            fillTownJobsFromPopulation(town, template.getFamilyParameters().getReferenceDate());
+
+            if (!town.getExpectedOccupations().isEmpty()) {
+                List<String> unfilledJobs = town.getExpectedOccupations().entrySet().stream()
+                        .map(e -> e.getKey().getName() + ": " + e.getValue())
+                        .collect(Collectors.toList());
+                log.info(String.format("Town '%s' still has unfilled occupations: %s", town.getTown().getName(),
+                        String.join(", ", unfilledJobs)));
+
+                for (Map.Entry<Occupation, Integer> occupationSlot : town.getExpectedOccupations().entrySet()) {
+                    for (int i = 0; i < occupationSlot.getValue(); i++) {
+                        createHouseholdToFillOccupation(template, town, occupationSlot.getKey());
+                    }
+                }
+            }
         }
     }
 
@@ -67,19 +86,49 @@ class ParishPopulator {
 
         FamilyParameters familyParameters = parishTemplate.getFamilyParameters();
 
-        // If persist is true on the family template, the household and its inhabitants will be saved.
+        // If persist is true on the family template, the household and its inhabitants will be saved by this method
+        // call.
         Household household = householdGenerator.generateHousehold(familyParameters);
 
         moveHouseholdToTownOrParish(household, parishTemplate);
 
+        // After a household is created, there might be adult sons in it. Try to move them out and create their own
+        // households too (based on their ability to find a wife).
         int childHouseholdPopulation = tryMoveOutSons(household, parishTemplate);
 
         return childHouseholdPopulation + household.getPopulation(familyParameters.getReferenceDate());
     }
 
+    private void createHouseholdToFillOccupation(@NonNull ParishTemplate template,
+                                                 @NonNull TownTemplate townTemplate,
+                                                 @NonNull Occupation occupation) {
+        FamilyParameters familyParameters = template.getFamilyParameters();
+        familyParameters.setMinSocialClass(occupation.getMinClass());
+        familyParameters.setMaxSocialClass(occupation.getMaxClass());
+        if (occupation.isAllowMale() && occupation.isAllowFemale()) {
+            familyParameters.setPercentMaleFounders(0.5);
+        } else if (occupation.isAllowMale()) {
+            familyParameters.setPercentMaleFounders(1.0);
+        } else {
+            familyParameters.setPercentMaleFounders(0.0);
+        }
+
+        // If persist is true on the family template, the household and its inhabitants will be saved by this method
+        // call.
+        Household household = householdGenerator.generateHousehold(familyParameters);
+        Person person = household.getHead(familyParameters.getReferenceDate());
+
+        log.info(String.format("%s (%s) will take a job in %s as a %s", person.getName(),
+                person.getSocialClass().getFriendlyName(), townTemplate.getTown().getName(),
+                occupation.getName()));
+
+        person.addOccupation(occupation, getJobStartDate(person));
+    }
+
     /**
-     * Look for a job for the head of the household. If one is found in a town, move to that town. Otherwise move to
-     * the parish itself.
+     * Puts the household into a town or the rural areas of the parish. The head of the household will look for a job
+     * in the towns, and if a suitable one is found, the household moves to that town. Otherwise may move to a town
+     * with population to spare, or to the parish itself, in rural areas.
      */
     private void moveHouseholdToTownOrParish(@NonNull Household household, @NonNull ParishTemplate parishTemplate) {
         LocalDate onDate = parishTemplate.getFamilyParameters().getReferenceDate();
@@ -87,7 +136,7 @@ class ParishPopulator {
         boolean placedInTown = findTownWithOccupationForHouseholdHead(parishTemplate, household, person);
 
         if (!placedInTown) {
-            if (parishTemplate.getParish().getPopulation(onDate) < parishTemplate.getExpectedRuralPopulation()) {
+            if (parishTemplate.hasRuralPopulationRemaining(onDate)) {
                 addHouseholdToDwellingPlaceOnWeddingDate(parishTemplate.getParish(), household, getMoveInDate(person,
                         onDate));
             } else {
@@ -140,49 +189,138 @@ class ParishPopulator {
             return false;
         }
 
-        LocalDate referenceDate = template.getFamilyParameters().getReferenceDate();
-        SocialClass socialClass = person.getSocialClass();
+        LocalDate onDate = template.getFamilyParameters().getReferenceDate();
 
         for (TownTemplate townTemplate : template.getTowns()) {
-            if (townTemplate.getExpectedOccupations().size() == 0 &&
-                    (townTemplate.getTown().getPopulation(referenceDate) < townTemplate.getExpectedPopulation())) {
-                log.info(String.format(
-                        "There are no more jobs in %s but there is still population space remaining. " +
-                                "%s (%s) will move in but not take a job.", townTemplate.getTown().getName(),
-                        person.getName(), socialClass.name().toLowerCase()));
-                addHouseholdToDwellingPlaceOnWeddingDate(townTemplate.getTown(), household,
-                        getMoveInDate(person, referenceDate));
-
+            if (moveIntoTownIfNoJobsInTown(townTemplate, household, person, onDate)) {
                 return true;
             }
-            for (Map.Entry<Occupation, Integer> occupationSlot : townTemplate.getExpectedOccupations().entrySet()) {
-                Occupation occupation = occupationSlot.getKey();
-                if (personWillAcceptOccupation(person, occupation) && occupationSlot.getValue() > 0) {
-                    log.info(String.format("%s (%s) will take a job in %s as a %s", person.getName(),
-                            socialClass.name().toLowerCase(), townTemplate.getTown().getName(),
-                            occupationSlot.getKey().getName()));
 
-                    person.addOccupation(occupation, getJobStartDate(person));
-
-                    if (occupationSlot.getValue() == 1) {
-                        townTemplate.getExpectedOccupations().remove(occupation);
-                    } else {
-                        occupationSlot.setValue(occupationSlot.getValue() - 1);
-                    }
-                    addHouseholdToDwellingPlaceOnWeddingDate(townTemplate.getTown(), household,
-                            getMoveInDate(person, template.getFamilyParameters().getReferenceDate()));
-
-                    return true;
-                }
+            if (findOccupationInTownForHouseholdHead(template.getParish(), townTemplate, household, person, onDate)) {
+                return true;
             }
         }
 
-        log.info(String.format("%s (%s) could not find a job in any town", person.getName(),
-                socialClass.name().toLowerCase()));
+        log.info(String.format("%s (%s) could not find a job or home in any town", person.getName(),
+                person.getSocialClass().getFriendlyName()));
 
         return false;
     }
 
+
+    /**
+     * If the town has no jobs left but has population remaining, move the household into this town without taking a
+     * job.
+     *
+     * @param townTemplate the town
+     * @param household the household to move in if a job is found
+     * @param person the household head looking for a job
+     * @param onDate the reference date (in case the person has no wedding date)
+     * @return true if the household moved into the town, else false
+     */
+    private boolean moveIntoTownIfNoJobsInTown(@NonNull TownTemplate townTemplate,
+                                               @NonNull Household household,
+                                               @NonNull Person person,
+                                               @NonNull LocalDate onDate) {
+        if (townTemplate.getExpectedOccupations().size() == 0 && townTemplate.hasSpaceRemaining(onDate)) {
+            log.info(String.format(
+                    "There are no more jobs in %s but there is still population space remaining. " +
+                            "%s (%s) will move in but not take a job.", townTemplate.getTown().getName(),
+                    person.getName(), person.getSocialClass().getFriendlyName()));
+            addHouseholdToDwellingPlaceOnWeddingDate(townTemplate.getTown(), household,
+                    getMoveInDate(person, onDate));
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Try to find an occupation for this person in this town, and if so, move the household into the town and give him
+     * the occupation.
+     *
+     * @param townTemplate the town
+     * @param household the household to move in if a job is found
+     * @param person the household head looking for a job
+     * @param onDate the reference date (in case the person has no wedding date)
+     * @return true if a job was found and the household moved in, else false
+     */
+    private boolean findOccupationInTownForHouseholdHead(@NonNull Parish parish,
+                                                         @NonNull TownTemplate townTemplate,
+                                                         @NonNull Household household,
+                                                         @NonNull Person person,
+                                                         @NonNull LocalDate onDate) {
+        for (Map.Entry<Occupation, Integer> occupationSlot : townTemplate.getExpectedOccupations().entrySet()) {
+            Occupation occupation = occupationSlot.getKey();
+            if (personWillAcceptOccupation(person, occupation) && occupationSlot.getValue() > 0) {
+                log.info(String.format("%s (%s) will take a job in %s as a %s", person.getName(),
+                        person.getSocialClass().getFriendlyName(), townTemplate.getTown().getName(),
+                        occupationSlot.getKey().getName()));
+
+                person.addOccupation(occupation, getJobStartDate(person));
+
+                if (occupationSlot.getValue() == 1) {
+                    townTemplate.getExpectedOccupations().remove(occupation);
+                } else {
+                    occupationSlot.setValue(occupationSlot.getValue() - 1);
+                }
+                // If it's a rural occupation, move to the parish rather than the town.
+                if (occupation.isRural()) {
+                    addHouseholdToDwellingPlaceOnWeddingDate(parish, household,
+                            getMoveInDate(person, onDate));
+                } else {
+                    addHouseholdToDwellingPlaceOnWeddingDate(townTemplate.getTown(), household,
+                            getMoveInDate(person, onDate));
+                }
+
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void fillTownJobsFromPopulation(@NonNull TownTemplate townTemplate, @NonNull LocalDate onDate) {
+        Map<Occupation, Integer> jobsStillUnfilled = new HashMap<>();
+        for (Map.Entry<Occupation, Integer> occupationEntry : townTemplate.getExpectedOccupations().entrySet()) {
+            Occupation occupation = occupationEntry.getKey();
+            int expected = occupationEntry.getValue();
+            int filled = 0;
+            for (int i = 0; i < expected; i++) {
+                if (fillJobFromTown(occupation, townTemplate.getTown(), onDate)) {
+                    filled++;
+                }
+            }
+            jobsStillUnfilled.put(occupation, expected - filled);
+        }
+
+        for (Map.Entry<Occupation, Integer> occupationEntry : jobsStillUnfilled.entrySet()) {
+            if (occupationEntry.getValue() == 0) {
+                townTemplate.getExpectedOccupations().remove(occupationEntry.getKey());
+            } else {
+                townTemplate.getExpectedOccupations().put(occupationEntry.getKey(), occupationEntry.getValue());
+            }
+        }
+    }
+
+    private boolean fillJobFromTown(@NonNull Occupation occupation, @NonNull Town town, @NonNull LocalDate onDate) {
+        List<Household> possibleHouseholds = town.getHouseholds(onDate).stream()
+                .filter(h -> h.getPopulation(onDate) > 0
+                        && h.getHead(onDate) != null
+                        && h.getHead(onDate).getOccupations().isEmpty())
+                .collect(Collectors.toList());
+
+        for (Household household : possibleHouseholds) {
+            Person head = household.getHead(onDate);
+            if (head != null && personWillAcceptBetterOccupation(head, occupation)) {
+                log.info(String.format("%s (%s) will take a job in %s as a %s", head.getName(),
+                        head.getSocialClass().getFriendlyName(), town.getName(),
+                        occupation.getName()));
+
+                head.addOccupation(occupation, getJobStartDate(head));
+                return true;
+            }
+        }
+        return false;
+    }
 
     /**
      * Determines whether a person will accept an occupation on offer. The max social class for the occupation must
@@ -194,12 +332,27 @@ class ParishPopulator {
                 && (!person.isFemale() || occupation.isAllowFemale());
     }
 
+    /**
+     * Usually the occupation is assigned such that the person's class equals the max for the job. Now we allow the
+     * person to take the job if his class is anywhere between min and max for the job.
+     */
+    private boolean personWillAcceptBetterOccupation(@NonNull Person person, @NonNull Occupation occupation) {
+        return person.getSocialClass().getRank() >= occupation.getMinClass().getRank()
+                && person.getSocialClass().getRank() <= occupation.getMaxClass().getRank()
+                && (!person.isMale() || occupation.isAllowMale())
+                && (!person.isFemale() || occupation.isAllowFemale());
+    }
+
     private void addHouseholdToDwellingPlaceOnWeddingDate(@NonNull DwellingPlace dwellingPlace,
                                                           @NonNull Household household,
                                                           @NonNull LocalDate moveInDate) {
         household.addToDwellingPlace(dwellingPlace, moveInDate, null);
     }
 
+    /**
+     * Gets a move-in date for the person. If the person has one or more families, gets the first one and takes the
+     * wedding date (if any). Otherwise takes the reference date.
+     */
     private LocalDate getMoveInDate(Person person, @NonNull LocalDate referenceDate) {
         if (person == null || person.getFamilies().isEmpty()) {
             return referenceDate;
@@ -209,6 +362,10 @@ class ParishPopulator {
         }
     }
 
+    /**
+     * Gets a job start date for the person. If he lived to at least 16, then use his 16th birthday. Otherwise take
+     * his wedding date, if any. Otherwise take his death date.
+     */
     private LocalDate getJobStartDate(@NonNull Person person) {
 
         if (person.isLiving(person.getBirthDate().plusYears(16))) {
@@ -225,21 +382,33 @@ class ParishPopulator {
         return person.getDeathDate();
     }
 
+    /**
+     * Finds any adult sons in the household and tries to find wives for them. If they marry, then they will move to
+     * their own household.
+     *
+     * @param household the household that may contain sons
+     * @param parishTemplate template used for family generation parameters
+     * @return the number of residents in the household or households founded by sons, as of the reference date
+     */
     private int tryMoveOutSons(@NonNull Household household, @NonNull ParishTemplate parishTemplate) {
         LocalDate onDate = parishTemplate.getFamilyParameters().getReferenceDate();
 
+        // Ensure that if the head has died and the household records not been cleaned up, that we find a new head.
+        // We don't move out a son if he is the head of his household.
         if (household.getHead(onDate) == null) {
             household.resetHeadAsOf(onDate);
         }
         // We don't want to move out a son who is the head of the household due to the death of his father
         Person head = household.getHead(onDate);
 
+        // Get all males who are at least 18 and are not head of household
         List<Person> adultSons = household.getInhabitants(onDate).stream()
                 .filter(Person::isMale)
                 .filter(p -> !p.equals(head))
                 .filter(p -> p.getAgeInYears(onDate) >= 18)
                 .collect(Collectors.toList());
 
+        // Loop over sons and attempt to create families and households for them.
         int sonHouseholdPopulation = 0;
         for (Person adultSon : adultSons) {
             Family family = familyGenerator.generate(adultSon, parishTemplate.getFamilyParameters());
@@ -259,11 +428,20 @@ class ParishPopulator {
         return sonHouseholdPopulation;
     }
 
+    /**
+     * Perform the manipulations on the old household and the new household so that the son will be moved out.
+     *
+     * @param oldHousehold the son's former household
+     * @param family the son's new family
+     * @param parishTemplate the template used for parameters
+     * @return the son's new household, containing his new family members
+     */
     private Household moveOutSon(@NonNull Household oldHousehold,
                            @NonNull Family family,
                            @NonNull ParishTemplate parishTemplate) {
 
-        if (parishTemplate.getFamilyParameters().isPersist()) {
+        boolean isPersist = parishTemplate.getFamilyParameters().isPersist();
+        if (isPersist) {
             family = familyService.save(family);
         }
 
@@ -271,13 +449,17 @@ class ParishPopulator {
 
         Household newHousehold = new Household();
         householdGenerator.addFamilyToHousehold(newHousehold, family, family.getWeddingDate());
-        householdService.save(oldHousehold);
+        if (isPersist) {
+            householdService.save(oldHousehold);
+        }
 
         if (!family.getHusband().isLiving(onDate)) {
             newHousehold.resetHeadAsOf(family.getHusband().getDeathDate());
         }
 
-        newHousehold = householdService.save(newHousehold);
+        if (isPersist) {
+            newHousehold = householdService.save(newHousehold);
+        }
 
         return newHousehold;
     }

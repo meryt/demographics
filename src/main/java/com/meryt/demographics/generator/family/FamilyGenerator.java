@@ -49,6 +49,7 @@ public class FamilyGenerator {
             log.info(String.format("%s married %s on %s", family.getHusband().getName(), family.getWife().getName(),
                     family.getWeddingDate()));
         } else {
+            log.info(String.format("%s could not find a wife.", founder.getName()));
             return null;
         }
 

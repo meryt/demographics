@@ -239,7 +239,7 @@ public class PersonGenerator {
         person.setMorality(randomTrait());
         person.setEyeGenes(getEyeGenesFromParents(father, mother));
         person.setEyeColor(EyeColor.randomFromGenes(person.getEyeGenes()));
-        person.setHairGenes(getHairGenesFromParents(father, mother));
+        person.setHairGenes(getHairGenesFromParents(father, mother, person.getEyeColor()));
     }
 
     /**
@@ -330,9 +330,18 @@ public class PersonGenerator {
         }
     }
 
-    private String getHairGenesFromParents(Person father, Person mother) {
+    /**
+     * Get hair color from parents hair color, or if parents are both null, use the person's eye color to make a
+     * blue-eyed person more likely to be blond and a brown-eyed person less likely
+     *
+     * @param father
+     * @param mother
+     * @param ownEyeColor
+     * @return
+     */
+    private String getHairGenesFromParents(Person father, Person mother, @NonNull EyeColor ownEyeColor) {
         if (father == null || mother == null || father.getHairGenes() == null || mother.getHairGenes() == null) {
-            return getRandomHairGenes();
+            return getRandomHairGenes(ownEyeColor);
         }
 
         Die d2 = new Die(2);
@@ -355,6 +364,28 @@ public class PersonGenerator {
         return result;
     }
 
+    /**
+     * Get random hair color, but if eyes are blue and the first try is not a shade of blond, then try a second time.
+     * Likewise if eyes are brown and first try is blond, try a second time.
+     *
+     * @param ownEyeColor which will cause blond to be favored if the eyes are known to be blue, and blond to be
+     *                    unfavored if eyes are known to be brown.
+     * @return a gene sequence determining hair color
+     */
+    private String getRandomHairGenes(@NonNull EyeColor ownEyeColor) {
+        String genes = getRandomHairGenes();
+        if (ownEyeColor.isBlue() && !genes.startsWith("bb")) {
+            return getRandomHairGenes();
+        } else if (ownEyeColor.isBrown() && genes.startsWith("bb")) {
+            return getRandomHairGenes();
+        } else {
+            return genes;
+        }
+    }
+
+    /**
+     * Gets a random gene combo for hair color
+     */
     private String getRandomHairGenes() {
         switch (new Die(9).roll()) {
             case 1: return "BBRR";

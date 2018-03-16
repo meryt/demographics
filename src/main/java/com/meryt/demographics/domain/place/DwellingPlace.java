@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 import javax.persistence.CascadeType;
 import javax.persistence.DiscriminatorColumn;
 import javax.persistence.Entity;
@@ -94,6 +95,16 @@ abstract public class DwellingPlace {
         if (member.getParent().equals(this)) {
             member.setParent(null);
         }
+    }
+
+    /**
+     * Gets all households that are in this town as of the date
+     */
+    public List<Household> getHouseholds(@NonNull LocalDate onDate) {
+        return getHouseholdPeriods().stream()
+                .filter(hp -> hp.contains(onDate))
+                .map(HouseholdLocationPeriod::getHousehold)
+                .collect(Collectors.toList());
     }
 
 }

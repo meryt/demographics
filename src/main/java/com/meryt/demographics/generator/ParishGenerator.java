@@ -119,8 +119,7 @@ public class ParishGenerator {
         template.setFamilyParameters(parishParameters.getFamilyParameters());
 
         ParishPopulator populator = new ParishPopulator(new HouseholdGenerator(familyGenerator,
-                personService, familyService, householdService), familyGenerator, familyService, householdService,
-                personService);
+                personService, familyService, householdService), familyGenerator, familyService, householdService);
         populator.populateParish(template);
 
         return parish;

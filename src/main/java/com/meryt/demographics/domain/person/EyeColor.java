@@ -1,16 +1,29 @@
 package com.meryt.demographics.domain.person;
 
+import lombok.Getter;
+
 import com.meryt.demographics.generator.random.Die;
 import com.meryt.demographics.generator.random.PercentDie;
 
 public enum EyeColor {
-    BLUE,  // blue
-    GRAY,  // blue
-    GREEN, // green
-    HAZEL, // green
-    AMBER, // brown
-    BROWN, // brown
-    BLACK; // brown
+    BLUE(true, false),  // blue
+    GRAY(true, false),  // blue
+    GREEN(false, false), // green
+    HAZEL(false, false), // green
+    AMBER(false, true), // brown
+    BROWN(false, true), // brown
+    BLACK(false, true); // brown
+
+    @Getter
+    final boolean isBlue;
+
+    @Getter
+    final boolean isBrown;
+
+    EyeColor(boolean isBlue, boolean isBrown) {
+        this.isBlue = isBlue;
+        this.isBrown = isBrown;
+    }
 
     /**
      * Given a set of genes, determine a random eye color

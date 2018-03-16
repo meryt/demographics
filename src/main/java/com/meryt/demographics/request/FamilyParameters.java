@@ -5,6 +5,8 @@ import lombok.Setter;
 
 import java.time.LocalDate;
 
+import com.meryt.demographics.domain.person.SocialClass;
+
 @Getter
 @Setter
 public class FamilyParameters {
@@ -45,6 +47,11 @@ public class FamilyParameters {
      * Determines how likely the founder of a random family is to be a man. Defaults to 0.8.
      */
     private Double percentMaleFounders;
+
+    // TODO make use of these
+    private SocialClass minSocialClass;
+
+    private SocialClass maxSocialClass;
 
     /**
      * If true, will save the family after generating.

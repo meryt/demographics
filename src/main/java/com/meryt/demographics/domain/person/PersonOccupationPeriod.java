@@ -17,13 +17,14 @@ import lombok.Getter;
 import lombok.Setter;
 
 import com.meryt.demographics.domain.Occupation;
+import com.meryt.demographics.time.DateRange;
 
 @Entity
 @IdClass(PersonOccupationPK.class)
 @Table(name = "person_occupations")
 @Getter
 @Setter
-public class PersonOccupationPeriod {
+public class PersonOccupationPeriod implements DateRange {
 
     @Id
     @Column(name = "person_id", updatable = false, insertable = false)
