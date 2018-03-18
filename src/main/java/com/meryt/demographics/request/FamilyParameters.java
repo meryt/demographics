@@ -48,7 +48,6 @@ public class FamilyParameters {
      */
     private Double percentMaleFounders;
 
-    // TODO make use of these
     private SocialClass minSocialClass;
 
     private SocialClass maxSocialClass;

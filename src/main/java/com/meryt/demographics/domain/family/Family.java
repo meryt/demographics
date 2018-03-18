@@ -5,7 +5,6 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
@@ -83,7 +82,6 @@ public class Family {
     /**
      * Determines whether the family relationship is a marriage or not
      */
-    @JsonIgnore
     public boolean isMarriage() {
         return weddingDate != null;
     }

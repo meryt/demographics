@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.meryt.demographics.domain.place.Household;
+import com.meryt.demographics.response.HouseholdResponse;
 import com.meryt.demographics.rest.ResourceNotFoundException;
 import com.meryt.demographics.service.HouseholdService;
 
@@ -21,12 +22,11 @@ public class HouseholdController {
     }
 
     @RequestMapping("/households/{householdId}")
-    public Household getHousehold(@PathVariable long householdId) {
-        log.info("Looking for household with id " + householdId);
+    public HouseholdResponse getHousehold(@PathVariable long householdId) {
         Household result = householdService.load(householdId);
         if (result == null) {
             throw new ResourceNotFoundException("No household found for ID " + householdId);
         }
-        return result;
+        return new HouseholdResponse(result);
     }
 }

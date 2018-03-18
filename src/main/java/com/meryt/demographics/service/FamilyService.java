@@ -1,5 +1,6 @@
 package com.meryt.demographics.service;
 
+import javax.annotation.Nullable;
 import java.time.LocalDate;
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
@@ -21,6 +22,14 @@ public class FamilyService {
 
     public Family save(@NonNull Family family) {
         return familyRepository.save(family);
+    }
+
+    /**
+     * Finds a family by ID or returns null if none found
+     */
+    @Nullable
+    public Family load(long familyId) {
+        return familyRepository.findById(familyId).orElse(null);
     }
 
     /**

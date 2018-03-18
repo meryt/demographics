@@ -1,10 +1,12 @@
 package com.meryt.demographics.domain.person;
 
+import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.List;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.meryt.demographics.generator.random.Die;
 import lombok.Getter;
+import lombok.NonNull;
 
 public enum SocialClass {
     PAUPER(1, "Itinerant laborer, beggar, prisoner"),
@@ -44,6 +46,7 @@ public enum SocialClass {
      * @throws IllegalArgumentException if the rank is not in range
      * @throws IllegalStateException if the enum value and rank don't match
      */
+    @NonNull
     public static SocialClass fromRank(int rank) {
         if (rank < PAUPER.getRank() || rank > MONARCH.getRank()) {
             throw new IllegalArgumentException("No SocialClass exists for rank " + rank);
@@ -60,6 +63,7 @@ public enum SocialClass {
     /**
      * Returns the next lower class, or the lowest if it's already the lowest
      */
+    @NonNull
     public SocialClass minusOne() {
         if (this == PAUPER) {
             return PAUPER;
@@ -68,13 +72,38 @@ public enum SocialClass {
         }
     }
 
+    @NonNull
     public String getFriendlyName() {
         return name().toLowerCase().replace("_", " ");
     }
 
     /**
+     * Gets a random social class between an optional min and optional max.
+     *
+     * @param minSocialClass minimum or null for no minimum
+     * @param maxSocialClass maximum or null for no maximum
+     * @return a social class equal to or greater/lesser than the min/max
+     */
+    @NonNull
+    public static SocialClass randomBetween(@Nullable SocialClass minSocialClass, @Nullable SocialClass maxSocialClass) {
+        if (minSocialClass != null && maxSocialClass != null && minSocialClass.getRank() > maxSocialClass.getRank()) {
+            throw new IllegalArgumentException(String.format("Min SocialClass %s is greater than Max SocialClass %s",
+                    minSocialClass.name(), maxSocialClass.name()));
+        }
+
+        SocialClass random;
+        do {
+            random = random();
+        } while ((minSocialClass == null || minSocialClass.getRank() <= random.getRank()) &&
+                (maxSocialClass == null || maxSocialClass.getRank() >= random.getRank()));
+
+        return random;
+    }
+
+    /**
      * Generate a random social class weighted towards the lower end.
      */
+    @NonNull
     public static SocialClass random() {
         int total = 27_000_000;
         Die dMillions = new Die(total);

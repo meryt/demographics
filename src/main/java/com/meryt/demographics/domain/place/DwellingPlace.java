@@ -19,7 +19,6 @@ import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
@@ -35,11 +34,10 @@ abstract public class DwellingPlace {
     @Id
     @SequenceGenerator(name="dwelling_places_id_seq", sequenceName="dwelling_places_id_seq", allocationSize=1)
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator="dwelling_places_id_seq")
-    private int id;
+    private long id;
 
     private String name;
 
-    @JsonIgnore
     @ManyToOne
     private DwellingPlace parent;
 

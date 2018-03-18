@@ -67,7 +67,18 @@ public class PersonGenerator {
         // Set the social class from the parents if they are present.
         SocialClass socialClass = familyService.getCalculatedChildSocialClass(personParameters.getFather(),
                 personParameters.getMother(), person, false, person.getBirthDate());
-        person.setSocialClass(socialClass != null ? socialClass : SocialClass.random());
+
+        if (socialClass != null) {
+            person.setSocialClass(socialClass);
+        } else {
+            // Otherwise get a random social class, optionally between two specified classes
+            if (personParameters.getMinSocialClass() != null || personParameters.getMaxSocialClass() != null) {
+                person.setSocialClass(SocialClass.randomBetween(personParameters.getMinSocialClass(),
+                        personParameters.getMaxSocialClass()));
+            } else {
+                person.setSocialClass(SocialClass.random());
+            }
+        }
 
         generateAndSetTraits(personParameters, person);
 

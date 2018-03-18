@@ -23,7 +23,6 @@ import javax.persistence.OneToOne;
 import javax.persistence.PrimaryKeyJoinColumn;
 import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NonNull;
@@ -84,14 +83,11 @@ public class Person {
 
     private double strength;
 
-    @JsonIgnore
     private String eyeGenes;
 
-    @JsonIgnore
     @Enumerated(EnumType.STRING)
     private EyeColor eyeColor;
 
-    @JsonIgnore
     private String hairGenes;
 
     @OneToOne(cascade = CascadeType.ALL)
@@ -103,16 +99,13 @@ public class Person {
     private Paternity paternity;
 
     @ManyToOne(cascade = { CascadeType.ALL })
-    @JsonIgnore
     private Family family;
 
     @OneToMany(mappedBy = "husband", cascade = { CascadeType.ALL })
-    @JsonIgnore
     @Setter(AccessLevel.PRIVATE)
     private Set<Family> fatheredFamilies = new HashSet<>();
 
     @OneToMany(mappedBy = "wife", cascade = { CascadeType.ALL })
-    @JsonIgnore
     @Setter(AccessLevel.PRIVATE)
     private Set<Family> motheredFamilies = new HashSet<>();
 
@@ -125,7 +118,6 @@ public class Person {
     @OneToMany(mappedBy = "person", cascade = { CascadeType.ALL })
     private List<PersonOccupationPeriod> occupations = new ArrayList<>();
 
-    @JsonIgnore
     public Fertility getFertility() {
         if (gender == null) {
             return null;
@@ -141,7 +133,6 @@ public class Person {
      * @return age in full years (may be negative if date is before birth date
      * @throws IllegalStateException if the person has a null birth date
      */
-    @JsonIgnore
     public int getAgeInYears(@NonNull LocalDate onDate) {
         if (getBirthDate() == null) {
             throw new IllegalStateException("Cannot determine age for a person with a null birth date");
@@ -156,7 +147,6 @@ public class Person {
      * @return age in days (may be negative if date is before birth date
      * @throws IllegalStateException if the person has a null birth date
      */
-    @JsonIgnore
     public long getAgeInDays(@NonNull LocalDate onDate) {
         if (getBirthDate() == null) {
             throw new IllegalStateException("Cannot determine age for a person with a null birth date");
@@ -169,7 +159,6 @@ public class Person {
      *
      * @return null if there is no death and/or birth date, or the age in years, months, days (a string)
      */
-    @SuppressWarnings("unused")
     public String getAgeAtDeath() {
         if (getBirthDate() == null || getDeathDate() == null) {
             return null;
@@ -181,7 +170,6 @@ public class Person {
     /**
      * Determines whether this person is male. If gender is null, defaults to true.
      */
-    @JsonIgnore
     public boolean isMale() {
         return gender == null || gender.equals(Gender.MALE);
     }
@@ -189,17 +177,14 @@ public class Person {
     /**
      * Determines whether the person is female. If gender is null, defaults to false.
      */
-    @JsonIgnore
     public boolean isFemale() {
         return !isMale();
     }
 
-    @JsonIgnore
     public boolean isLiving(@NonNull LocalDate onDate) {
         return birthDate != null && !onDate.isBefore(birthDate) && (deathDate == null || !onDate.isAfter(deathDate));
     }
 
-    @JsonIgnore
     public String getName() {
         return (firstName + " " + lastName).trim();
     }
@@ -232,7 +217,6 @@ public class Person {
      * @return true if the person is a son, and has a father with a non-null death date, and is either still alive on
      * this date or does not predecease the father.
      */
-    @JsonIgnore
     public boolean isFirstbornSurvivingSonOfFather(LocalDate onDate) {
         if (!isMale()) {
             return false;
@@ -254,7 +238,6 @@ public class Person {
         return !legitimateMalesSurvivingFather.isEmpty() && legitimateChildren.get(0).getId() == getId();
     }
 
-    @JsonIgnore
     private Person getFather() {
         if (getFamily() == null) {
             return null;
@@ -266,7 +249,6 @@ public class Person {
     /**
      * Gets all children from this person's marriages. Excludes any children who do not have birth dates.
      */
-    @JsonIgnore
     private List<Person> getLegitimateChildren() {
         Set<Family> families = getFamilies();
         List<Person> children = new ArrayList<>();
@@ -284,7 +266,6 @@ public class Person {
     /**
      * Gets the families of which this person is the father or mother, NOT the one of which he is a child.
      */
-    @JsonIgnore
     public Set<Family> getFamilies() {
         if (isMale()) {
             return getFatheredFamilies();

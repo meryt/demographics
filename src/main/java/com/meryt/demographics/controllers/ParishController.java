@@ -9,6 +9,7 @@ import com.meryt.demographics.domain.place.Parish;
 import com.meryt.demographics.generator.ParishGenerator;
 import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.request.ParishParameters;
+import com.meryt.demographics.response.DwellingPlaceResponse;
 import com.meryt.demographics.service.DwellingPlaceService;
 import com.meryt.demographics.service.FamilyService;
 import com.meryt.demographics.service.HouseholdService;
@@ -40,15 +41,14 @@ public class ParishController {
     }
 
     @RequestMapping("/parishes/random")
-    public Parish randomParish(@RequestBody ParishParameters parishParameters) {
+    public DwellingPlaceResponse randomParish(@RequestBody ParishParameters parishParameters) {
         ParishGenerator generator = new ParishGenerator(occupationService, familyGenerator, familyService,
                 personService, householdService, dwellingPlaceService);
         Parish parish = generator.generateParish(parishParameters);
         if (parishParameters.isPersist()) {
-            return (Parish) dwellingPlaceService.save(parish);
+            return new DwellingPlaceResponse(dwellingPlaceService.save(parish));
         } else {
-            return parish;
+            return new DwellingPlaceResponse(parish);
         }
     }
-
 }

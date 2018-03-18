@@ -5,6 +5,8 @@ import java.util.HashSet;
 import java.util.Set;
 import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.domain.person.SocialClass;
+
 import lombok.Getter;
 import lombok.Setter;
 
@@ -46,5 +48,9 @@ public class PersonParameters {
     private Person father;
 
     private Person mother;
+
+    private SocialClass minSocialClass;
+
+    private SocialClass maxSocialClass;
 
 }

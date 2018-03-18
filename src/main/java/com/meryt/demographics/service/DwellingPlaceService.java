@@ -1,5 +1,7 @@
 package com.meryt.demographics.service;
 
+import javax.annotation.Nullable;
+
 import lombok.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -18,6 +20,14 @@ public class DwellingPlaceService {
 
     public DwellingPlace save(@NonNull DwellingPlace dwellingPlace) {
         return dwellingPlaceRepository.save(dwellingPlace);
+    }
+
+    /**
+     * Finds a place by ID or returns null if none found
+     */
+    @Nullable
+    public DwellingPlace load(long placeId) {
+        return dwellingPlaceRepository.findById(placeId).orElse(null);
     }
 
 }

@@ -95,6 +95,8 @@ public class FamilyGenerator {
         personParameters.setAliveOnDate(targetDate);
         personParameters.setMinAge(minAge);
         personParameters.setMaxAge(maxAge);
+        personParameters.setMinSocialClass(familyParameters.getMinSocialClass());
+        personParameters.setMaxSocialClass(familyParameters.getMaxSocialClass());
 
         return personGenerator.generate(personParameters);
     }

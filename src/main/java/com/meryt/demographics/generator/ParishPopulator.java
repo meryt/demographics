@@ -1,6 +1,7 @@
 package com.meryt.demographics.generator;
 
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -116,7 +117,17 @@ class ParishPopulator {
         // If persist is true on the family template, the household and its inhabitants will be saved by this method
         // call.
         Household household = householdGenerator.generateHousehold(familyParameters);
-        Person person = household.getHead(familyParameters.getReferenceDate());
+
+        List<Person> inhabitants = household.getInhabitants(familyParameters.getReferenceDate()).stream()
+                .filter(p -> occupation.isAllowMale() ? p.isMale() : p.isFemale())
+                .sorted(Comparator.comparing(Person::getBirthDate))
+                .collect(Collectors.toList());
+        if (inhabitants.isEmpty()) {
+            log.warn("Unable to find a person of the appropriate gender to be a " + occupation.getName());
+            return;
+        }
+
+        Person person = inhabitants.get(0);
 
         log.info(String.format("%s (%s) will take a job in %s as a %s", person.getName(),
                 person.getSocialClass().getFriendlyName(), townTemplate.getTown().getName(),
