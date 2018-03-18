@@ -45,7 +45,7 @@ public class FamilyGenerator {
     public Family generate(@NonNull Person founder, @NonNull FamilyParameters familyParameters) {
 
         Family family = searchForSpouse(founder, familyParameters);
-        if (family.getHusband() != null && family.getWife() != null) {
+        if (family != null && family.getHusband() != null && family.getWife() != null) {
             log.info(String.format("%s married %s on %s", family.getHusband().getName(), family.getWife().getName(),
                     family.getWeddingDate()));
         } else {
@@ -101,20 +101,14 @@ public class FamilyGenerator {
         return personGenerator.generate(personParameters);
     }
 
+    @Nullable
     private Family searchForSpouse(@NonNull Person person, @NonNull FamilyParameters familyParameters) {
-
-        Family family = new Family();
 
         LocalDate untilDate = familyParameters.getReferenceDate();
 
         int minMarriageAge = person.isMale()
                 ? familyParameters.getMinHusbandAgeOrDefault()
                 : familyParameters.getMinWifeAgeOrDefault();
-        if (person.isMale()) {
-            family.setHusband(person);
-        } else {
-            family.setWife(person);
-        }
 
         LocalDate endDate;
         if (untilDate == null || person.getDeathDate().isBefore(untilDate)) {
@@ -124,20 +118,20 @@ public class FamilyGenerator {
         }
 
         LocalDate startDate = person.getBirthDate().plusYears(minMarriageAge);
-        attemptToFindSpouse(startDate, endDate, family, person, familyParameters);
-
-        return family;
+        return attemptToFindSpouse(startDate, endDate, person, familyParameters);
     }
 
     /**
      * Run a loop from start date to end date and attempt to find a spouse during that time.
      * @param startDate date to begin looping at (e.g. when person reaches marriageable age)
      * @param endDate date to stop looping
-     * @param family the family on which to set the spouse and wedding date, if one is found
      * @param person the person seeking a spouse
      */
-    private void attemptToFindSpouse(@NonNull LocalDate startDate, @NonNull LocalDate endDate, @NonNull Family family,
-                                     @NonNull Person person, @NonNull FamilyParameters familyParameters) {
+    @Nullable
+    private Family attemptToFindSpouse(@NonNull LocalDate startDate,
+                                       @NonNull LocalDate endDate,
+                                       @NonNull Person person,
+                                       @NonNull FamilyParameters familyParameters) {
         Gender spouseGender = person.isFemale() ? Gender.MALE : Gender.FEMALE;
         PercentDie die = new PercentDie();
         for (LocalDate currentDate = startDate; currentDate.isBefore(endDate) ; currentDate = currentDate.plusDays(1)) {
@@ -153,12 +147,20 @@ public class FamilyGenerator {
                 spouseParameters.setAliveOnDate(currentDate);
                 Person potentialSpouse = personGenerator.generate(spouseParameters);
                 if (MatchMaker.checkCompatibility(person, potentialSpouse, currentDate)) {
+                    Family family = new Family();
+                    if (person.isMale()) {
+                        family.setHusband(person);
+                    } else {
+                        family.setWife(person);
+                    }
+
                     family.setWeddingDate(currentDate);
                     family.addSpouse(potentialSpouse);
-                    break;
+                    return family;
                 }
             }
         }
+        return null;
     }
 
     private void validate(FamilyParameters familyParameters) {

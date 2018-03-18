@@ -94,8 +94,8 @@ public enum SocialClass {
         SocialClass random;
         do {
             random = random();
-        } while ((minSocialClass == null || minSocialClass.getRank() <= random.getRank()) &&
-                (maxSocialClass == null || maxSocialClass.getRank() >= random.getRank()));
+        } while ((minSocialClass != null && minSocialClass.getRank() > random.getRank()) ||
+                (maxSocialClass != null && maxSocialClass.getRank() < random.getRank()));
 
         return random;
     }

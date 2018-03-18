@@ -83,6 +83,16 @@ public class Household {
             .collect(Collectors.toSet());
     }
 
+    @Nullable
+    public DwellingPlace getDwellingPlace(@NonNull LocalDate onDate) {
+        Set<DwellingPlace> places = getDwellingPlaces().stream()
+                .filter(p -> p.contains(onDate))
+                .map(HouseholdLocationPeriod::getDwellingPlace)
+                .collect(Collectors.toSet());
+
+        return places.isEmpty() ? null : places.iterator().next();
+    }
+
     public void addToDwellingPlace(@NonNull DwellingPlace dwellingPlace, @NonNull LocalDate fromDate, LocalDate toDate) {
         for (HouseholdLocationPeriod period : getDwellingPlaces()) {
             if (period.getFromDate().isBefore(fromDate) &&

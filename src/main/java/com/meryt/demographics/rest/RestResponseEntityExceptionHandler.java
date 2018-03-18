@@ -11,11 +11,6 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 @ControllerAdvice
 public class RestResponseEntityExceptionHandler extends ResponseEntityExceptionHandler {
 
-    @ExceptionHandler(value = { IllegalArgumentException.class })
-    protected ResponseEntity<Object> handleIllegalArgument(IllegalArgumentException e) {
-        return buildResponseEntity(new RestErrorMessage(HttpStatus.BAD_REQUEST, e.getMessage()));
-    }
-
     @ExceptionHandler(value = { ResourceNotFoundException.class })
     protected ResponseEntity<Object> handleResourceNotFound(ResourceNotFoundException e) {
         return buildResponseEntity(new RestErrorMessage(HttpStatus.NOT_FOUND, e.getMessage()));

@@ -18,7 +18,7 @@ public class FamilyServiceTest {
 
     @Before
     public void setUp() {
-        familyService = new FamilyService();
+        familyService = new FamilyService(null);
     }
 
     @Test

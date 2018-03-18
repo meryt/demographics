@@ -1,5 +1,7 @@
 package com.meryt.demographics.response;
 
+import javax.annotation.Nullable;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -14,7 +16,11 @@ public class DwellingPlaceResponse extends DwellingPlaceSummaryResponse {
     private List<DwellingPlaceSummaryResponse> places;
 
     public DwellingPlaceResponse(@NonNull DwellingPlace dwellingPlace) {
-        super(dwellingPlace);
+        this(dwellingPlace, null);
+    }
+
+    public DwellingPlaceResponse(@NonNull DwellingPlace dwellingPlace, @Nullable LocalDate onDate) {
+        super(dwellingPlace, onDate);
 
         if (dwellingPlace.getDwellingPlaces().isEmpty()) {
             places = null;

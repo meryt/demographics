@@ -59,6 +59,7 @@ class ParishPopulator {
         }
 
         for (TownTemplate town : template.getTowns()) {
+            log.info("Filling town jobs from existing town population for town " + town.getTown().getName());
             fillTownJobsFromPopulation(town, template.getFamilyParameters().getReferenceDate());
 
             if (!town.getExpectedOccupations().isEmpty()) {
@@ -68,6 +69,7 @@ class ParishPopulator {
                 log.info(String.format("Town '%s' still has unfilled occupations: %s", town.getTown().getName(),
                         String.join(", ", unfilledJobs)));
 
+                log.info("Creating new households in this town to fill jobs.");
                 for (Map.Entry<Occupation, Integer> occupationSlot : town.getExpectedOccupations().entrySet()) {
                     for (int i = 0; i < occupationSlot.getValue(); i++) {
                         createHouseholdToFillOccupation(template, town, occupationSlot.getKey());

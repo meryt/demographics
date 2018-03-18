@@ -68,7 +68,11 @@ public class ParishGenerator {
 
         Parish parish = new Parish();
         parish.setAcres(parishParameters.getSquareMiles() * ACRES_PER_SQUARE_MILE);
-        parish.setName("Parish 1");
+        if (parishParameters.getParishPrefix() != null) {
+            parish.setName(parishParameters.getParishPrefix() + " Parish");
+        } else {
+            parish.setName("Parish");
+        }
 
         long totalPopulation = parishParameters.getPopulation();
         long currentPopulation = 0;
@@ -82,7 +86,8 @@ public class ParishGenerator {
         long lastPopulation = largestTownPopulation(totalPopulation);
         currentPopulation += lastPopulation;
         List<TownTemplate> towns = new ArrayList<>();
-        TownTemplate town1 = createTown("Town 1", lastPopulation, parishParameters.isPersist());
+        String name = parishParameters.getParishPrefix() != null ? parishParameters.getParishPrefix() + " Town 1" : "Town 1";
+        TownTemplate town1 = createTown(name, lastPopulation, parishParameters.isPersist());
         towns.add(town1);
         parish.addDwellingPlace(town1.getTown());
 
@@ -101,7 +106,11 @@ public class ParishGenerator {
 
             currentPopulation += lastPopulation;
 
-            TownTemplate town = createTown("Town " + townIndex++, lastPopulation, parishParameters.isPersist());
+            name = "Town " + townIndex++;
+            if (parishParameters.getParishPrefix() != null) {
+                name = parishParameters.getParishPrefix() + " " + name;
+            }
+            TownTemplate town = createTown(name, lastPopulation, parishParameters.isPersist());
             parish.addDwellingPlace(town.getTown());
             towns.add(town);
         }

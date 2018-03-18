@@ -1,5 +1,6 @@
 package com.meryt.demographics.response;
 
+import javax.annotation.Nullable;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -12,6 +13,8 @@ import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.PersonOccupationPeriod;
 import com.meryt.demographics.domain.person.SocialClass;
+import com.meryt.demographics.domain.place.Household;
+import com.meryt.demographics.domain.place.HouseholdInhabitantPeriod;
 
 @Getter
 public class PersonResponse {
@@ -40,9 +43,15 @@ public class PersonResponse {
 
     private final List<PersonFamilyResponse> families;
     private final List<PersonOccupationResponse> occupations;
+    private final HouseholdResponse household;
+    private final List<HouseholdResponse> households;
     private final PersonParentsFamilyResponse family;
 
     public PersonResponse(@NonNull Person person) {
+        this(person, null);
+    }
+
+    public PersonResponse(@NonNull Person person, @Nullable LocalDate onDate) {
         id = person.getId();
         firstName = person.getFirstName();
         middleName = person.getMiddleNames();
@@ -85,6 +94,18 @@ public class PersonResponse {
 
         family = person.getFamily() == null ? null : new PersonParentsFamilyResponse(person.getFamily(), person);
 
+        if (onDate != null) {
+            households = null;
+            Household personHousehold = person.getHousehold(onDate);
+            household = personHousehold == null ? null : new HouseholdResponse(personHousehold, onDate);
+
+        } else {
+            household = null;
+            households = new ArrayList<>();
+            for (HouseholdInhabitantPeriod householdPeriod : person.getHouseholds()) {
+                households.add(new HouseholdResponse(householdPeriod.getHousehold()));
+            }
+        }
     }
 
 }

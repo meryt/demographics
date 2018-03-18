@@ -1,5 +1,8 @@
 package com.meryt.demographics.response;
 
+import javax.annotation.Nullable;
+import java.time.LocalDate;
+
 import lombok.Getter;
 import lombok.NonNull;
 
@@ -13,6 +16,10 @@ public class DwellingPlaceSummaryResponse {
     private String location;
 
     public DwellingPlaceSummaryResponse(@NonNull DwellingPlace dwellingPlace) {
+        this(dwellingPlace, null);
+    }
+
+    public DwellingPlaceSummaryResponse(@NonNull DwellingPlace dwellingPlace, @Nullable LocalDate onDate) {
         id = dwellingPlace.getId();
         name = dwellingPlace.getName();
         acres = dwellingPlace.getAcres();

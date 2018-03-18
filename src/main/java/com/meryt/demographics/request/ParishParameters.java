@@ -11,6 +11,7 @@ public class ParishParameters {
     private long populationPerSquareMile = 40;
     private long minTownPopulation = 50;
     private boolean persist;
+    private String parishPrefix;
     private FamilyParameters familyParameters;
 
     public long getPopulation() {

@@ -1,9 +1,12 @@
 package com.meryt.demographics.controllers;
 
+import java.time.LocalDate;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.meryt.demographics.domain.person.Person;
@@ -28,16 +31,21 @@ public class PersonController {
 
     @RequestMapping("/persons/random")
     public PersonResponse randomPerson(@RequestBody PersonParameters personParameters) {
-        return new PersonResponse(personGenerator.generate(personParameters == null ? new PersonParameters() : personParameters));
+        PersonParameters params = personParameters == null ? new PersonParameters() : personParameters;
+        return new PersonResponse(personGenerator.generate(params));
     }
 
     @RequestMapping("/persons/{personId}")
-    public PersonResponse getPerson(@PathVariable long personId) {
+    public PersonResponse getPerson(@PathVariable long personId, @RequestParam(value = "onDate") String onDate) {
         Person result = personService.load(personId);
         if (result == null) {
             throw new ResourceNotFoundException("No person found for ID " + personId);
         }
-        return new PersonResponse(result);
+        LocalDate date = null;
+        if (onDate != null) {
+            date = LocalDate.parse(onDate);
+        }
+        return new PersonResponse(result, date);
     }
 
 }

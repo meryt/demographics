@@ -374,7 +374,7 @@ public class Person {
 
     /**
      * Gets an occupation that the person held on this date, if any. If he somehow held multiple occupations on the
-     * date, returns an orbitrary one
+     * date, returns an arbitrary one
      */
     @Nullable
     public Occupation getOccupation(@NonNull LocalDate onDate) {
@@ -384,5 +384,19 @@ public class Person {
                 .collect(Collectors.toSet());
 
         return occupationsOnDate.isEmpty() ? null : occupationsOnDate.iterator().next();
+    }
+
+    /**
+     * Gets the household the person occupied on this date, if any. If he somehow had multiple households on that
+     * date, returns an arbitrary one
+     */
+    @Nullable
+    public Household getHousehold(@NonNull LocalDate onDate) {
+        Set<Household> householdsOnDate = getHouseholds().stream()
+                .filter(o -> o.containsDate(onDate))
+                .map(HouseholdInhabitantPeriod::getHousehold)
+                .collect(Collectors.toSet());
+
+        return householdsOnDate.isEmpty() ? null : householdsOnDate.iterator().next();
     }
 }
