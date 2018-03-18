@@ -1,9 +1,12 @@
 package com.meryt.demographics.controllers;
 
+import java.time.LocalDate;
+
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.meryt.demographics.domain.place.Household;
@@ -22,11 +25,16 @@ public class HouseholdController {
     }
 
     @RequestMapping("/households/{householdId}")
-    public HouseholdResponse getHousehold(@PathVariable long householdId) {
+    public HouseholdResponse getHousehold(@PathVariable long householdId,
+                                          @RequestParam(value = "onDate", required = false) String onDate) {
         Household result = householdService.load(householdId);
         if (result == null) {
             throw new ResourceNotFoundException("No household found for ID " + householdId);
         }
-        return new HouseholdResponse(result);
+        LocalDate date = null;
+        if (onDate != null) {
+            date = LocalDate.parse(onDate);
+        }
+        return new HouseholdResponse(result, date);
     }
 }

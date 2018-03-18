@@ -13,7 +13,9 @@ public class DwellingPlaceSummaryResponse {
     private final long id;
     private final String name;
     private final Double acres;
-    private String location;
+    private final String location;
+    private Long directPopulation;
+    private Long totalPopulation;
 
     public DwellingPlaceSummaryResponse(@NonNull DwellingPlace dwellingPlace) {
         this(dwellingPlace, null);
@@ -33,6 +35,13 @@ public class DwellingPlaceSummaryResponse {
                 locationString += ", " + parent.getName();
             }
             location = locationString;
+        }
+
+        if (onDate != null) {
+            long pop = dwellingPlace.getPopulation(onDate);
+            long directPop = dwellingPlace.getDirectPopulation(onDate);
+            totalPopulation = pop == 0 ? null : pop;
+            directPopulation = directPop == 0 ? null : directPop;
         }
     }
 }

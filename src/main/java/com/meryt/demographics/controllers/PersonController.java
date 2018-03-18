@@ -36,7 +36,8 @@ public class PersonController {
     }
 
     @RequestMapping("/persons/{personId}")
-    public PersonResponse getPerson(@PathVariable long personId, @RequestParam(value = "onDate") String onDate) {
+    public PersonResponse getPerson(@PathVariable long personId,
+                                    @RequestParam(value = "onDate", required = false) String onDate) {
         Person result = personService.load(personId);
         if (result == null) {
             throw new ResourceNotFoundException("No person found for ID " + personId);

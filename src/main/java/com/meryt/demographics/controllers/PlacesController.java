@@ -1,8 +1,11 @@
 package com.meryt.demographics.controllers;
 
+import java.time.LocalDate;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.meryt.demographics.domain.place.DwellingPlace;
@@ -20,12 +23,18 @@ public class PlacesController {
     }
 
     @RequestMapping("/places/{placeId}")
-    public DwellingPlaceResponse getPlace(@PathVariable long placeId) {
+    public DwellingPlaceResponse getPlace(@PathVariable long placeId,
+                                          @RequestParam(value = "onDate", required = false) String onDate) {
         DwellingPlace place = dwellingPlaceService.load(placeId);
+
         if (place == null) {
             throw new ResourceNotFoundException("No place found for ID " + placeId);
         } else {
-            return new DwellingPlaceResponse(place);
+            LocalDate date = null;
+            if (onDate != null) {
+                date = LocalDate.parse(onDate);
+            }
+            return new DwellingPlaceResponse(place, date);
         }
     }
 

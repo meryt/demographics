@@ -48,7 +48,7 @@ public class ParishController {
         if (parishParameters.isPersist()) {
             return new DwellingPlaceResponse(dwellingPlaceService.save(parish));
         } else {
-            return new DwellingPlaceResponse(parish);
+            return new DwellingPlaceResponse(parish, parishParameters.getFamilyParameters().getReferenceDate());
         }
     }
 }

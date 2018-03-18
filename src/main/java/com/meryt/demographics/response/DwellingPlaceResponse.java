@@ -27,7 +27,7 @@ public class DwellingPlaceResponse extends DwellingPlaceSummaryResponse {
         } else {
             places = new ArrayList<>();
             for (DwellingPlace place : dwellingPlace.getDwellingPlaces()) {
-                places.add(new DwellingPlaceSummaryResponse(place));
+                places.add(new DwellingPlaceSummaryResponse(place, onDate));
             }
         }
     }

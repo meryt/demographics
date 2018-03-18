@@ -167,6 +167,13 @@ public class Person {
         }
     }
 
+    public String getAge(@NonNull LocalDate onDate) {
+        if (getBirthDate() == null || !isLiving(onDate)) {
+            return null;
+        }
+        return FormatPeriod.diffAsYearsMonthsDays(getBirthDate(), onDate);
+    }
+
     /**
      * Determines whether this person is male. If gender is null, defaults to true.
      */
