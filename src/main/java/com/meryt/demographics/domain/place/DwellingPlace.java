@@ -2,10 +2,12 @@ package com.meryt.demographics.domain.place;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import javax.persistence.CascadeType;
 import javax.persistence.DiscriminatorColumn;
@@ -66,6 +68,26 @@ public abstract class DwellingPlace {
      */
     public long getDirectPopulation(@NonNull LocalDate onDate) {
         return householdPeriods.stream().mapToLong(h -> h.getHousehold().getPopulation(onDate)).sum();
+    }
+
+    /**
+     * Gets all the households in this dwelling place, both direct members of this place as well as of places this
+     * place contains.
+     */
+    public List<Household> getAllHouseholds(@NonNull LocalDate onDate) {
+        List<Household> directHouseholds = getHouseholds(onDate);
+        directHouseholds.addAll(getIndirectHouseholds(onDate));
+        return directHouseholds;
+    }
+
+    /**
+     * Recursively get households for child places
+     */
+    private List<Household> getIndirectHouseholds(@NonNull LocalDate onDate) {
+        return getDwellingPlaces().stream()
+                .map(place -> place.getAllHouseholds(onDate))
+                .flatMap(Collection::stream)
+                .collect(Collectors.toList());
     }
 
     public Set<DwellingPlace> getDwellingPlaces() {
