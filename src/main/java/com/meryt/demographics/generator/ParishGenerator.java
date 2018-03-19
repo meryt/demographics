@@ -106,9 +106,10 @@ public class ParishGenerator {
 
             currentPopulation += lastPopulation;
 
-            name = "Town " + townIndex++;
-            if (parishParameters.getParishPrefix() != null) {
-                name = parishParameters.getParishPrefix() + " " + name;
+            if (parishParameters.getParishPrefix() == null) {
+                name = "Town " + townIndex++;
+            } else {
+                name = parishParameters.getParishPrefix() + " Town " + townIndex++;
             }
             TownTemplate town = createTown(name, lastPopulation, parishParameters.isPersist());
             parish.addDwellingPlace(town.getTown());

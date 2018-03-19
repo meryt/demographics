@@ -131,7 +131,7 @@ class ParishPopulator {
 
         Person person = inhabitants.get(0);
 
-        log.info(String.format("%s (%s) will take a job in %s as a %s", person.getName(),
+        log.info(String.format("%s (%s) was created to take a job in %s as a %s", person.getName(),
                 person.getSocialClass().getFriendlyName(), townTemplate.getTown().getName(),
                 occupation.getName()));
 
@@ -324,8 +324,10 @@ class ParishPopulator {
         for (Household household : possibleHouseholds) {
             Person head = household.getHead(onDate);
             if (head != null && personWillAcceptBetterOccupation(head, occupation)) {
-                log.info(String.format("%s (%s) will take a job in %s as a %s", head.getName(),
-                        head.getSocialClass().getFriendlyName(), town.getName(),
+                log.info(String.format("%s (%s) already lives in %s so will will take a job as a %s",
+                        head.getName(),
+                        head.getSocialClass().getFriendlyName(),
+                        town.getName(),
                         occupation.getName()));
 
                 head.addOccupation(occupation, getJobStartDate(head));

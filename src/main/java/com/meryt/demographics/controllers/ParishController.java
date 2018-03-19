@@ -46,7 +46,8 @@ public class ParishController {
                 personService, householdService, dwellingPlaceService);
         Parish parish = generator.generateParish(parishParameters);
         if (parishParameters.isPersist()) {
-            return new DwellingPlaceResponse(dwellingPlaceService.save(parish));
+            return new DwellingPlaceResponse(dwellingPlaceService.save(parish),
+                    parishParameters.getFamilyParameters().getReferenceDate());
         } else {
             return new DwellingPlaceResponse(parish, parishParameters.getFamilyParameters().getReferenceDate());
         }

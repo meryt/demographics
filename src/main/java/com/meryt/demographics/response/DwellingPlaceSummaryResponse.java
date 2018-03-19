@@ -14,35 +14,18 @@ import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.Household;
 
 @Getter
-public class DwellingPlaceSummaryResponse {
-    private final long id;
-    private final String name;
-    private final Double acres;
-    private final String location;
+class DwellingPlaceSummaryResponse extends DwellingPlaceReference {
     private Long directPopulation;
     private Long totalPopulation;
 
     private List<HouseholdSummaryResponse> leadingHouseholds;
 
-    public DwellingPlaceSummaryResponse(@NonNull DwellingPlace dwellingPlace) {
+    DwellingPlaceSummaryResponse(@NonNull DwellingPlace dwellingPlace) {
         this(dwellingPlace, null);
     }
 
-    public DwellingPlaceSummaryResponse(@NonNull DwellingPlace dwellingPlace, @Nullable LocalDate onDate) {
-        id = dwellingPlace.getId();
-        name = dwellingPlace.getName();
-        acres = dwellingPlace.getAcres();
-
-        if (dwellingPlace.getParent() == null) {
-            location = null;
-        } else {
-            DwellingPlace parent = dwellingPlace.getParent();
-            String locationString = parent.getName();
-            while ((parent = parent.getParent()) != null) {
-                locationString += ", " + parent.getName();
-            }
-            location = locationString;
-        }
+    DwellingPlaceSummaryResponse(@NonNull DwellingPlace dwellingPlace, @Nullable LocalDate onDate) {
+        super(dwellingPlace);
 
         if (onDate != null) {
             long pop = dwellingPlace.getPopulation(onDate);

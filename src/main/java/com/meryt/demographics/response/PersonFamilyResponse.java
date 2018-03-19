@@ -15,7 +15,7 @@ class PersonFamilyResponse extends AbstractFamilyResponse {
     private PersonReference spouse;
 
     PersonFamilyResponse(@NonNull Person person, @NonNull Family family) {
-        super(person, family);
+        super(family);
 
         if (person.isMale() && family.getWife() != null) {
             spouse = new PersonReference(family.getWife());

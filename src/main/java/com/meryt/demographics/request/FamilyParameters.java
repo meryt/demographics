@@ -77,13 +77,6 @@ public class FamilyParameters {
         return maxWifeAge == null ? DEFAULT_MAX_WIFE_AGE : maxWifeAge;
     }
 
-    /**
-     * Gets the max wife age set in the parameters; or if null, returns the husband's age in the reference year.
-     */
-    public int getMaxWifeAgeOrDefault(int husbandAge) {
-        return maxWifeAge == null ? husbandAge : maxWifeAge;
-    }
-
     public double getPercentMaleFoundersOrDefault() {
         return percentMaleFounders == null ? DEFAULT_PERCENT_MALE_FOUNDERS : percentMaleFounders;
     }

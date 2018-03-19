@@ -2,6 +2,7 @@ package com.meryt.demographics.domain.place;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -147,29 +148,15 @@ public class Household {
      * @param onDate the date the previous head died or left
      */
     public void resetHeadAsOf(@NonNull LocalDate onDate) {
-        Person oldestLivingMale = null;
-        Person oldestLivingFemale = null;
-        for (Person person : getInhabitants(onDate)) {
-            if (person.isMale() &&
-                    (oldestLivingMale == null || person.getBirthDate().isBefore(oldestLivingMale.getBirthDate()))) {
-                oldestLivingMale = person;
-            } else if (person.isFemale() &&
-                    (oldestLivingFemale == null || person.getBirthDate().isBefore(oldestLivingFemale.getBirthDate()))) {
-                oldestLivingFemale = person;
-            }
-        }
-        Person newHead;
-        if (oldestLivingMale != null && oldestLivingMale.getAgeInYears(onDate) >= 16) {
-            newHead = oldestLivingMale;
-        } else  if (oldestLivingFemale != null && oldestLivingFemale.getAgeInYears(onDate) >= 16) {
-            newHead = oldestLivingFemale;
-        } else {
-            newHead = oldestLivingMale == null ? oldestLivingFemale : oldestLivingMale;
+        List<Person> inhabitantsByAge = getInhabitants(onDate).stream()
+                .filter(p -> p.getBirthDate() != null && p.getAgeInYears(onDate) >= 16)
+                .sorted(Comparator.comparing(Person::getGender).thenComparing(Person::getBirthDate))
+                .collect(Collectors.toList());
+        if (inhabitantsByAge.isEmpty()) {
+            return;
         }
 
-        if (newHead != null) {
-            newHead.addToHousehold(this, onDate, true);
-        }
+        inhabitantsByAge.get(0).addToHousehold(this, onDate, true);
     }
 
 }

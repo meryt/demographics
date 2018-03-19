@@ -37,9 +37,4 @@ abstract class AbstractFamilyResponse {
             children = null;
         }
     }
-
-    AbstractFamilyResponse(@NonNull Person person, @NonNull Family family) {
-        this(family);
-    }
-
 }

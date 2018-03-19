@@ -1,23 +1,21 @@
 package com.meryt.demographics.repository;
 
-import javax.annotation.Nullable;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
-import com.meryt.demographics.database.QueryStore;
-import com.meryt.demographics.domain.person.Gender;
-
+import javax.annotation.Nullable;
 import lombok.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import com.meryt.demographics.domain.person.Gender;
+
 @Repository
 public class LifeTableRepository {
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
-    private final QueryStore queryStore = new QueryStore("life-table");
 
     public LifeTableRepository(@Autowired NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;

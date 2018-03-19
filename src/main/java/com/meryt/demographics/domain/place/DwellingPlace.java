@@ -29,7 +29,7 @@ import lombok.Setter;
 @Table(name = "dwelling_places")
 @Inheritance(strategy= InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(name="dwelling_place_type")
-abstract public class DwellingPlace {
+public abstract class DwellingPlace {
 
     @Id
     @SequenceGenerator(name="dwelling_places_id_seq", sequenceName="dwelling_places_id_seq", allocationSize=1)

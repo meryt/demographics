@@ -47,6 +47,8 @@ public class Maternity extends Fertility {
     private boolean carryingIdenticalTwins;
     @Column(name = "fraternal_twins")
     private boolean carryingFraternalTwins;
+    @Getter
+    @Setter
     private LocalDate breastfeedingTill;
     private boolean hadTwins;
     private int numBirths;
@@ -65,7 +67,7 @@ public class Maternity extends Fertility {
     /**
      * Sets a random breastfeeding-till date from an array of 1 or more children.
      *
-     * It will take the deathdate of the longest-lived child, or a random date
+     * It will take the death date of the longest-lived child, or a random date
      * between 1 or 2 years, whichever comes first.
      */
     public void setRandomBreastfeedingTillFromChildren(@NonNull List<Person> children) {
@@ -215,35 +217,39 @@ public class Maternity extends Fertility {
      * @param toDate the target date
      * @param forceLessThan - if true, the last cycle date will be less than the given date.  If false it will be
      *                      greater than.
-     *
-     * @return the new last cycle date
      */
-    public LocalDate cycleToDate(@NonNull LocalDate toDate, boolean forceLessThan) {
+    public void cycleToDate(@NonNull LocalDate toDate, boolean forceLessThan) {
         if (lastCycleDate == null || lastCycleDate.equals(toDate)) {
             setLastCycleDate(toDate);
-            return toDate;
         }
 
         if (lastCycleDate.isBefore(toDate)) {
-            while (lastCycleDate.isBefore(toDate)) {
-                LocalDate d = getNextCycleDate();
-                if (d == null) {
-                    break;
-                }
-                lastCycleDate = d;
-            }
-            if (forceLessThan && lastCycleDate.isAfter(toDate)) {
-                setLastCycleDate(getPrevCycleDate());
-            }
+            cycleForwardsToDate(toDate, forceLessThan);
         } else {
-            while (lastCycleDate.isAfter(toDate)) {
-                setLastCycleDate(getPrevCycleDate());
-            }
+            cycleBackwardsToDate(toDate);
         }
-
-        return lastCycleDate;
     }
 
+    private void cycleForwardsToDate(@NonNull LocalDate toDate, boolean forceLessThan) {
+        while (lastCycleDate.isBefore(toDate)) {
+            LocalDate d = getNextCycleDate();
+            if (d == null) {
+                break;
+            }
+            lastCycleDate = d;
+        }
+        if (forceLessThan && lastCycleDate.isAfter(toDate)) {
+            setLastCycleDate(getPrevCycleDate());
+        }
+    }
+
+    private void cycleBackwardsToDate(@NonNull LocalDate toDate) {
+        while (lastCycleDate.isAfter(toDate)) {
+            setLastCycleDate(getPrevCycleDate());
+        }
+    }
+
+    @SuppressWarnings("squid:S3776") // cognitive complexity
     private double getBreastfeedingFertilityFactor(@NonNull LocalDate day) {
         if (getLastBirthDate() == null || getBreastfeedingTill() == null
                 || day.isBefore(getLastBirthDate())) {
@@ -270,6 +276,7 @@ public class Maternity extends Fertility {
         }
     }
 
+    @SuppressWarnings("squid:S3776") // cognitive complexity
     private double getAgeFertilityFactor(@NonNull LocalDate mothersBirthDate, @NonNull LocalDate day) {
         int ageInYears = mothersBirthDate.until(day).getYears();
 

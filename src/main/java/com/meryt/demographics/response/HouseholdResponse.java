@@ -16,18 +16,22 @@ import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.HouseholdLocationPeriod;
 
-@Getter
 public class HouseholdResponse {
 
+    @Getter
     private final long id;
 
-    private final DwellingPlaceSummaryResponse location;
-    private final List<DwellingPlaceSummaryResponse> locations;
+    @Getter
+    private DwellingPlaceReference location;
+    @Getter
+    private List<DwellingPlaceReference> locations;
 
-    private final PersonReference head;
-    private final List<PersonReference> inhabitants;
+    @Getter
+    private PersonReference head;
+    @Getter
+    private List<PersonReference> inhabitants;
 
-    public HouseholdResponse(@NonNull Household household) {
+    HouseholdResponse(@NonNull Household household) {
         this(household, null);
     }
 
@@ -35,41 +39,39 @@ public class HouseholdResponse {
         id = household.getId();
 
         if (onDate == null) {
-            location = null;
-            List<HouseholdLocationPeriod> locationPeriods = household.getDwellingPlaces();
-            if (locationPeriods.isEmpty()) {
-                locations = null;
-            } else {
-                locations = new ArrayList<>();
-                for (HouseholdLocationPeriod period : locationPeriods) {
-                    locations.add(new DwellingPlaceSummaryResponse(period.getDwellingPlace()));
-                }
-            }
+            populateDatelessData(household);
         } else {
-            locations = null;
-            DwellingPlace place = household.getDwellingPlace(onDate);
-            location = place == null ? null : new DwellingPlaceSummaryResponse(place, onDate);
+            populateDatedData(household, onDate);
         }
+    }
 
-        if (onDate == null) {
-            inhabitants = null;
-            head = null;
-        } else {
-            Set<Person> people = household.getInhabitants(onDate);
-            if (!people.isEmpty()) {
-                inhabitants = new ArrayList<>();
-                for (Person p : people.stream()
-                        .sorted(Comparator.comparing(Person::getBirthDate))
-                        .collect(Collectors.toList())) {
-                    inhabitants.add(new PersonReference(p, onDate));
-                }
+    private void populateDatelessData(@NonNull Household household) {
+        List<HouseholdLocationPeriod> locationPeriods = household.getDwellingPlaces();
+        if (!locationPeriods.isEmpty()) {
+            locations = new ArrayList<>();
+            for (HouseholdLocationPeriod period : locationPeriods) {
+                locations.add(new DwellingPlaceReference(period.getDwellingPlace()));
+            }
+        }
+    }
 
-                head = new PersonReference(household.getHead(onDate), onDate);
-            } else {
-                inhabitants = null;
-                head = null;
+    private void populateDatedData(@NonNull Household household, @NonNull LocalDate onDate) {
+        DwellingPlace place = household.getDwellingPlace(onDate);
+        location = place == null ? null : new DwellingPlaceReference(place);
+
+        Set<Person> people = household.getInhabitants(onDate);
+        if (!people.isEmpty()) {
+            inhabitants = new ArrayList<>();
+            for (Person p : people.stream()
+                    .sorted(Comparator.comparing(Person::getBirthDate))
+                    .collect(Collectors.toList())) {
+                inhabitants.add(new PersonReference(p, onDate));
             }
 
+            Person hhHead = household.getHead(onDate);
+            if (hhHead != null) {
+                head = new PersonReference(hhHead, onDate);
+            }
         }
     }
 

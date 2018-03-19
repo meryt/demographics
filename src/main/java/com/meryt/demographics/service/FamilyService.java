@@ -16,7 +16,7 @@ public class FamilyService {
 
     private final FamilyRepository familyRepository;
 
-    public FamilyService(@Autowired FamilyRepository familyRepository) {
+    FamilyService(@Autowired FamilyRepository familyRepository) {
         this.familyRepository = familyRepository;
     }
 
@@ -177,16 +177,4 @@ public class FamilyService {
             }
         }
     }
-
-    /**
-     * Loads a family from the database
-     *
-     * @param familyId the ID of the family
-     * @return a Family or null if none found
-     */
-    private Family loadFamily(Long familyId) {
-        // TODO implement repository method
-        return null;
-    }
-
 }

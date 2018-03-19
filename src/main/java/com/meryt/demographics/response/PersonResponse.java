@@ -78,8 +78,8 @@ public class PersonResponse {
             families = null;
         } else {
             families = new ArrayList<>();
-            for (Family family : person.getFamilies()) {
-                families.add(new PersonFamilyResponse(person, family));
+            for (Family fam : person.getFamilies()) {
+                families.add(new PersonFamilyResponse(person, fam));
             }
         }
 

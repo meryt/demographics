@@ -24,7 +24,7 @@ public class FormatPeriod {
         if (diff.getDays() != 0) {
             s.add(diff.getDays() + " days");
         }
-        if (s.size() == 0) {
+        if (s.isEmpty()) {
             return "0 days";
         }
         return String.join(", ", s);
