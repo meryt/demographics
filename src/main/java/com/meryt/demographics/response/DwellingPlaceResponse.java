@@ -30,6 +30,6 @@ public class DwellingPlaceResponse extends DwellingPlaceSummaryResponse {
                 places.add(new DwellingPlaceSummaryResponse(place, onDate));
             }
         }
-    }
 
+    }
 }
