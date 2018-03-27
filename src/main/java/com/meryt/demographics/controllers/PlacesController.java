@@ -22,7 +22,7 @@ public class PlacesController {
         this.dwellingPlaceService = dwellingPlaceService;
     }
 
-    @RequestMapping("/places/{placeId}")
+    @RequestMapping("/api/places/{placeId}")
     public DwellingPlaceResponse getPlace(@PathVariable long placeId,
                                           @RequestParam(value = "onDate", required = false) String onDate) {
         DwellingPlace place = dwellingPlaceService.load(placeId);

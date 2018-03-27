@@ -16,17 +16,17 @@ public class NamesController {
         this.nameService = nameService;
     }
 
-    @RequestMapping("/names/first/random")
+    @RequestMapping("/api/names/first/random")
     public String randomFirstName(@RequestParam(required = false) String gender) {
         return nameService.randomFirstName(gender == null ? Gender.MALE : Gender.from(gender));
     }
 
-    @RequestMapping("/names/last/random")
+    @RequestMapping("/api/names/last/random")
     public String randomLastName() {
         return nameService.randomLastName();
     }
 
-    @RequestMapping("/names/random")
+    @RequestMapping("/api/names/random")
     public String randomName(@RequestParam(required = false) String gender) {
         return nameService.randomName(gender == null ? Gender.MALE : Gender.from(gender));
     }

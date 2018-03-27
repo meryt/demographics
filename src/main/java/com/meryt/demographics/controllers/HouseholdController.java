@@ -24,7 +24,7 @@ public class HouseholdController {
         this.householdService = householdService;
     }
 
-    @RequestMapping("/households/{householdId}")
+    @RequestMapping("/api/households/{householdId}")
     public HouseholdResponse getHousehold(@PathVariable long householdId,
                                           @RequestParam(value = "onDate", required = false) String onDate) {
         Household result = householdService.load(householdId);

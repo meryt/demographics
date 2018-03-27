@@ -29,13 +29,13 @@ public class PersonController {
         this.personService = personService;
     }
 
-    @RequestMapping("/persons/random")
+    @RequestMapping("/api/persons/random")
     public PersonResponse randomPerson(@RequestBody PersonParameters personParameters) {
         PersonParameters params = personParameters == null ? new PersonParameters() : personParameters;
         return new PersonResponse(personGenerator.generate(params));
     }
 
-    @RequestMapping("/persons/{personId}")
+    @RequestMapping("/api/persons/{personId}")
     public PersonResponse getPerson(@PathVariable long personId,
                                     @RequestParam(value = "onDate", required = false) String onDate) {
         Person result = personService.load(personId);

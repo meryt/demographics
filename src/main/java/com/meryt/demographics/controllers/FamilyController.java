@@ -25,7 +25,7 @@ public class FamilyController {
         this.familyService = familyService;
     }
 
-    @RequestMapping("/families/random")
+    @RequestMapping("/api/families/random")
     public FamilyResponse randomFamily(@NonNull @RequestBody FamilyParameters familyParameters) {
         Family family = familyGenerator.generate(familyParameters);
         if (familyParameters.isPersist()) {
@@ -35,7 +35,7 @@ public class FamilyController {
         }
     }
 
-    @RequestMapping("/families/{familyId}")
+    @RequestMapping("/api/families/{familyId}")
     public FamilyResponse getFamily(@PathVariable long familyId) {
         Family result = familyService.load(familyId);
         if (result == null) {

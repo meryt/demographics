@@ -40,7 +40,7 @@ public class ParishController {
         this.householdService = householdService;
     }
 
-    @RequestMapping("/parishes/random")
+    @RequestMapping("/api/parishes/random")
     public DwellingPlaceResponse randomParish(@RequestBody ParishParameters parishParameters) {
         ParishGenerator generator = new ParishGenerator(occupationService, familyGenerator, familyService,
                 personService, householdService, dwellingPlaceService);

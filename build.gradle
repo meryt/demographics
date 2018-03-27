@@ -7,6 +7,7 @@ buildscript {
         lombokVersion = '1.16.20'
         postgresqlVersion = '42.2.1'
 		springBootVersion = '2.0.0.RELEASE'
+        springDataRestVersion = '3.0.5.RELEASE'
 	}
 	repositories {
 		mavenCentral()
@@ -41,8 +42,12 @@ dependencies {
 	}
 
     compile("org.springframework.boot:spring-boot-starter-data-jpa")
+    compile("org.springframework.boot:spring-boot-starter-data-rest")
     compile("org.springframework.boot:spring-boot-starter-jetty")
     compile("org.springframework.boot:spring-boot-starter-jdbc")
+    compile("org.springframework.boot:spring-boot-starter-thymeleaf")
+    //compile("org.springframework.data:spring-data-rest-webmvc:${springDataRestVersion}")
+
     compile("org.hibernate:hibernate-core:${hibernateVersion}")
     compile("org.postgresql:postgresql:${postgresqlVersion}")
 	compile "org.flywaydb:flyway-core:${flywayVersion}"
@@ -55,6 +60,10 @@ dependencies {
 
 	testCompile('org.springframework.boot:spring-boot-starter-test')
     testCompileOnly("org.projectlombok:lombok:${lombokVersion}")
+}
+
+task webpack(type: Exec) {
+	commandLine "$projectDir/node_modules/.bin/webpack", "app/index.js", "$buildDir/js/bundle.js"
 }
 
 test {
