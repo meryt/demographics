@@ -35,11 +35,14 @@ repositories {
 	maven { url "https://repo.spring.io/milestone" }
 }
 
+configurations {
+	all*.exclude group: 'org.springframework.boot', module: 'spring-boot-starter-tomcat'
+}
 
 dependencies {
-	compile("org.springframework.boot:spring-boot-starter-web") {
-		exclude module: "spring-boot-starter-tomcat"
-	}
+	compile("org.springframework.boot:spring-boot-starter")
+
+	compile("org.springframework.boot:spring-boot-starter-web")
 
     compile("org.springframework.boot:spring-boot-starter-data-jpa")
     compile("org.springframework.boot:spring-boot-starter-data-rest")
@@ -63,7 +66,12 @@ dependencies {
 }
 
 task webpack(type: Exec) {
-	commandLine "$projectDir/node_modules/.bin/webpack", "app/index.js", "$buildDir/js/bundle.js"
+    inputs.file("webpack.config.js")
+    inputs.file("package-lock.json")
+    inputs.dir("$projectDir/src/main/js")
+    outputs.dir("$buildDir/js")
+
+	commandLine "$projectDir/node_modules/.bin/webpack", "--mode", "development", "$projectDir/src/main/js/app.js", "$projectDir/src/main/resources/static/built/bundle.js"
 }
 
 test {
