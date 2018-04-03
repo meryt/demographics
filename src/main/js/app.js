@@ -1,6 +1,6 @@
-const React = require('react');
-const ReactDOM = require('react-dom');
-const client = require('./client');
+import React from 'react'
+import ReactDOM from 'react-dom'
+import client from './client'
 
 class App extends React.Component {
 
@@ -11,7 +11,7 @@ class App extends React.Component {
 
     componentDidMount() {
         client({ method: 'GET', path: '/data/persons' })
-            .done(response => {
+            .then(response => {
                 this.setState( { persons: response.entity._embedded.persons } );
             });
     }

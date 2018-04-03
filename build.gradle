@@ -1,22 +1,25 @@
 buildscript {
-	ext {
-		apacheCommonsMathVersion = '3.6.1'
+    ext {
+        apacheCommonsMathVersion = '3.6.1'
         flywayVersion = '5.0.7'
         guavaVersion = '24.0-jre'
-		hibernateVersion = '5.2.15.Final'
+        hibernateVersion = '5.2.15.Final'
         lombokVersion = '1.16.20'
+        nodePluginVersion = '0.12'
         postgresqlVersion = '42.2.1'
-		springBootVersion = '2.0.0.RELEASE'
+        springBootVersion = '2.0.0.RELEASE'
         springDataRestVersion = '3.0.5.RELEASE'
-	}
-	repositories {
-		mavenCentral()
-		maven { url "https://repo.spring.io/snapshot" }
-		maven { url "https://repo.spring.io/milestone" }
-	}
-	dependencies {
-		classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
-	}
+    }
+    repositories {
+        mavenCentral()
+        jcenter()
+        maven { url "https://repo.spring.io/snapshot" }
+        maven { url "https://repo.spring.io/milestone" }
+    }
+    dependencies {
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
+        classpath("com.moowork.gradle:gradle-node-plugin:${nodePluginVersion}")
+    }
 }
 
 apply plugin: 'java'
@@ -24,25 +27,26 @@ apply plugin: 'eclipse'
 apply plugin: 'org.springframework.boot'
 apply plugin: 'io.spring.dependency-management'
 apply plugin: 'jacoco'
+apply plugin: 'com.moowork.node'
 
 group = 'com.meryt'
 version = '0.0.1-SNAPSHOT'
 sourceCompatibility = 1.8
 
 repositories {
-	mavenCentral()
-	maven { url "https://repo.spring.io/snapshot" }
-	maven { url "https://repo.spring.io/milestone" }
+    mavenCentral()
+    maven { url "https://repo.spring.io/snapshot" }
+    maven { url "https://repo.spring.io/milestone" }
 }
 
 configurations {
-	all*.exclude group: 'org.springframework.boot', module: 'spring-boot-starter-tomcat'
+    all*.exclude group: 'org.springframework.boot', module: 'spring-boot-starter-tomcat'
 }
 
 dependencies {
-	compile("org.springframework.boot:spring-boot-starter")
+    compile("org.springframework.boot:spring-boot-starter")
 
-	compile("org.springframework.boot:spring-boot-starter-web")
+    compile("org.springframework.boot:spring-boot-starter-web")
 
     compile("org.springframework.boot:spring-boot-starter-data-jpa")
     compile("org.springframework.boot:spring-boot-starter-data-rest")
@@ -53,31 +57,38 @@ dependencies {
 
     compile("org.hibernate:hibernate-core:${hibernateVersion}")
     compile("org.postgresql:postgresql:${postgresqlVersion}")
-	compile "org.flywaydb:flyway-core:${flywayVersion}"
+    compile "org.flywaydb:flyway-core:${flywayVersion}"
 
-	compile("com.google.guava:guava:${guavaVersion}")
-	compile("org.apache.commons:commons-math3:${apacheCommonsMathVersion}")
+    compile("com.google.guava:guava:${guavaVersion}")
+    compile("org.apache.commons:commons-math3:${apacheCommonsMathVersion}")
 
 
-	compileOnly("org.projectlombok:lombok:${lombokVersion}")
+    compileOnly("org.projectlombok:lombok:${lombokVersion}")
 
-	testCompile('org.springframework.boot:spring-boot-starter-test')
+    testCompile('org.springframework.boot:spring-boot-starter-test')
     testCompileOnly("org.projectlombok:lombok:${lombokVersion}")
 }
 
-task webpack(type: Exec) {
-    inputs.file("webpack.config.js")
-    inputs.file("package-lock.json")
-    inputs.dir("$projectDir/src/main/js")
-    outputs.dir("$buildDir/js")
 
-	commandLine "$projectDir/node_modules/.bin/webpack", "--mode", "development", "$projectDir/src/main/js/app.js", "$projectDir/src/main/resources/static/built/bundle.js"
+task webpack(type: NodeTask, dependsOn: 'npmInstall') {
+    def osName = System.getProperty("os.name").toLowerCase();
+    if (osName.contains("windows")) {
+        script = project.file('node_modules/webpack/bin/webpack.js')
+    } else {
+        script = project.file('node_modules/.bin/webpack')
+        args = ['--mode=development']
+    }
 }
 
+processResources.dependsOn 'webpack'
+
+clean.delete << file('node_modules')
+clean.delete << file('src/main/webapp/dist')
+
 test {
-	jvmArgs '-noverify'
-	outputs.upToDateWhen { false }
-	finalizedBy jacocoTestReport
+    jvmArgs '-noverify'
+    outputs.upToDateWhen { false }
+    finalizedBy jacocoTestReport
     testLogging {
         showStandardStreams = true
     }
