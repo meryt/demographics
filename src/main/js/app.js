@@ -1,3 +1,5 @@
+import '../scss/custom.scss'
+
 import React from 'react'
 import ReactDOM from 'react-dom'
 import client from './client'
@@ -146,7 +148,7 @@ class CreateOccupationDialog extends React.Component {
 
                         <form>
                             {inputs}
-                            <button onClick={this.handleSubmit}>Create</button>
+                            <button type="button" className="btn btn-primary" onClick={this.handleSubmit}>Create</button>
                         </form>
                     </div>
                 </div>
