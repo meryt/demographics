@@ -103,7 +103,7 @@ public class MatchMaker {
         // An aging woman of a greater rank will be less discriminating
         desirability += femaleAgeDesireToMarryModifier(greater, onDate);
 
-        return ((new PercentDie().roll() * diff) < desirability);
+        return ((new PercentDie().roll() * diff) < (desirability - 0.7));
     }
 
     /**
