@@ -7,7 +7,8 @@ import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
 
 /**
- * Response for a family of which the given person is the husband or wife. Shows only the "spouse" field.
+ * Response for a family of which the given person is the husband or wife. Presumes that we're showing the family as
+ * a member of the person. Shows only the "spouse" field.
  */
 @Getter
 class PersonFamilyResponse extends AbstractFamilyResponse {

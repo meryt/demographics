@@ -11,12 +11,14 @@ public class DwellingPlaceReference {
     private final long id;
     private final String name;
     private final Double acres;
+    private final Double squareMiles;
     private final String location;
 
     public DwellingPlaceReference(@NonNull DwellingPlace dwellingPlace) {
         id = dwellingPlace.getId();
         name = dwellingPlace.getName();
         acres = dwellingPlace.getAcres();
+        squareMiles = dwellingPlace.getSquareMiles();
 
         if (dwellingPlace.getParent() == null) {
             location = null;

@@ -53,6 +53,11 @@ public class FamilyParameters {
     private SocialClass maxSocialClass;
 
     /**
+     * If set, this last name will be used for the founder.
+     */
+    private String founderLastName;
+
+    /**
      * If true, will save the family after generating.
      */
     private boolean persist;

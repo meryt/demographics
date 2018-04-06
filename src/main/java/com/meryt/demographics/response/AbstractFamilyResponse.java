@@ -19,7 +19,7 @@ abstract class AbstractFamilyResponse {
 
     private final LocalDate weddingDate;
 
-    private final List<PersonReference> children;
+    private final List<PersonResponse> children;
 
     AbstractFamilyResponse(@NonNull Family family) {
         id = family.getId();
@@ -31,7 +31,7 @@ abstract class AbstractFamilyResponse {
         if (!sortedChildren.isEmpty()) {
             children = new ArrayList<>();
             for (Person child : sortedChildren) {
-                children.add(new PersonReference(child));
+                children.add(new PersonResponse(child));
             }
         } else {
             children = null;

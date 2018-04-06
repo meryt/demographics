@@ -3,6 +3,7 @@ package com.meryt.demographics.domain.person;
 import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.List;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.meryt.demographics.generator.random.Die;
 import lombok.Getter;
@@ -38,6 +39,11 @@ public enum SocialClass {
     @Override
     public String toString() {
         return getDescription();
+    }
+
+    @JsonCreator
+    public static SocialClass fromEnumName(String name) {
+        return SocialClass.valueOf(name);
     }
 
     /**

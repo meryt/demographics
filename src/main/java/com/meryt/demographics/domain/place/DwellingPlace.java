@@ -33,6 +33,8 @@ import lombok.Setter;
 @DiscriminatorColumn(name="dwelling_place_type")
 public abstract class DwellingPlace {
 
+    public static final double ACRES_PER_SQUARE_MILE = 640;
+
     @Id
     @SequenceGenerator(name="dwelling_places_id_seq", sequenceName="dwelling_places_id_seq", allocationSize=1)
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator="dwelling_places_id_seq")
@@ -53,6 +55,14 @@ public abstract class DwellingPlace {
     private List<HouseholdLocationPeriod> householdPeriods = new ArrayList<>();
 
     private Double acres;
+
+    public Double getSquareMiles() {
+        if (acres == null) {
+            return null;
+        }
+
+        return acres / ACRES_PER_SQUARE_MILE;
+    }
 
     /**
      * Gets the population of all households directly in this dwelling place as well as the population of all dwelling

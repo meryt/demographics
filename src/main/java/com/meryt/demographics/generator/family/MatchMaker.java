@@ -80,16 +80,10 @@ public class MatchMaker {
         SocialClass manClass = man.getSocialClass();
         SocialClass womanClass = woman.getSocialClass();
 
-        int diff = manClass.getRank() - womanClass.getRank();
+        int diff = Math.abs(manClass.getRank() - womanClass.getRank());
         // A man can marry at his rank or 1 lower without problem
         if (diff == 0 || diff == 1) {
             return true;
-        }
-        // Get a positive int that reflects the levels of distance in rank between the two and an obvious match
-        if (diff > 0) {
-            diff = diff - 1;
-        } else {
-            diff = diff * -1;
         }
 
         // The likelihood depends on the desirability of the lower-ranking spouse.

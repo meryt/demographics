@@ -28,11 +28,11 @@ public class FamilyController {
     @RequestMapping("/api/families/random")
     public FamilyResponse randomFamily(@NonNull @RequestBody FamilyParameters familyParameters) {
         Family family = familyGenerator.generate(familyParameters);
-        if (familyParameters.isPersist()) {
-            return new FamilyResponse(familyService.save(family));
-        } else {
-            return new FamilyResponse(family);
+        if (family == null) {
+            return null;
         }
+        Family returnedFamily = familyParameters.isPersist() ? familyService.save(family) : family;
+        return new FamilyResponse(returnedFamily);
     }
 
     @RequestMapping("/api/families/{familyId}")

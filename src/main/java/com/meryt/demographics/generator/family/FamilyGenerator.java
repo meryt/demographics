@@ -35,12 +35,27 @@ public class FamilyGenerator {
         this.personGenerator = personGenerator;
     }
 
-    @Nullable
+    /**
+     * This method will always generate a family (provided the family parameters are not impossible to satisfy).
+     */
+    @NonNull
     public Family generate(@NonNull FamilyParameters familyParameters) {
         Person person = generateFounder(familyParameters);
-        return generate(person, familyParameters);
+        Family family = null;
+        while (family == null) {
+            family = generate(person, familyParameters);
+        }
+        return family;
     }
 
+    /**
+     * This method will attempt to generate a family for the given founder. If the attempt fails (no spouse could be
+     * found) returns null.
+     *
+     * @param founder the founder (may be male or female)
+     * @param familyParameters additional parameters
+     * @return a family with a husband and wife and possibly children, or null
+     */
     @Nullable
     public Family generate(@NonNull Person founder, @NonNull FamilyParameters familyParameters) {
 
@@ -56,7 +71,7 @@ public class FamilyGenerator {
         generateChildren(family, familyParameters);
 
         for (Person p : Arrays.asList(family.getWife(), family.getHusband())) {
-            if (p != null && !p.isLiving(familyParameters.getReferenceDate())) {
+            if (p != null && familyParameters.getReferenceDate() != null && !p.isLiving(familyParameters.getReferenceDate())) {
                 log.info(String.format("%s died on %s", p.getName(), p.getDeathDate()));
             }
         }
@@ -70,7 +85,7 @@ public class FamilyGenerator {
      * @return a person suitable to found a family
      */
     @NonNull
-    public Person generateFounder(FamilyParameters familyParameters) {
+    Person generateFounder(FamilyParameters familyParameters) {
         validate(familyParameters);
 
         PercentDie die = new PercentDie();
@@ -97,6 +112,7 @@ public class FamilyGenerator {
         personParameters.setMaxAge(maxAge);
         personParameters.setMinSocialClass(familyParameters.getMinSocialClass());
         personParameters.setMaxSocialClass(familyParameters.getMaxSocialClass());
+        personParameters.setLastName(familyParameters.getFounderLastName());
 
         return personGenerator.generate(personParameters);
     }

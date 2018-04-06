@@ -8,21 +8,23 @@ import java.util.stream.Collectors;
 
 import lombok.Getter;
 import lombok.NonNull;
+import org.apache.commons.math3.util.Precision;
 
+import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.Household;
+import com.meryt.demographics.domain.place.Parish;
 
 @Getter
 class DwellingPlaceSummaryResponse extends DwellingPlaceReference {
     private Long directPopulation;
     private Long totalPopulation;
 
-    private List<HouseholdSummaryResponse> leadingHouseholds;
+    private Double settledAcres;
+    private Double settledSquareMiles;
 
-    DwellingPlaceSummaryResponse(@NonNull DwellingPlace dwellingPlace) {
-        this(dwellingPlace, null);
-    }
+    private List<HouseholdSummaryResponse> leadingHouseholds;
 
     DwellingPlaceSummaryResponse(@NonNull DwellingPlace dwellingPlace, @Nullable LocalDate onDate) {
         super(dwellingPlace);
@@ -33,9 +35,17 @@ class DwellingPlaceSummaryResponse extends DwellingPlaceReference {
             totalPopulation = pop == 0 ? null : pop;
             directPopulation = directPop == 0 ? null : directPop;
 
+            if (dwellingPlace instanceof Parish) {
+                settledAcres = Precision.round(((Parish) dwellingPlace).getSettledAcres(onDate), 1);
+                settledSquareMiles = Precision.round(((Parish) dwellingPlace).getSettledSquareMiles(onDate), 1);
+            }
+
             List<Household> leadingHouseholdList = dwellingPlace.getHouseholds(onDate).stream()
-                    .filter(h -> h.getHead(onDate) != null
-                            && h.getHead(onDate).getSocialClass().getRank() >= SocialClass.GENTLEMAN.getRank())
+                    .filter(h -> {
+                        Person head = h.getHead(onDate);
+                        return (head != null
+                                && head.getSocialClass().getRank() >= SocialClass.GENTLEMAN.getRank());
+                    })
                     .collect(Collectors.toList());
             if (!leadingHouseholdList.isEmpty()) {
                 leadingHouseholds = new ArrayList<>();

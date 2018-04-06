@@ -20,10 +20,10 @@ import com.meryt.demographics.service.HouseholdService;
 import com.meryt.demographics.service.OccupationService;
 import com.meryt.demographics.service.PersonService;
 
+import static com.meryt.demographics.domain.place.DwellingPlace.ACRES_PER_SQUARE_MILE;
+
 @Slf4j
 public class ParishGenerator {
-
-    private static final double ACRES_PER_SQUARE_MILE = 640;
 
     private final Die d4 = new Die(4);
 
