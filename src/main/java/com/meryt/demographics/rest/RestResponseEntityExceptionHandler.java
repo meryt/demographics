@@ -16,6 +16,11 @@ public class RestResponseEntityExceptionHandler extends ResponseEntityExceptionH
         return buildResponseEntity(new RestErrorMessage(HttpStatus.NOT_FOUND, e.getMessage()));
     }
 
+    @ExceptionHandler(value = { BadRequestException.class })
+    protected ResponseEntity<Object> handleBadRequest(BadRequestException e) {
+        return buildResponseEntity(new RestErrorMessage(HttpStatus.BAD_REQUEST, e.getMessage()));
+    }
+
     private ResponseEntity<Object> buildResponseEntity(RestErrorMessage error) {
         return new ResponseEntity<>(error, error.getStatus());
     }

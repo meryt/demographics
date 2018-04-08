@@ -20,6 +20,7 @@ import javax.persistence.Id;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 import javax.persistence.OneToOne;
+import javax.persistence.OrderBy;
 import javax.persistence.PrimaryKeyJoinColumn;
 import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
@@ -35,6 +36,7 @@ import com.meryt.demographics.domain.person.fertility.Maternity;
 import com.meryt.demographics.domain.person.fertility.Paternity;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.HouseholdInhabitantPeriod;
+import com.meryt.demographics.domain.title.Title;
 import com.meryt.demographics.time.FormatPeriod;
 import com.meryt.demographics.time.LocalDateComparator;
 
@@ -117,6 +119,10 @@ public class Person {
 
     @OneToMany(mappedBy = "person", cascade = { CascadeType.ALL })
     private List<PersonOccupationPeriod> occupations = new ArrayList<>();
+
+    @OneToMany(mappedBy = "person", cascade = { CascadeType.ALL })
+    @OrderBy("from_date")
+    private List<PersonTitlePeriod> titles = new ArrayList<>();
 
     public Fertility getFertility() {
         if (gender == null) {
@@ -352,6 +358,37 @@ public class Person {
         getOccupations().add(newPeriod);
     }
 
+    /**
+     * Add a title to the person's collection of titles (or update dates if he already holds it).
+     *
+     * @param title the title to add
+     * @param fromDate the date when he obtained the title
+     * @param toDate the date when he loses the title, or null to use his death date (or the current toDate if this
+     *               is modifying an existing title)
+     */
+    public void addOrUpdateTitle(@NonNull Title title, @NonNull LocalDate fromDate, @Nullable LocalDate toDate) {
+        List<PersonTitlePeriod> currentTitles = getTitles();
+        PersonTitlePeriod existingTitle = currentTitles.stream()
+                .filter(p -> p.getTitle().getId() == title.getId())
+                .findFirst().orElse(null);
+        if (existingTitle != null) {
+            // We are updating an existing title assignment
+            existingTitle.setFromDate(fromDate);
+            if (toDate != null) {
+                existingTitle.setToDate(toDate);
+            }
+        } else {
+            // We are adding a new title
+            PersonTitlePeriod newPeriod = new PersonTitlePeriod();
+            newPeriod.setTitle(title);
+            newPeriod.setTitleId(title.getId());
+            newPeriod.setPerson(this);
+            newPeriod.setFromDate(fromDate);
+            newPeriod.setToDate(toDate == null ? getDeathDate() : toDate);
+            getTitles().add(newPeriod);
+        }
+    }
+
     public void addFatheredFamily(@NonNull Family family) {
         fatheredFamilies.add(family);
     }
@@ -405,5 +442,11 @@ public class Person {
                 .collect(Collectors.toSet());
 
         return householdsOnDate.isEmpty() ? null : householdsOnDate.iterator().next();
+    }
+
+    public List<PersonTitlePeriod> getTitles(@NonNull LocalDate onDate) {
+        return getTitles().stream()
+                .filter(o -> o.contains(onDate))
+                .collect(Collectors.toList());
     }
 }
