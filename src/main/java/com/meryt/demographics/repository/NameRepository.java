@@ -1,8 +1,11 @@
 package com.meryt.demographics.repository;
 
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
+import javax.annotation.Nullable;
+
 import com.meryt.demographics.database.QueryStore;
 import lombok.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,15 +25,16 @@ public class NameRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public String randomFirstName(@NonNull Gender gender, @NonNull Set<String> excludeNames) {
+    public String randomFirstName(@NonNull Gender gender, @Nullable Set<String> excludeNames, @Nullable LocalDate onDate) {
         String name;
         do {
             String query = queryStore.getQuery("random-first-name");
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("gender", gender.getAbbreviation());
+            params.addValue("onDate", onDate);
             Map<String, Object> result = jdbcTemplate.queryForMap(query, params);
             name = (String) result.get("name");
-        } while (excludeNames.contains(name));
+        } while (excludeNames != null && excludeNames.contains(name));
         return name;
     }
 

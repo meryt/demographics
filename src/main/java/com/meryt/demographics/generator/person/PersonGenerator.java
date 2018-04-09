@@ -57,7 +57,10 @@ public class PersonGenerator {
 
         Person person = new Person();
         person.setGender(personParameters.getGender() == null ? Gender.random() : personParameters.getGender());
-        person.setFirstName(nameService.randomFirstName(person.getGender(), personParameters.getExcludeNames()));
+        person.setFirstName(nameService.randomFirstName(person.getGender(), personParameters.getExcludeNames(),
+                personParameters.getBirthDate() == null
+                        ? personParameters.getAliveOnDate()
+                        : personParameters.getBirthDate()));
         person.setLastName(personParameters.getLastName() != null
                 ? personParameters.getLastName()
                 : nameService.randomLastName());
