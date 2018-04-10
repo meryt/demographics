@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import lombok.NonNull;
 import org.apache.commons.math3.distribution.BetaDistribution;
 import org.apache.commons.math3.distribution.NormalDistribution;
@@ -348,12 +349,14 @@ public class PersonGenerator {
      * Get hair color from parents hair color, or if parents are both null, use the person's eye color to make a
      * blue-eyed person more likely to be blond and a brown-eyed person less likely
      *
-     * @param father
-     * @param mother
-     * @param ownEyeColor
-     * @return
+     * @param father the person's father
+     * @param mother the person's mother
+     * @param ownEyeColor the person's eye color
+     * @return a string representing the genes
      */
-    private String getHairGenesFromParents(Person father, Person mother, @NonNull EyeColor ownEyeColor) {
+    private String getHairGenesFromParents(@Nullable Person father,
+                                           @Nullable Person mother,
+                                           @NonNull EyeColor ownEyeColor) {
         if (father == null || mother == null || father.getHairGenes() == null || mother.getHairGenes() == null) {
             return getRandomHairGenes(ownEyeColor);
         }
