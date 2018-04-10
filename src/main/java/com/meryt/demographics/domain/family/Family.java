@@ -34,6 +34,7 @@ public class Family {
     private Person wife;
 
     @OneToMany(mappedBy = "family", cascade = { CascadeType.ALL })
+    @OrderBy("birth_date, id")
     private List<Person> children = new ArrayList<>();
 
     private LocalDate weddingDate;
@@ -70,7 +71,9 @@ public class Family {
 
     private void addChild(@NonNull Person child) {
         child.setFamily(this);
-        this.children.add(child);
+        if (!this.children.contains(child)) {
+            this.children.add(child);
+        }
     }
 
     public void addChildren(Collection<Person> children) {

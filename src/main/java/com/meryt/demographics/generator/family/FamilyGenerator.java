@@ -1,10 +1,12 @@
 package com.meryt.demographics.generator.family;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import javax.annotation.Nullable;
 
 import com.meryt.demographics.domain.family.Family;
@@ -20,6 +22,7 @@ import com.meryt.demographics.request.FamilyParameters;
 import com.meryt.demographics.request.PersonParameters;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.math3.distribution.NormalDistribution;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -134,6 +137,16 @@ public class FamilyGenerator {
         }
 
         LocalDate startDate = person.getBirthDate().plusYears(minMarriageAge);
+
+        // Create a new family only after the death of the last existing spouse.
+        Set<Family> existingFamilies = person.getFamilies();
+        for (Family existingFamily : existingFamilies) {
+            Person spouse = person.isMale() ? existingFamily.getWife() : existingFamily.getHusband();
+            if (spouse != null && spouse.getDeathDate() != null && spouse.getDeathDate().isAfter(startDate)) {
+                startDate = spouse.getDeathDate();
+            }
+        }
+
         return attemptToFindSpouse(startDate, endDate, person, familyParameters);
     }
 
@@ -154,13 +167,16 @@ public class FamilyGenerator {
             double percentPerDay = MatchMaker.getDesireToMarryProbability(person, currentDate);
             if (die.roll() <= percentPerDay) {
                 // He wants to get married. Can he find a spouse? Generate a random person of the appropriate gender
-                // and age, and do a random check against the domesticity. If success, do a marriage. Otherwise
-                // discard the random person and continue searching.
+                // and age, and do a random check against the domesticity and other factors. If success, do a marriage.
+                // Otherwise discard the random person and continue searching.
                 LocalDate birthDate = getRandomSpouseBirthDate(person, currentDate, familyParameters);
+                SocialClass socialClass = getRandomSpouseSocialClass(person);
                 PersonParameters spouseParameters = new PersonParameters();
                 spouseParameters.setGender(spouseGender);
                 spouseParameters.setBirthDate(birthDate);
                 spouseParameters.setAliveOnDate(currentDate);
+                spouseParameters.setMinSocialClass(socialClass);
+                spouseParameters.setMaxSocialClass(socialClass);
                 Person potentialSpouse = personGenerator.generate(spouseParameters);
                 if (MatchMaker.checkCompatibility(person, potentialSpouse, currentDate)) {
                     Family family = new Family();
@@ -213,6 +229,25 @@ public class FamilyGenerator {
     }
 
     /**
+     * Gets a random social class for a potential spouse of a person, given their social class. Uses a normal
+     * distribution centered on the person's own class.
+     *
+     * @param person the person searching for a spouse
+     * @return a random rank using a normal distribution
+     */
+    private SocialClass getRandomSpouseSocialClass(@NonNull Person person) {
+        double randomRank = new NormalDistribution(person.getSocialClass().getRank(), 1).sample();
+        long rank = Math.round(randomRank);
+        if (rank < SocialClass.PAUPER.getRank()) {
+            rank = SocialClass.PAUPER.getRank();
+        } else if (rank > SocialClass.MONARCH.getRank()) {
+            rank = SocialClass.MONARCH.getRank();
+        }
+
+        return SocialClass.fromRank((int) rank);
+    }
+
+    /**
      * Generates children for the family given the parameters, and adds them to the existing list of children.
      *
      * @param family a family that is expected to include a husband and wife and wedding date
@@ -230,8 +265,12 @@ public class FamilyGenerator {
                 <= SocialClass.LANDOWNER_OR_CRAFTSMAN.getRank());
         LocalDate fromDate = family.getWeddingDate();
 
-        List<LocalDate> dates = Arrays.asList(familyParameters.getReferenceDate(), family.getHusband().getDeathDate(),
-                family.getWife().getDeathDate());
+        List<LocalDate> dates = new ArrayList<>();
+        dates.add(family.getHusband().getDeathDate().plusMonths(10));
+        dates.add(family.getWife().getDeathDate());
+        if (!familyParameters.isCycleToDeath()) {
+            dates.add(familyParameters.getReferenceDate());
+        }
         Optional<LocalDate> minDate = dates.stream().min(Comparator.comparing(LocalDate::toEpochDay));
         LocalDate toDate = familyParameters.getReferenceDate();
         if (minDate.isPresent()) {

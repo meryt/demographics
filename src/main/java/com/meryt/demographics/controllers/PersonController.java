@@ -1,11 +1,14 @@
 package com.meryt.demographics.controllers;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
-
 import lombok.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -13,21 +16,32 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.PersonTitlePeriod;
+import com.meryt.demographics.domain.person.SocialClass;
+import com.meryt.demographics.domain.person.fertility.Fertility;
 import com.meryt.demographics.domain.title.Title;
+import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.generator.person.PersonGenerator;
+import com.meryt.demographics.request.FamilyParameters;
+import com.meryt.demographics.request.PersonFamilyPost;
 import com.meryt.demographics.request.PersonParameters;
 import com.meryt.demographics.request.PersonTitlePost;
 import com.meryt.demographics.response.PersonDetailResponse;
+import com.meryt.demographics.response.PersonFamilyResponse;
 import com.meryt.demographics.response.PersonTitleResponse;
 import com.meryt.demographics.rest.BadRequestException;
 import com.meryt.demographics.rest.ResourceNotFoundException;
+import com.meryt.demographics.service.FamilyService;
 import com.meryt.demographics.service.PersonService;
 import com.meryt.demographics.service.TitleService;
 
 @RestController
 public class PersonController {
+
+    private static final String SOCIAL_CLASS = "socialClass";
+    private static final String LAST_NAME = "lastName";
 
     private final PersonGenerator personGenerator;
 
@@ -35,12 +49,20 @@ public class PersonController {
 
     private final TitleService titleService;
 
+    private final FamilyGenerator familyGenerator;
+
+    private final FamilyService familyService;
+
     public PersonController(@Autowired PersonGenerator personGenerator,
                             @Autowired PersonService personService,
-                            @Autowired TitleService titleService) {
+                            @Autowired TitleService titleService,
+                            @Autowired FamilyGenerator familyGenerator,
+                            @Autowired FamilyService familyService) {
         this.personGenerator = personGenerator;
         this.personService = personService;
         this.titleService = titleService;
+        this.familyGenerator = familyGenerator;
+        this.familyService = familyService;
     }
 
     @RequestMapping("/api/persons/random")
@@ -49,15 +71,21 @@ public class PersonController {
         return new PersonDetailResponse(personGenerator.generate(params), null);
     }
 
-    @RequestMapping("/api/persons/{personId}")
+    @RequestMapping(value = "/api/persons/{personId}", method = RequestMethod.GET)
     public PersonDetailResponse getPerson(@PathVariable long personId,
-                                    @RequestParam(value = "onDate", required = false) String onDate) {
+                                          @RequestParam(value = "onDate", required = false) String onDate) {
         Person person = loadPerson(personId);
         LocalDate date = null;
         if (onDate != null) {
             date = LocalDate.parse(onDate);
         }
         return new PersonDetailResponse(person, date);
+    }
+
+    @RequestMapping("/api/persons/{personId}/fertility")
+    public Fertility getPersonFertility(@PathVariable long personId) {
+        Person person = loadPerson(personId);
+        return person.getFertility();
     }
 
     @RequestMapping("/api/persons/{personId}/titles")
@@ -102,6 +130,65 @@ public class PersonController {
         personService.save(person);
 
         return getPersonTitles(personId, null);
+    }
+
+    @RequestMapping("/api/persons/{personId}/families")
+    public List<PersonFamilyResponse> getPersonFamilies(@PathVariable long personId) {
+        Person person = loadPerson(personId);
+        List<PersonFamilyResponse> families = new ArrayList<>();
+        for (Family family : person.getFamilies()) {
+            families.add(new PersonFamilyResponse(person, family));
+        }
+        return families;
+    }
+
+    @RequestMapping(value = "/api/persons/{personId}/families", method = RequestMethod.POST)
+    public ResponseEntity<PersonFamilyResponse> postPersonFamily(@PathVariable long personId,
+                                                                 @RequestBody PersonFamilyPost personFamilyPost) {
+        personFamilyPost.validate();
+        Person person = loadPerson(personId);
+
+        FamilyParameters familyParameters = new FamilyParameters();
+        familyParameters.setMinHusbandAge(personFamilyPost.getMinHusbandAge());
+        familyParameters.setMinWifeAge(personFamilyPost.getMinWifeAge());
+        familyParameters.setReferenceDate(personFamilyPost.getUntilDate() == null
+                ? person.getDeathDate()
+                : personFamilyPost.getUntilDate());
+        familyParameters.setPersist(personFamilyPost.isPersist());
+        Family family = familyGenerator.generate(person, familyParameters);
+        if (family == null) {
+            return new ResponseEntity<>((PersonFamilyResponse) null, HttpStatus.NO_CONTENT);
+        } else {
+            if (personFamilyPost.isPersist()) {
+                family = familyService.save(family);
+            }
+            return new ResponseEntity<>(new PersonFamilyResponse(person, family), personFamilyPost.isPersist()
+                    ? HttpStatus.CREATED
+                    : HttpStatus.OK);
+        }
+    }
+
+    @RequestMapping(value = "/api/persons/{personId}", method = RequestMethod.PATCH)
+    public PersonDetailResponse patchPerson(@PathVariable long personId, @RequestBody Map<String, Object> updates) {
+        Person person = loadPerson(personId);
+        if (updates.containsKey(SOCIAL_CLASS)) {
+            if (updates.get(SOCIAL_CLASS) == null) {
+                person.setSocialClass(null);
+            } else {
+                person.setSocialClass(SocialClass.fromEnumName((String) updates.get(SOCIAL_CLASS)));
+            }
+            updates.remove(SOCIAL_CLASS);
+        }
+        if (updates.containsKey(LAST_NAME)) {
+            person.setLastName((String) updates.get(LAST_NAME));
+            updates.remove(LAST_NAME);
+        }
+
+        if (!updates.isEmpty()) {
+            throw new BadRequestException("No support for PATCHing key(s): " + String.join(", ", updates.keySet()));
+        }
+
+        return new PersonDetailResponse(personService.save(person));
     }
 
     @NonNull

@@ -34,6 +34,8 @@ public class PersonGenerator {
 	private static final double RAND_TRAIT_ALPHA              = 2;
     private static final double RAND_TRAIT_BETA               = 1.8;
 
+    private static final int LAST_NAME_BEGINNING_YEAR         = 1400;
+
     private static final BetaDistribution DOMESTICITY_BETA = new FunkyBetaDistribution(RAND_DOMESTICITY_ALPHA,
             RAND_DOMESTICITY_BETA);
 	private static final BetaDistribution TRAIT_BETA = new BetaDistribution(RAND_TRAIT_ALPHA, RAND_TRAIT_BETA);
@@ -56,15 +58,21 @@ public class PersonGenerator {
     public Person generate(PersonParameters personParameters) {
         validatePersonParameters(personParameters);
 
+        LocalDate nameDate = personParameters.getBirthDate() == null
+                ? personParameters.getAliveOnDate()
+                : personParameters.getBirthDate();
+
         Person person = new Person();
         person.setGender(personParameters.getGender() == null ? Gender.random() : personParameters.getGender());
         person.setFirstName(nameService.randomFirstName(person.getGender(), personParameters.getExcludeNames(),
-                personParameters.getBirthDate() == null
-                        ? personParameters.getAliveOnDate()
-                        : personParameters.getBirthDate()));
-        person.setLastName(personParameters.getLastName() != null
-                ? personParameters.getLastName()
-                : nameService.randomLastName());
+                nameDate));
+
+        // People didn't use last names till about 1400. But if one is specified, use it.
+        if (personParameters.getLastName() != null || nameDate.isAfter(LocalDate.of(LAST_NAME_BEGINNING_YEAR, 1, 1))) {
+            person.setLastName(personParameters.getLastName() != null
+                    ? personParameters.getLastName()
+                    : nameService.randomLastName());
+        }
 
         generatePersonLifespan(personParameters, person);
 

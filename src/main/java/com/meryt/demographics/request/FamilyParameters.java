@@ -62,6 +62,13 @@ public class FamilyParameters {
      */
     private boolean persist;
 
+    /**
+     * If true, will continue checking for children until the death of the father or mother, rather than stopping
+     * at the reference date
+     */
+    private boolean cycleToDeath;
+
+
     public int getMinHusbandAgeOrDefault() {
         return minHusbandAge == null ? DEFAULT_MIN_HUSBAND_AGE : minHusbandAge;
     }

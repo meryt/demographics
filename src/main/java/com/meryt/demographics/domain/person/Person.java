@@ -7,6 +7,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -386,6 +387,17 @@ public class Person {
             newPeriod.setFromDate(fromDate);
             newPeriod.setToDate(toDate == null ? getDeathDate() : toDate);
             getTitles().add(newPeriod);
+        }
+
+        // Update the person's social class to match his highest ranking title, if it's higher than his current social
+        // class.
+        Optional<PersonTitlePeriod> highestRankingTitle = getTitles().stream()
+                .max(Comparator.comparing(t -> t.getTitle().getSocialClass().getRank()));
+        if (highestRankingTitle.isPresent()) {
+            SocialClass titleClass = highestRankingTitle.get().getTitle().getSocialClass();
+            if (titleClass.getRank() > getSocialClass().getRank()) {
+                setSocialClass(titleClass);
+            }
         }
     }
 

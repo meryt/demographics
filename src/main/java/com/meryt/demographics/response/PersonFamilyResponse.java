@@ -11,17 +11,17 @@ import com.meryt.demographics.domain.person.Person;
  * a member of the person. Shows only the "spouse" field.
  */
 @Getter
-class PersonFamilyResponse extends AbstractFamilyResponse {
+public class PersonFamilyResponse extends AbstractFamilyResponse {
 
-    private PersonReference spouse;
+    private PersonResponse spouse;
 
-    PersonFamilyResponse(@NonNull Person person, @NonNull Family family) {
+    public PersonFamilyResponse(@NonNull Person person, @NonNull Family family) {
         super(family);
 
         if (person.isMale() && family.getWife() != null) {
-            spouse = new PersonReference(family.getWife());
+            spouse = new PersonResponse(family.getWife());
         } else if (person.isFemale() && family.getHusband() != null) {
-            spouse = new PersonReference(family.getHusband());
+            spouse = new PersonResponse(family.getHusband());
         }
     }
 

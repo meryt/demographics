@@ -25,6 +25,10 @@ public class PersonDetailResponse extends PersonResponse {
     private final List<HouseholdResponse> households;
     private final PersonParentsFamilyResponse family;
 
+    public PersonDetailResponse(@NonNull Person person) {
+        this(person, null);
+    }
+
     public PersonDetailResponse(@NonNull Person person, @Nullable LocalDate onDate) {
         super(person);
 

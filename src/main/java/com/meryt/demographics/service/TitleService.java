@@ -24,6 +24,11 @@ public class TitleService {
     }
 
     @NonNull
+    public Title save(@NonNull Title title) {
+        return titleRepository.save(title);
+    }
+
+    @NonNull
     public Iterable<Title> findAll() {
         return titleRepository.findAll();
     }
