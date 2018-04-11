@@ -13,7 +13,7 @@ import com.meryt.demographics.domain.person.SocialClass;
  * a member of a family or household.
  */
 @Getter
-public class PersonResponse {
+class PersonResponse {
 
     private final long id;
     private final String firstName;
@@ -29,6 +29,7 @@ public class PersonResponse {
 
     private final String eyeColor;
     private final String hairColor;
+    private final String height;
 
     private final double domesticity;
     private final double charisma;
@@ -37,7 +38,7 @@ public class PersonResponse {
     private final double morality;
     private final double strength;
 
-    public PersonResponse(@NonNull Person person) {
+    PersonResponse(@NonNull Person person) {
         id = person.getId();
         firstName = person.getFirstName();
         middleName = person.getMiddleNames();
@@ -52,6 +53,7 @@ public class PersonResponse {
 
         eyeColor = person.getEyeColorName();
         hairColor = person.getHairColor();
+        height = person.getHeightString();
 
         domesticity = person.getDomesticity();
         charisma = person.getCharisma();

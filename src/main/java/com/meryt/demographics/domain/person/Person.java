@@ -93,6 +93,8 @@ public class Person {
 
     private String hairGenes;
 
+    private Double heightInches;
+
     @OneToOne(cascade = CascadeType.ALL)
     @PrimaryKeyJoinColumn
     private Maternity maternity;
@@ -219,6 +221,23 @@ public class Person {
                 return husbandOnDate == null ? getLastName() : husbandOnDate.getLastName();
             }
         }
+    }
+
+    /**
+     * Format the height as feet'inches"
+     * @return a formatted string, or null if height is null or impossibly small
+     */
+    public String getHeightString() {
+        if (heightInches == null || heightInches < 5.0) {
+            return null;
+        }
+        int feet = (int) Math.floor(heightInches / 12.0);
+        int inches = (int) Math.round(heightInches - (feet * 12));
+        if (12 <= inches) {
+            feet++;
+            inches = 0;
+        }
+        return feet + "'" + inches + "\"";
     }
 
     /**

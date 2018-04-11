@@ -36,6 +36,10 @@ public class PersonGenerator {
 
     private static final int LAST_NAME_BEGINNING_YEAR         = 1400;
 
+    private static final double AVG_ADULT_MALE_HEIGHT = 69.6850394;  // abt. 5'10" (177cm)
+    private static final double AVG_ADULT_FEMALE_HEIGHT = 64.3700787;  // abt. 5'4.3" (163.5cm)
+    private static final double AVG_ADULT_HEIGHT_STD_DEV = 2.8;  // 2.8" for both women and men
+
     private static final BetaDistribution DOMESTICITY_BETA = new FunkyBetaDistribution(RAND_DOMESTICITY_ALPHA,
             RAND_DOMESTICITY_BETA);
 	private static final BetaDistribution TRAIT_BETA = new BetaDistribution(RAND_TRAIT_ALPHA, RAND_TRAIT_BETA);
@@ -254,6 +258,10 @@ public class PersonGenerator {
             person.setComeliness(randomTrait());
             person.setStrength(randomTrait());
         }
+
+        person.setHeightInches(randomHeight(person.getGender(), father == null ? null : father.getHeightInches(),
+                mother == null ? null : mother.getHeightInches()));
+
         if (mother != null) {
             person.setIntelligence(randomTrait(mother.getIntelligence(), father == null ? null : father.getIntelligence()));
         } else {
@@ -276,6 +284,7 @@ public class PersonGenerator {
         twin2.setEyeGenes(twin1.getEyeGenes());
         twin2.setEyeColor(twin1.getEyeColor());
         twin2.setHairGenes(twin1.getHairGenes());
+        twin2.setHeightInches(twin1.getHeightInches());
     }
 
     /**
@@ -293,6 +302,33 @@ public class PersonGenerator {
      */
     private double randomTrait() {
         return TRAIT_BETA.sample();
+    }
+
+    private double randomHeight(@NonNull Gender gender, @Nullable Double fatherHeight, @Nullable Double motherHeight) {
+        Double pHeight;
+        if (fatherHeight != null && motherHeight != null) {
+            pHeight = (fatherHeight + (1.08 * motherHeight)) / 2.0;
+        } else if (fatherHeight != null) {
+            pHeight = (fatherHeight + (1.08 * AVG_ADULT_FEMALE_HEIGHT)) / 2.0;
+        } else if (motherHeight != null) {
+            pHeight = (AVG_ADULT_MALE_HEIGHT + (1.08 * motherHeight)) / 2.0;
+        } else {
+            pHeight = null;
+        }
+
+        double avgForGender = gender == Gender.MALE ? AVG_ADULT_MALE_HEIGHT : AVG_ADULT_FEMALE_HEIGHT;
+
+        if (pHeight == null) {
+            // Just get a height from random distribution
+            return new NormalDistribution(avgForGender, AVG_ADULT_HEIGHT_STD_DEV).sample();
+        } else {
+            double modifier = gender == Gender.MALE ? 1.0 : 1.08;
+            // get a height based on parents' - using Galton's formula
+            double childHeight = avgForGender + 0.6115 *
+                    // Use male mean since female is adjusted by 1.08
+                    ((pHeight - AVG_ADULT_MALE_HEIGHT) / modifier);
+            return new NormalDistribution(childHeight, AVG_ADULT_HEIGHT_STD_DEV).sample();
+        }
     }
 
     /**
