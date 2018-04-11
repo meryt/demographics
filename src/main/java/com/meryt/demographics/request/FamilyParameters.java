@@ -5,6 +5,7 @@ import lombok.Setter;
 
 import java.time.LocalDate;
 
+import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.SocialClass;
 
 @Getter
@@ -56,6 +57,17 @@ public class FamilyParameters {
      * If set, this last name will be used for the founder.
      */
     private String founderLastName;
+
+    /**
+     * If set, this last name will be used for the spouse.
+     */
+    private String spouseLastName;
+
+    /**
+     * If set, we will attempt to use this spouse (assuming dates are valid, etc.). The person may still choose not to
+     * marry or the people may not be compatible, so there is no guarantee the family will be created for these people.
+     */
+    private Person spouse;
 
     /**
      * If true, will save the family after generating.

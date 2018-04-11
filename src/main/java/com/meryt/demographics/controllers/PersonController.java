@@ -155,6 +155,10 @@ public class PersonController {
                 ? person.getDeathDate()
                 : personFamilyPost.getUntilDate());
         familyParameters.setPersist(personFamilyPost.isPersist());
+        familyParameters.setSpouseLastName(personFamilyPost.getSpouseLastName());
+        if (personFamilyPost.getSpouseId() != null) {
+            familyParameters.setSpouse(loadPerson(personFamilyPost.getSpouseId()));
+        }
         Family family = familyGenerator.generate(person, familyParameters);
         if (family == null) {
             return new ResponseEntity<>((PersonFamilyResponse) null, HttpStatus.NO_CONTENT);

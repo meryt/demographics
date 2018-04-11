@@ -19,7 +19,17 @@ public class PersonFamilyPost {
      */
     private LocalDate untilDate;
 
+    /**
+     * If present, a randomly-generated spouse will use this last name
+     */
+    private String spouseLastName;
+
     private boolean persist;
+
+    /**
+     * If non-null this person will be used as the spouse, rather than generating a random one.
+     */
+    private Long spouseId;
 
     public void validate() {
         // nothing to validate yet

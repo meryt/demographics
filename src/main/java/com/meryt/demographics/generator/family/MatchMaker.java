@@ -8,7 +8,7 @@ import com.meryt.demographics.generator.random.PercentDie;
 import lombok.NonNull;
 import org.apache.commons.math3.distribution.BetaDistribution;
 
-public class MatchMaker {
+class MatchMaker {
 
     /**
      * Beta with peak at 2.5 for x = 0.2
@@ -46,9 +46,16 @@ public class MatchMaker {
      * @param potentialSpouse the potential spouse
      * @param onDate the date (an older woman is less discriminating)
      */
-    public static boolean checkCompatibility(@NonNull Person person,
+    static boolean checkCompatibility(@NonNull Person person,
                                              @NonNull Person potentialSpouse,
                                              @NonNull LocalDate onDate) {
+        if (!person.isLiving(onDate) || !potentialSpouse.isLiving(onDate)) {
+            return false;
+        }
+        if (person.getGender() == potentialSpouse.getGender()) {
+            return false;
+        }
+
         Person man = person.isMale() ? person : potentialSpouse;
         Person woman = person.isMale() ? potentialSpouse : person;
         if (!checkSocialClassCompatibility(man, woman, onDate)) {

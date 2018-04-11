@@ -67,7 +67,8 @@ public class FamilyGenerator {
             log.info(String.format("%s married %s on %s", family.getHusband().getName(), family.getWife().getName(),
                     family.getWeddingDate()));
         } else {
-            log.info(String.format("%s could not find a wife.", founder.getName()));
+            log.info(String.format("%s could not find a %s.", founder.getName(),
+                    founder.isMale() ? "wife" : "husband"));
             return null;
         }
 
@@ -166,18 +167,25 @@ public class FamilyGenerator {
         for (LocalDate currentDate = startDate; currentDate.isBefore(endDate) ; currentDate = currentDate.plusDays(1)) {
             double percentPerDay = MatchMaker.getDesireToMarryProbability(person, currentDate);
             if (die.roll() <= percentPerDay) {
-                // He wants to get married. Can he find a spouse? Generate a random person of the appropriate gender
-                // and age, and do a random check against the domesticity and other factors. If success, do a marriage.
-                // Otherwise discard the random person and continue searching.
-                LocalDate birthDate = getRandomSpouseBirthDate(person, currentDate, familyParameters);
-                SocialClass socialClass = getRandomSpouseSocialClass(person);
-                PersonParameters spouseParameters = new PersonParameters();
-                spouseParameters.setGender(spouseGender);
-                spouseParameters.setBirthDate(birthDate);
-                spouseParameters.setAliveOnDate(currentDate);
-                spouseParameters.setMinSocialClass(socialClass);
-                spouseParameters.setMaxSocialClass(socialClass);
-                Person potentialSpouse = personGenerator.generate(spouseParameters);
+                // He wants to get married. Can he find a spouse?
+                Person potentialSpouse;
+                if (familyParameters.getSpouse() != null) {
+                    potentialSpouse = familyParameters.getSpouse();
+                } else {
+                    // Generate a random person of the appropriate gender
+                    // and age, and do a random check against the domesticity and other factors. If success, do a marriage.
+                    // Otherwise discard the random person and continue searching.
+                    LocalDate birthDate = getRandomSpouseBirthDate(person, currentDate, familyParameters);
+                    SocialClass socialClass = getRandomSpouseSocialClass(person);
+                    PersonParameters spouseParameters = new PersonParameters();
+                    spouseParameters.setGender(spouseGender);
+                    spouseParameters.setBirthDate(birthDate);
+                    spouseParameters.setAliveOnDate(currentDate);
+                    spouseParameters.setMinSocialClass(socialClass);
+                    spouseParameters.setMaxSocialClass(socialClass);
+                    spouseParameters.setLastName(familyParameters.getSpouseLastName());
+                    potentialSpouse = personGenerator.generate(spouseParameters);
+                }
                 if (MatchMaker.checkCompatibility(person, potentialSpouse, currentDate)) {
                     Family family = new Family();
                     if (person.isMale()) {
