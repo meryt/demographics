@@ -108,10 +108,12 @@ public class Person {
 
     @OneToMany(mappedBy = "husband", cascade = { CascadeType.ALL })
     @Setter(AccessLevel.PRIVATE)
+    @OrderBy("wedding_date")
     private Set<Family> fatheredFamilies = new HashSet<>();
 
     @OneToMany(mappedBy = "wife", cascade = { CascadeType.ALL })
     @Setter(AccessLevel.PRIVATE)
+    @OrderBy("wedding_date")
     private Set<Family> motheredFamilies = new HashSet<>();
 
     /**
@@ -218,7 +220,9 @@ public class Person {
                 return getLastName();
             } else {
                 Person husbandOnDate = marriages.get(0).getHusband();
-                return husbandOnDate == null ? getLastName() : husbandOnDate.getLastName();
+                return (husbandOnDate == null || husbandOnDate.getLastName() == null)
+                        ? getLastName()
+                        : husbandOnDate.getLastName();
             }
         }
     }

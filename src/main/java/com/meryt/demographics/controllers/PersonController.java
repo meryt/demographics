@@ -28,6 +28,7 @@ import com.meryt.demographics.request.FamilyParameters;
 import com.meryt.demographics.request.PersonFamilyPost;
 import com.meryt.demographics.request.PersonParameters;
 import com.meryt.demographics.request.PersonTitlePost;
+import com.meryt.demographics.response.PersonDescendantResponse;
 import com.meryt.demographics.response.PersonDetailResponse;
 import com.meryt.demographics.response.PersonFamilyResponse;
 import com.meryt.demographics.response.PersonTitleResponse;
@@ -86,6 +87,14 @@ public class PersonController {
     public Fertility getPersonFertility(@PathVariable long personId) {
         Person person = loadPerson(personId);
         return person.getFertility();
+    }
+
+    @RequestMapping(value = "/api/persons/{personId}/descendants", method = RequestMethod.GET)
+    public PersonDescendantResponse getPersonDescendants(@PathVariable long personId,
+                                                         @RequestParam(value = "numGenerations", required = false)
+                                                                 Integer numGenerations) {
+        Person person = loadPerson(personId);
+        return new PersonDescendantResponse(person, 0, numGenerations == null ? 3 : numGenerations);
     }
 
     @RequestMapping("/api/persons/{personId}/titles")
