@@ -69,6 +69,11 @@ public class PersonController {
     @RequestMapping("/api/persons/random")
     public PersonDetailResponse randomPerson(@RequestBody PersonParameters personParameters) {
         PersonParameters params = personParameters == null ? new PersonParameters() : personParameters;
+        try {
+            personParameters.validate();
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException(e.getMessage());
+        }
         return new PersonDetailResponse(personGenerator.generate(params), null);
     }
 

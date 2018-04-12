@@ -1,5 +1,6 @@
 package com.meryt.demographics.service;
 
+import java.time.LocalDate;
 import javax.annotation.Nullable;
 
 import com.meryt.demographics.domain.person.Gender;
@@ -12,8 +13,9 @@ import org.springframework.stereotype.Service;
 @Service
 public class LifeTableService {
 
-    public enum LifeTablePeriod {
-        VICTORIAN
+    private enum LifeTablePeriod {
+        VICTORIAN,
+        MEDIEVAL
     }
 
     private final LifeTableRepository lifeTableRepository;
@@ -27,7 +29,26 @@ public class LifeTableService {
      * equal to the max.
      * @return life expectancy in days
      */
-    public long randomLifeExpectancy(@NonNull LifeTablePeriod period,
+    public long randomLifeExpectancy(@NonNull LocalDate birthDate,
+                                     @Nullable Integer minAgeYears,
+                                     @Nullable Integer maxAgeYears,
+                                     @Nullable Gender gender) {
+        LifeTablePeriod period;
+        if (birthDate.isAfter(LocalDate.of(1800,1,1))) {
+            period = LifeTablePeriod.VICTORIAN;
+        } else {
+            period = LifeTablePeriod.MEDIEVAL;
+        }
+
+        return randomLifeExpectancy(period, minAgeYears, maxAgeYears, gender);
+    }
+
+    /**
+     * Get a random life expectancy such that the age in years is greater than or equal to the min and less than or
+     * equal to the max.
+     * @return life expectancy in days
+     */
+    private long randomLifeExpectancy(@NonNull LifeTablePeriod period,
                                      @Nullable Integer minAgeYears,
                                      @Nullable Integer maxAgeYears,
                                      @Nullable Gender gender) {
@@ -42,7 +63,7 @@ public class LifeTableService {
         }
 
         // If min and max are identical, return an age somewhere between the specified birthday and the next
-        if (maxAgeYears != null && minAgeYears.equals(maxAgeYears)) {
+        if (minAgeYears.equals(maxAgeYears)) {
             return (minAgeYears * 365) + new Die(365).roll() - 1;
         }
 

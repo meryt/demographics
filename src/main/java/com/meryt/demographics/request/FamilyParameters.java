@@ -105,4 +105,10 @@ public class FamilyParameters {
         return percentMaleFounders == null ? DEFAULT_PERCENT_MALE_FOUNDERS : percentMaleFounders;
     }
 
+    public void validate() {
+        if (referenceDate == null) {
+            throw new IllegalArgumentException("referenceDate is required");
+        }
+    }
+
 }

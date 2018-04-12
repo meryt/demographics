@@ -11,6 +11,7 @@ import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.request.FamilyParameters;
 import com.meryt.demographics.response.FamilyResponse;
+import com.meryt.demographics.rest.BadRequestException;
 import com.meryt.demographics.rest.ResourceNotFoundException;
 import com.meryt.demographics.service.FamilyService;
 
@@ -27,6 +28,11 @@ public class FamilyController {
 
     @RequestMapping("/api/families/random")
     public FamilyResponse randomFamily(@NonNull @RequestBody FamilyParameters familyParameters) {
+        try {
+            familyParameters.validate();
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException(e.getMessage());
+        }
         Family family = familyGenerator.generate(familyParameters);
         if (family == null) {
             return null;

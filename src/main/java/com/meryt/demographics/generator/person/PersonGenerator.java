@@ -144,23 +144,26 @@ public class PersonGenerator {
         personParameters.setMother(family.getWife());
 
         List<Person> children = new ArrayList<>();
-        children.add(generate(personParameters));
-        // Add the child's own name to the excluded names in case we generate twins
-        personParameters.getExcludeNames().add(children.get(0).getFirstName());
+        Person firstChild = generate(personParameters);
+        children.add(firstChild);
+        family.addChild(firstChild);
+        // Add the child's own name to the excluded names in case we generate identical twin
+        personParameters.getExcludeNames().add(firstChild.getFirstName());
 
         if (includeIdenticalTwin) {
-            personParameters.setGender(children.get(0).getGender());
-            children.add(generate(personParameters));
+            personParameters.setGender(firstChild.getGender());
+            Person identicalTwin = generate(personParameters);
+            children.add(identicalTwin);
             // Some traits such as physical appearance must match
-            matchIdenticalTwinParameters(children.get(0), children.get(1));
+            matchIdenticalTwinParameters(firstChild, identicalTwin);
             // Add the child's own name to the excluded names in case we generate fraternal twin too
-            personParameters.getExcludeNames().add(children.get(1).getFirstName());
+            family.addChild(identicalTwin);
         }
         if (includeFraternalTwin) {
-            children.add(generateChildrenForParents(family, birthDate, false, false).get(0));
+            Person fraternalTwin = generateChildrenForParents(family, birthDate, false, false).get(0);
+            children.add(fraternalTwin);
+            family.addChild(fraternalTwin);
         }
-
-        family.addChildren(children);
 
         // Chance of child death increases with number of children
         PercentDie die = new PercentDie();
@@ -187,19 +190,19 @@ public class PersonGenerator {
             long lifespan;
             Integer minAgeYears = aliveOnDate != null ? person.getBirthDate().until(aliveOnDate).getYears() : null;
             do {
-                lifespan = lifeTableService.randomLifeExpectancy(LifeTableService.LifeTablePeriod.VICTORIAN,
+                lifespan = lifeTableService.randomLifeExpectancy(personParameters.getBirthDate(),
                         minAgeYears, null, person.getGender());
             } while (aliveOnDate != null && person.getBirthDate().plusDays(lifespan).isBefore(aliveOnDate));
             person.setDeathDate(person.getBirthDate().plusDays(lifespan));
         } else if (aliveOnDate != null) {
             // Get a random age such that the person is at least minAge / at most maxAge on this reference date.
             // From this we get a birth date (not the actual lifespan).
-            long ageAtReference = lifeTableService.randomLifeExpectancy(LifeTableService.LifeTablePeriod.VICTORIAN,
-                    minAge, personParameters.getMaxAge(), person.getGender());
+            long ageAtReference = lifeTableService.randomLifeExpectancy(aliveOnDate, minAge,
+                    personParameters.getMaxAge(), person.getGender());
             person.setBirthDate(aliveOnDate.minusDays(ageAtReference));
 
             // Now get a lifespan at least as old as he was determined to be at the reference date
-            long lifespan = lifeTableService.randomLifeExpectancy(LifeTableService.LifeTablePeriod.VICTORIAN,
+            long lifespan = lifeTableService.randomLifeExpectancy(aliveOnDate,
                     (int) Math.ceil(ageAtReference / 365.0), null, person.getGender());
             LocalDate deathDate = person.getBirthDate().plusDays(lifespan);
             // From this we can set a death date and the actual lifespan.

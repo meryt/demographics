@@ -69,7 +69,7 @@ public class Family {
         }
     }
 
-    private void addChild(@NonNull Person child) {
+    public void addChild(@NonNull Person child) {
         child.setFamily(this);
         if (!this.children.contains(child)) {
             this.children.add(child);

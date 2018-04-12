@@ -53,4 +53,10 @@ public class PersonParameters {
 
     private SocialClass maxSocialClass;
 
+    public void validate() {
+        if (birthDate == null && aliveOnDate == null) {
+            throw new IllegalArgumentException("Cannot generate a person without at least one of birthDate or aliveOnDate");
+        }
+    }
+
 }
