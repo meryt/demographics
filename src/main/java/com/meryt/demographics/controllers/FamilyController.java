@@ -49,5 +49,4 @@ public class FamilyController {
         }
         return new FamilyResponse(result);
     }
-
 }

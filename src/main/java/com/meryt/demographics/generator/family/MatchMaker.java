@@ -2,13 +2,16 @@ package com.meryt.demographics.generator.family;
 
 import java.time.LocalDate;
 import java.time.Period;
+import java.util.Set;
+
+import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.generator.random.PercentDie;
 import lombok.NonNull;
 import org.apache.commons.math3.distribution.BetaDistribution;
 
-class MatchMaker {
+public class MatchMaker {
 
     /**
      * Beta with peak at 2.5 for x = 0.2
@@ -19,6 +22,38 @@ class MatchMaker {
 
     private MatchMaker() {
         // hide constructor of class with static methods
+    }
+
+    /**
+     * Given a person and the min age for men/women to marry, determine the date the person might begin looking to
+     * marry. If the person has already been married, starts looking after the death of the last spouse.
+     *
+     * @param person a person to search for
+     * @param minHusbandAge the age at which men begin to search
+     * @param minWifeAge the age at which womenb egin to search
+     * @return a date, possibly after the death date if the person died young or was previously married and was
+     * outlived by their spouse
+     */
+    public static LocalDate getDateToStartMarriageSearch(@NonNull Person person,
+                                                         int minHusbandAge,
+                                                         int minWifeAge) {
+        LocalDate startDate;
+        if (person.isMale()) {
+            startDate = person.getBirthDate().plusYears(minHusbandAge);
+        } else {
+            startDate = person.getBirthDate().plusYears(minWifeAge);
+        }
+
+        // Create a new family only after the death of the last existing spouse.
+        Set<Family> existingFamilies = person.getFamilies();
+        for (Family existingFamily : existingFamilies) {
+            Person spouse = person.isMale() ? existingFamily.getWife() : existingFamily.getHusband();
+            if (spouse != null && spouse.getDeathDate() != null && spouse.getDeathDate().isAfter(startDate)) {
+                startDate = spouse.getDeathDate();
+            }
+        }
+
+        return startDate;
     }
 
     /**
@@ -47,8 +82,8 @@ class MatchMaker {
      * @param onDate the date (an older woman is less discriminating)
      */
     static boolean checkCompatibility(@NonNull Person person,
-                                             @NonNull Person potentialSpouse,
-                                             @NonNull LocalDate onDate) {
+                                      @NonNull Person potentialSpouse,
+                                      @NonNull LocalDate onDate) {
         if (!person.isLiving(onDate) || !potentialSpouse.isLiving(onDate)) {
             return false;
         }

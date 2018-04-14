@@ -283,6 +283,27 @@ public class Person {
         }
     }
 
+    private Person getMother() {
+        if (getFamily() == null) {
+            return null;
+        } else {
+            return getFamily().getWife();
+        }
+    }
+
+    private List<Person> getParents() {
+        List<Person> parents = new ArrayList<>();
+        Person father = getFather();
+        Person mother = getMother();
+        if (father != null) {
+            parents.add(father);
+        }
+        if (mother != null) {
+            parents.add(mother);
+        }
+        return parents;
+    }
+
     /**
      * Gets all children from this person's marriages. Excludes any children who do not have birth dates.
      */

@@ -1,6 +1,8 @@
 package com.meryt.demographics.controllers;
 
+import javax.annotation.Nullable;
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +33,8 @@ import com.meryt.demographics.request.PersonTitlePost;
 import com.meryt.demographics.response.PersonDescendantResponse;
 import com.meryt.demographics.response.PersonDetailResponse;
 import com.meryt.demographics.response.PersonFamilyResponse;
+import com.meryt.demographics.response.PersonPotentialSpouseResponse;
+import com.meryt.demographics.response.PersonReference;
 import com.meryt.demographics.response.PersonTitleResponse;
 import com.meryt.demographics.rest.BadRequestException;
 import com.meryt.demographics.rest.ResourceNotFoundException;
@@ -209,6 +213,23 @@ public class PersonController {
         return new PersonDetailResponse(personService.save(person));
     }
 
+    @RequestMapping(value = "/api/persons/{personId}/potential-spouses", method = RequestMethod.GET)
+    public List<PersonPotentialSpouseResponse> getPersonPotentialSpouses(@PathVariable long personId,
+                                                           @RequestParam(value = "onDate", required = false)
+                                                                   String onDate,
+                                                           @RequestParam(value = "minHusbandAge", required = false)
+                                                                       Integer minHusbandAge,
+                                                           @RequestParam(value = "minWifeAge", required = false)
+                                                                        Integer minWifeAge) {
+        final Person person = loadPerson(personId);
+        LocalDate date = parseDate(onDate);
+        minHusbandAge = minHusbandAge == null ? FamilyParameters.DEFAULT_MIN_HUSBAND_AGE : minHusbandAge;
+        minWifeAge = minWifeAge == null ? FamilyParameters.DEFAULT_MIN_WIFE_AGE : minWifeAge;
+        return personService.findPotentialSpouses(person, date, minHusbandAge, minWifeAge).stream()
+                .map(spouse -> new PersonPotentialSpouseResponse(person, spouse))
+                .collect(Collectors.toList());
+    }
+
     @NonNull
     private Person loadPerson(Long personId) {
         if (personId == null) {
@@ -220,6 +241,18 @@ public class PersonController {
             throw new ResourceNotFoundException("No person found for ID " + personId);
         }
         return person;
+    }
+
+    @Nullable
+    private LocalDate parseDate(@Nullable String date) {
+        if (date == null) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(date);
+        } catch (DateTimeParseException e) {
+            throw new BadRequestException("Invalid date: " + e.getMessage());
+        }
     }
 
 }

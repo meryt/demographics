@@ -126,10 +126,6 @@ public class FamilyGenerator {
 
         LocalDate untilDate = familyParameters.getReferenceDate();
 
-        int minMarriageAge = person.isMale()
-                ? familyParameters.getMinHusbandAgeOrDefault()
-                : familyParameters.getMinWifeAgeOrDefault();
-
         LocalDate endDate;
         if (untilDate == null || person.getDeathDate().isBefore(untilDate)) {
             endDate = person.getDeathDate();
@@ -137,16 +133,9 @@ public class FamilyGenerator {
             endDate = untilDate;
         }
 
-        LocalDate startDate = person.getBirthDate().plusYears(minMarriageAge);
-
-        // Create a new family only after the death of the last existing spouse.
-        Set<Family> existingFamilies = person.getFamilies();
-        for (Family existingFamily : existingFamilies) {
-            Person spouse = person.isMale() ? existingFamily.getWife() : existingFamily.getHusband();
-            if (spouse != null && spouse.getDeathDate() != null && spouse.getDeathDate().isAfter(startDate)) {
-                startDate = spouse.getDeathDate();
-            }
-        }
+        LocalDate startDate = MatchMaker.getDateToStartMarriageSearch(person,
+                familyParameters.getMinHusbandAgeOrDefault(),
+                familyParameters.getMinWifeAgeOrDefault());
 
         return attemptToFindSpouse(startDate, endDate, person, familyParameters);
     }
