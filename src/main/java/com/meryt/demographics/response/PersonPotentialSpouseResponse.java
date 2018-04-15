@@ -1,11 +1,13 @@
 package com.meryt.demographics.response;
 
+import javax.annotation.Nullable;
 import java.time.LocalDate;
 import java.time.Period;
 
 import lombok.Getter;
 import lombok.NonNull;
 
+import com.meryt.demographics.domain.family.Relationship;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.SocialClass;
 
@@ -18,9 +20,11 @@ public class PersonPotentialSpouseResponse {
     private final LocalDate birthDate;
     private final LocalDate deathDate;
     private final String ageDifference;
-    //private final int degreesOfConsanguity;
+    private final Relationship relationship;
 
-    public PersonPotentialSpouseResponse(@NonNull Person person, @NonNull Person spouse) {
+    public PersonPotentialSpouseResponse(@NonNull Person person,
+                                         @NonNull Person spouse,
+                                         @Nullable Relationship relationship) {
         id = spouse.getId();
         name = spouse.getName();
         birthDate = spouse.getBirthDate();
@@ -34,7 +38,7 @@ public class PersonPotentialSpouseResponse {
         } else {
             this.ageDifference = ageDifference.getYears() + " years younger";
         }
-        //degreesOfConsanguity = person.calculateDegreesOfConsanguinity(spouse);
+        this.relationship = relationship;
     }
 
 

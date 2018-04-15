@@ -275,6 +275,30 @@ public class Person {
         return !legitimateMalesSurvivingFather.isEmpty() && legitimateChildren.get(0).getId() == getId();
     }
 
+    public boolean isSibling(@NonNull Person person) {
+        if (getFamily() == null || person.getFamily() == null) {
+            return false;
+        }
+
+        if (getFamily().getId() == person.getFamily().getId()) {
+            return true;
+        }
+
+        // If they are not in the same family they may still be related if they have one parent in common
+        Person myFather = getFather();
+        Person theirFather = person.getFather();
+        if (myFather != null && theirFather != null && myFather.getId() == theirFather.getId()) {
+            return true;
+        }
+
+        Person myMother = getMother();
+        Person theirMother = person.getMother();
+        if (myMother != null && theirMother != null && myMother.getId() == theirMother.getId()) {
+            return true;
+        }
+        return false;
+    }
+
     private Person getFather() {
         if (getFamily() == null) {
             return null;

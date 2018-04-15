@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
 import lombok.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -34,10 +35,10 @@ import com.meryt.demographics.response.PersonDescendantResponse;
 import com.meryt.demographics.response.PersonDetailResponse;
 import com.meryt.demographics.response.PersonFamilyResponse;
 import com.meryt.demographics.response.PersonPotentialSpouseResponse;
-import com.meryt.demographics.response.PersonReference;
 import com.meryt.demographics.response.PersonTitleResponse;
 import com.meryt.demographics.rest.BadRequestException;
 import com.meryt.demographics.rest.ResourceNotFoundException;
+import com.meryt.demographics.service.AncestryService;
 import com.meryt.demographics.service.FamilyService;
 import com.meryt.demographics.service.PersonService;
 import com.meryt.demographics.service.TitleService;
@@ -58,16 +59,20 @@ public class PersonController {
 
     private final FamilyService familyService;
 
+    private final AncestryService ancestryService;
+
     public PersonController(@Autowired PersonGenerator personGenerator,
                             @Autowired PersonService personService,
                             @Autowired TitleService titleService,
                             @Autowired FamilyGenerator familyGenerator,
-                            @Autowired FamilyService familyService) {
+                            @Autowired FamilyService familyService,
+                            @Autowired AncestryService ancestryService) {
         this.personGenerator = personGenerator;
         this.personService = personService;
         this.titleService = titleService;
         this.familyGenerator = familyGenerator;
         this.familyService = familyService;
+        this.ancestryService = ancestryService;
     }
 
     @RequestMapping("/api/persons/random")
@@ -226,7 +231,9 @@ public class PersonController {
         minHusbandAge = minHusbandAge == null ? FamilyParameters.DEFAULT_MIN_HUSBAND_AGE : minHusbandAge;
         minWifeAge = minWifeAge == null ? FamilyParameters.DEFAULT_MIN_WIFE_AGE : minWifeAge;
         return personService.findPotentialSpouses(person, date, minHusbandAge, minWifeAge).stream()
-                .map(spouse -> new PersonPotentialSpouseResponse(person, spouse))
+                .map(spouse -> new PersonPotentialSpouseResponse(person, spouse,
+                        ancestryService.calculateRelationship(spouse, person)))
+                .filter(resp -> resp.getRelationship() == null || resp.getRelationship().getDegreeOfSeparation() > 4)
                 .collect(Collectors.toList());
     }
 
