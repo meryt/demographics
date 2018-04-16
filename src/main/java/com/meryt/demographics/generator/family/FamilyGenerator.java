@@ -285,6 +285,10 @@ public class FamilyGenerator {
         PregnancyChecker checker = new PregnancyChecker(personGenerator, family, false);
         checker.checkDateRange(fromDate, toDate);
 
+        // If we're cycling until first death but woman is pregnant, continue cycling till she gives birth
+        if (familyParameters.isCycleToDeath() && family.getWife().getMaternity().isPregnant(toDate)) {
+            checker.checkDateRange(toDate.plusDays(1), family.getWife().getMaternity().getDueDate());
+        }
     }
 
 }
