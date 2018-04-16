@@ -39,18 +39,25 @@ public class PersonService {
                                              int minHusbandAge,
                                              int minWifeAge) {
         LocalDate searchDate = MatchMaker.getDateToStartMarriageSearch(person, minHusbandAge, minWifeAge);
+        if (onDate != null && onDate.isAfter(searchDate)) {
+            searchDate = onDate;
+        }
         LocalDate minBirthDate = null;
-        LocalDate maxBirthDate = null;
+        LocalDate maxBirthDate;
+        Integer minAgeAtDeath;
         if (person.isMale()) {
             // A woman should be no more than three years older than man
             minBirthDate = person.getBirthDate().minusYears(3);
             maxBirthDate = person.getDeathDate().minusYears(minWifeAge);
+            minAgeAtDeath = minWifeAge;
         } else {
             maxBirthDate = person.getBirthDate().plusYears(3);
+            minAgeAtDeath = minHusbandAge;
         }
 
         Gender gender = person.isMale() ? Gender.FEMALE : Gender.MALE;
-        return personRepository.findPotentialSpouses(gender, searchDate, minBirthDate, maxBirthDate);
+        return personRepository.findPotentialSpouses(gender, searchDate, minBirthDate, maxBirthDate,
+                minAgeAtDeath);
     }
 
 }

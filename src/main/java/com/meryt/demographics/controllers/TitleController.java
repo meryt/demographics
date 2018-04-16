@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.title.Title;
+import com.meryt.demographics.request.TitlePost;
 import com.meryt.demographics.response.TitleReference;
 import com.meryt.demographics.response.TitleResponse;
 import com.meryt.demographics.rest.BadRequestException;
@@ -47,6 +48,12 @@ public class TitleController {
     public TitleResponse getTitle(@PathVariable long titleId) {
         Title title = loadTitle(titleId);
         return new TitleResponse(title);
+    }
+
+    @RequestMapping(value = "/api/titles", method = RequestMethod.POST)
+    public TitleResponse createTitle(@RequestBody TitlePost titlePost) {
+        Title title = titlePost.toTitle(personService);
+        return new TitleResponse(titleService.save(title));
     }
 
     @RequestMapping(value = "/api/titles/{titleId}", method = RequestMethod.PATCH)

@@ -22,13 +22,15 @@ public interface PersonRepository extends PagingAndSortingRepository<Person, Lon
             "AND p.fatheredFamilies IS EMPTY " +
             "AND p.birthDate < :aliveOnDate " +
             "AND p.deathDate > :aliveOnDate " +
+            "AND (YEAR(p.deathDate) - YEAR(p.birthDate)) >= :minAgeAtDeath " +
             "AND (CAST(:minBirthDate AS date) IS NULL OR p.birthDate >= :minBirthDate) " +
             "AND (CAST(:maxBirthDate AS date) IS NULL OR p.birthDate <= :maxBirthDate) " +
             "ORDER BY p.birthDate")
     List<Person> findPotentialSpouses(@Param("gender") @NonNull Gender gender,
                                       @Param("aliveOnDate") @NonNull LocalDate aliveOnDate,
                                       @Param("minBirthDate") @Nullable LocalDate minBirthDate,
-                                      @Param("maxBirthDate") @Nullable LocalDate maxBirthDate);
+                                      @Param("maxBirthDate") @Nullable LocalDate maxBirthDate,
+                                      @Param("minAgeAtDeath") @NonNull Integer minAgeAtDeath);
 
 
 }

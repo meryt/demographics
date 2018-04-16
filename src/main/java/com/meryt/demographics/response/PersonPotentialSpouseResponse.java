@@ -19,6 +19,7 @@ public class PersonPotentialSpouseResponse {
     private final SocialClass socialClass;
     private final LocalDate birthDate;
     private final LocalDate deathDate;
+    private final double comeliness;
     private final String ageDifference;
     private final Relationship relationship;
 
@@ -30,6 +31,7 @@ public class PersonPotentialSpouseResponse {
         birthDate = spouse.getBirthDate();
         deathDate = spouse.getDeathDate();
         socialClass = spouse.getSocialClass();
+        comeliness = spouse.getComeliness();
         Period ageDifference = Period.between(person.getBirthDate(), spouse.getBirthDate());
         if (Math.abs(ageDifference.getYears()) == 0) {
             this.ageDifference = "same age";
