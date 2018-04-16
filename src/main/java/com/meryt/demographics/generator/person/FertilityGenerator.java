@@ -26,7 +26,7 @@ public class FertilityGenerator {
 
 
 
-    Maternity randomMaternity(@NonNull Person woman) {
+    public Maternity randomMaternity(@NonNull Person woman) {
         Maternity maternity = new Maternity();
         maternity.setFertilityFactor(randFertilityFactor());
         maternity.setLastCycleDate(randFirstCycleDate(woman.getBirthDate()));

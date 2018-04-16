@@ -29,6 +29,7 @@ import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.generator.person.PersonGenerator;
 import com.meryt.demographics.request.FamilyParameters;
 import com.meryt.demographics.request.PersonFamilyPost;
+import com.meryt.demographics.request.PersonFertilityPost;
 import com.meryt.demographics.request.PersonParameters;
 import com.meryt.demographics.request.PersonTitlePost;
 import com.meryt.demographics.response.PersonDescendantResponse;
@@ -40,6 +41,7 @@ import com.meryt.demographics.rest.BadRequestException;
 import com.meryt.demographics.rest.ResourceNotFoundException;
 import com.meryt.demographics.service.AncestryService;
 import com.meryt.demographics.service.FamilyService;
+import com.meryt.demographics.service.FertilityService;
 import com.meryt.demographics.service.PersonService;
 import com.meryt.demographics.service.TitleService;
 
@@ -61,25 +63,29 @@ public class PersonController {
 
     private final AncestryService ancestryService;
 
+    private final FertilityService fertilityService;
+
     public PersonController(@Autowired PersonGenerator personGenerator,
                             @Autowired PersonService personService,
                             @Autowired TitleService titleService,
                             @Autowired FamilyGenerator familyGenerator,
                             @Autowired FamilyService familyService,
-                            @Autowired AncestryService ancestryService) {
+                            @Autowired AncestryService ancestryService,
+                            @Autowired FertilityService fertilityService) {
         this.personGenerator = personGenerator;
         this.personService = personService;
         this.titleService = titleService;
         this.familyGenerator = familyGenerator;
         this.familyService = familyService;
         this.ancestryService = ancestryService;
+        this.fertilityService = fertilityService;
     }
 
     @RequestMapping("/api/persons/random")
     public PersonDetailResponse randomPerson(@RequestBody PersonParameters personParameters) {
         PersonParameters params = personParameters == null ? new PersonParameters() : personParameters;
         try {
-            personParameters.validate();
+            params.validate();
         } catch (IllegalArgumentException e) {
             throw new BadRequestException(e.getMessage());
         }
@@ -97,9 +103,22 @@ public class PersonController {
         return new PersonDetailResponse(person, date);
     }
 
-    @RequestMapping("/api/persons/{personId}/fertility")
+    @RequestMapping(value = "/api/persons/{personId}/fertility", method = RequestMethod.GET)
     public Fertility getPersonFertility(@PathVariable long personId) {
         Person person = loadPerson(personId);
+        return person.getFertility();
+    }
+
+    @RequestMapping(value = "/api/persons/{personId}/fertility", method = RequestMethod.POST)
+    public Fertility postPersonFertility(@PathVariable long personId, @RequestBody PersonFertilityPost post) {
+        Person person = loadPerson(personId);
+        LocalDate cycleToDate = post.getCycleToDateAsDate();
+        if (cycleToDate != null) {
+            if (!person.isFemale()) {
+                throw new BadRequestException("cycleToDate applies only to women");
+            }
+            return fertilityService.cycleToDate(person, cycleToDate);
+        }
         return person.getFertility();
     }
 

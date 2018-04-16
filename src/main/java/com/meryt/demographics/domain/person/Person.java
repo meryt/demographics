@@ -95,23 +95,23 @@ public class Person {
 
     private Double heightInches;
 
-    @OneToOne(cascade = CascadeType.ALL)
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
     @PrimaryKeyJoinColumn
     private Maternity maternity;
 
-    @OneToOne(cascade = CascadeType.ALL)
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
     @PrimaryKeyJoinColumn
     private Paternity paternity;
 
-    @ManyToOne(cascade = { CascadeType.ALL })
+    @ManyToOne
     private Family family;
 
-    @OneToMany(mappedBy = "husband", cascade = { CascadeType.ALL })
+    @OneToMany(mappedBy = "husband")
     @Setter(AccessLevel.PRIVATE)
     @OrderBy("wedding_date")
     private Set<Family> fatheredFamilies = new HashSet<>();
 
-    @OneToMany(mappedBy = "wife", cascade = { CascadeType.ALL })
+    @OneToMany(mappedBy = "wife")
     @Setter(AccessLevel.PRIVATE)
     @OrderBy("wedding_date")
     private Set<Family> motheredFamilies = new HashSet<>();

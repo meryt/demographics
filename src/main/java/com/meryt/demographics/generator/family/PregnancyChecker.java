@@ -37,9 +37,6 @@ public class PregnancyChecker {
         this.family = family;
         this.father = family.getHusband();
         this.mother = family.getWife();
-        if (this.father == null) {
-            throw new NullPointerException("The husband in the family record cannot be null");
-        }
         if (this.mother == null) {
             throw new NullPointerException("The wife in the family record cannot be null");
         }

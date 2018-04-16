@@ -8,11 +8,13 @@ import lombok.NonNull;
 
 import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.domain.person.SocialClass;
 
 @Getter
 public class PersonDescendantResponse extends PersonReference {
 
     private final String ageAtDeath;
+    private final SocialClass socialClass;
     private final String relation;
     private List<PersonDescendantResponse> children;
 
@@ -20,6 +22,7 @@ public class PersonDescendantResponse extends PersonReference {
         super(person);
         relation = calculateRelation(person.getGender(), distanceFromRoot);
         ageAtDeath = person.getAgeAtDeath();
+        socialClass = person.getSocialClass();
 
         if (remainingDepth == 0) {
             children = null;
