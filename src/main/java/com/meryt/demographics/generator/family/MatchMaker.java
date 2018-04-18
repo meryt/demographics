@@ -84,10 +84,13 @@ public class MatchMaker {
     static boolean checkCompatibility(@NonNull Person person,
                                       @NonNull Person potentialSpouse,
                                       @NonNull LocalDate onDate) {
+        if (person.getGender() == potentialSpouse.getGender()) {
+            return false;
+        }
         if (!person.isLiving(onDate) || !potentialSpouse.isLiving(onDate)) {
             return false;
         }
-        if (person.getGender() == potentialSpouse.getGender()) {
+        if (potentialSpouse.isMarriedNowOrAfter(onDate)) {
             return false;
         }
 

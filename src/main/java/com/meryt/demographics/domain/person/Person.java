@@ -3,6 +3,7 @@ package com.meryt.demographics.domain.person;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -203,6 +204,29 @@ public class Person {
         return birthDate != null && !onDate.isBefore(birthDate) && (deathDate == null || !onDate.isAfter(deathDate));
     }
 
+    /**
+     * Determines whether the person is married on this date or gets married any time after this date. Useful for
+     * determining whether a person is eligible to be married on a given date.
+     *
+     * @param onDate
+     * @return true if any of the peron's wedding dates are after this date, or if the person's spouse for any previous
+     * marriage is still living
+     */
+    public boolean isMarriedNowOrAfter(@NonNull LocalDate onDate) {
+        for (Family fam : getFamilies()) {
+            // If the wedding date is on or after the date
+            if ((fam.getWeddingDate() != null
+                    && (fam.getWeddingDate().isAfter(onDate) || fam.getWeddingDate().equals(onDate)))
+            // Or the wedding date is in the past but the spouse is not dead on the date
+                || (fam.isMarriage() &&
+                    ((getGender() == Gender.MALE && fam.getWife().isLiving(onDate)) ||
+                            (getGender() == Gender.FEMALE && fam.getHusband().isLiving(onDate))))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public String getName() {
         return (firstName + " " + lastName).trim();
     }
@@ -354,6 +378,25 @@ public class Person {
         } else {
             return getMotheredFamilies();
         }
+    }
+
+    /**
+     * Gets all of the person's children across all their families
+     */
+    public List<Person> getChildren() {
+        return getFamilies().stream()
+                .map(Family::getChildren)
+                .flatMap(Collection::stream)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Returns all children living on the date. Does not include children not yet born.
+     */
+    public List<Person> getLivingChildren(@NonNull LocalDate onDate) {
+        return getChildren().stream()
+                .filter(p -> p.isLiving(onDate))
+                .collect(Collectors.toList());
     }
 
     private Set<Family> getFatheredFamilies() {

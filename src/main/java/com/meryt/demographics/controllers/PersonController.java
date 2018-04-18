@@ -26,6 +26,7 @@ import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.domain.person.fertility.Fertility;
 import com.meryt.demographics.domain.title.Title;
 import com.meryt.demographics.generator.family.FamilyGenerator;
+import com.meryt.demographics.generator.family.MatchMaker;
 import com.meryt.demographics.generator.person.PersonGenerator;
 import com.meryt.demographics.request.FamilyParameters;
 import com.meryt.demographics.request.PersonFamilyPost;
@@ -244,13 +245,24 @@ public class PersonController {
                                                            @RequestParam(value = "minHusbandAge", required = false)
                                                                        Integer minHusbandAge,
                                                            @RequestParam(value = "minWifeAge", required = false)
-                                                                        Integer minWifeAge) {
+                                                                        Integer minWifeAge,
+                                                           @RequestParam(value = "maxWifeAge", required = false)
+                                                                         Integer maxWifeAge) {
         final Person person = loadPerson(personId);
         LocalDate date = parseDate(onDate);
+        LocalDate searchDate = MatchMaker.getDateToStartMarriageSearch(person, minHusbandAge, minWifeAge);
+        if (date != null && date.isAfter(searchDate)) {
+            searchDate = date;
+        }
+
+        final LocalDate finalSearchDate = searchDate;
+
         minHusbandAge = minHusbandAge == null ? FamilyParameters.DEFAULT_MIN_HUSBAND_AGE : minHusbandAge;
         minWifeAge = minWifeAge == null ? FamilyParameters.DEFAULT_MIN_WIFE_AGE : minWifeAge;
-        return personService.findPotentialSpouses(person, date, minHusbandAge, minWifeAge).stream()
-                .map(spouse -> new PersonPotentialSpouseResponse(person, spouse,
+        maxWifeAge = maxWifeAge == null ? FamilyParameters.DEFAULT_MAX_MARRIAGEABLE_WIFE_AGE : maxWifeAge;
+        return personService.findPotentialSpouses(person, searchDate, minHusbandAge, minWifeAge, maxWifeAge)
+                .stream()
+                .map(spouse -> new PersonPotentialSpouseResponse(person, spouse, finalSearchDate,
                         ancestryService.calculateRelationship(spouse, person)))
                 .filter(resp -> resp.getRelationship() == null || resp.getRelationship().getDegreeOfSeparation() > 4)
                 .collect(Collectors.toList());

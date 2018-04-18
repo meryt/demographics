@@ -16,6 +16,7 @@ public class FamilyParameters {
     public static final int DEFAULT_MAX_HUSBAND_AGE = 50;
     public static final int DEFAULT_MIN_WIFE_AGE = 15;
     public static final int DEFAULT_MAX_WIFE_AGE = 50;
+    public static final int DEFAULT_MAX_MARRIAGEABLE_WIFE_AGE = 35;
     private static final double DEFAULT_PERCENT_MALE_FOUNDERS = 0.8;
 
     /**

@@ -3,6 +3,7 @@ package com.meryt.demographics.request;
 import javax.annotation.Nullable;
 
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.Setter;
 
 import com.meryt.demographics.domain.person.SocialClass;
@@ -25,7 +26,7 @@ public class TitlePost {
 
     private Long inheritanceRoot;
 
-    public Title toTitle(@Nullable PersonService personService) {
+    public Title toTitle(@NonNull PersonService personService) {
         Title title = new Title();
         title.setName(name);
         title.setSocialClass(socialClass);

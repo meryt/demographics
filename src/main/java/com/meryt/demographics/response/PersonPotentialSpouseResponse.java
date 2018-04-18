@@ -21,10 +21,12 @@ public class PersonPotentialSpouseResponse {
     private final LocalDate deathDate;
     private final double comeliness;
     private final String ageDifference;
+    private final String ageOnSearchDate;
     private final Relationship relationship;
 
     public PersonPotentialSpouseResponse(@NonNull Person person,
                                          @NonNull Person spouse,
+                                         @NonNull LocalDate searchDate,
                                          @Nullable Relationship relationship) {
         id = spouse.getId();
         name = spouse.getName();
@@ -32,14 +34,15 @@ public class PersonPotentialSpouseResponse {
         deathDate = spouse.getDeathDate();
         socialClass = spouse.getSocialClass();
         comeliness = spouse.getComeliness();
-        Period ageDifference = Period.between(person.getBirthDate(), spouse.getBirthDate());
-        if (Math.abs(ageDifference.getYears()) == 0) {
+        Period rawAgeDiff = Period.between(person.getBirthDate(), spouse.getBirthDate());
+        if (Math.abs(rawAgeDiff.getYears()) == 0) {
             this.ageDifference = "same age";
-        } else if (ageDifference.isNegative()) {
-            this.ageDifference = Math.abs(ageDifference.getYears()) + " years older";
+        } else if (rawAgeDiff.isNegative()) {
+            this.ageDifference = Math.abs(rawAgeDiff.getYears()) + " years older";
         } else {
-            this.ageDifference = ageDifference.getYears() + " years younger";
+            this.ageDifference = rawAgeDiff.getYears() + " years younger";
         }
+        ageOnSearchDate = spouse.getAge(searchDate);
         this.relationship = relationship;
     }
 

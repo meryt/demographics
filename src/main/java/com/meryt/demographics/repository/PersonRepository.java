@@ -18,7 +18,7 @@ public interface PersonRepository extends PagingAndSortingRepository<Person, Lon
 
     @Query("SELECT p FROM Person p " +
             "WHERE p.gender = :gender " +
-            "AND p.motheredFamilies IS EMPTY " +
+            "AND (p.motheredFamilies IS EMPTY OR (SIZE(p.motheredFamilies) = 1)) " +
             "AND p.fatheredFamilies IS EMPTY " +
             "AND p.birthDate < :aliveOnDate " +
             "AND p.deathDate > :aliveOnDate " +

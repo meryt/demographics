@@ -10,6 +10,7 @@ import lombok.NonNull;
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.PersonOccupationPeriod;
+import com.meryt.demographics.domain.person.PersonTitlePeriod;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.HouseholdInhabitantPeriod;
 
@@ -19,6 +20,7 @@ import com.meryt.demographics.domain.place.HouseholdInhabitantPeriod;
 @Getter
 public class PersonDetailResponse extends PersonResponse {
 
+    private final List<PersonTitleResponse> titles;
     private final List<PersonFamilyResponse> families;
     private final List<PersonOccupationResponse> occupations;
     private final HouseholdResponse household;
@@ -31,6 +33,15 @@ public class PersonDetailResponse extends PersonResponse {
 
     public PersonDetailResponse(@NonNull Person person, @Nullable LocalDate onDate) {
         super(person);
+
+        if (person.getTitles().isEmpty()) {
+            titles = null;
+        } else {
+            titles = new ArrayList<>();
+            for (PersonTitlePeriod titlePeriod : person.getTitles()) {
+                titles.add(new PersonTitleResponse(titlePeriod));
+            }
+        }
 
         if (person.getFamilies().isEmpty()) {
             families = null;
