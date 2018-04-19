@@ -17,7 +17,11 @@ public class TitleResponse extends TitleReference {
 
     public TitleResponse(@NonNull Title title) {
         super(title);
-        this.inheritanceRoot = new PersonReference(title.getInheritanceRoot());
+        if (title.getInheritanceRoot() != null) {
+            this.inheritanceRoot = new PersonReference(title.getInheritanceRoot());
+        } else {
+            this.inheritanceRoot = null;
+        }
         for (PersonTitlePeriod titleHolderPeriod : title.getTitleHolders()) {
             titleHolders.add(new TitleHolderResponse(titleHolderPeriod));
         }

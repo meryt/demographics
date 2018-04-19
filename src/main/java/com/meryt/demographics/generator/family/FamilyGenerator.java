@@ -160,6 +160,12 @@ public class FamilyGenerator {
                 Person potentialSpouse;
                 if (familyParameters.getSpouse() != null) {
                     potentialSpouse = familyParameters.getSpouse();
+                    Integer minAge = potentialSpouse.isFemale()
+                            ? familyParameters.getMinWifeAge()
+                            : familyParameters.getMinHusbandAge();
+                    if (minAge != null && potentialSpouse.getAgeInYears(currentDate) < minAge) {
+                        return null;
+                    }
                 } else {
                     // Generate a random person of the appropriate gender
                     // and age, and do a random check against the domesticity and other factors. If success, do a marriage.

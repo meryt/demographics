@@ -143,12 +143,18 @@ public class MatchMaker {
         }
 
         // Get the average of comeliness and charisma
-        double desirability = (lesser.getComeliness() + lesser.getCharisma()) / 2.0;
+        double attractiveness = (lesser.getComeliness() + lesser.getCharisma()) / 2.0;
 
         // An aging woman of a greater rank will be less discriminating
-        desirability += femaleAgeDesireToMarryModifier(greater, onDate);
+        attractiveness += femaleAgeDesireToMarryModifier(greater, onDate);
 
-        return ((new PercentDie().roll() * diff) < (desirability - 0.7));
+        // For a rank difference of 2, the person must have an attractiveness score of 0.7; for 3 of 0.75, for 4 of 0.8
+        // rank diff = 2, min attractiveness = 0.7
+        // rank diff = 3, min attractiveness = 0.8
+        // rank diff = 4, min attractiveness = 0.9
+        double minAttractiveness = 0.5 + (0.1 * diff);
+
+        return (new PercentDie().roll() < (attractiveness - minAttractiveness));
     }
 
     /**
