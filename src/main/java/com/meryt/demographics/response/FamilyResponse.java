@@ -1,11 +1,13 @@
 package com.meryt.demographics.response;
 
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import lombok.Getter;
 import lombok.NonNull;
 
 import com.meryt.demographics.domain.family.Family;
 
 @Getter
+@JsonPropertyOrder({ "id", "weddingDate", "husband", "husbandAgeAtMarriage", "wife", "wifeAgeAtMarriage", "children" })
 public class FamilyResponse extends AbstractFamilyResponse {
 
     private final PersonResponse husband;

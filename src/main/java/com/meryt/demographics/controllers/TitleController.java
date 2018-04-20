@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.title.Title;
+import com.meryt.demographics.domain.title.TitleInheritanceStyle;
 import com.meryt.demographics.request.TitlePost;
 import com.meryt.demographics.response.TitleReference;
 import com.meryt.demographics.response.TitleResponse;
@@ -26,6 +27,7 @@ import com.meryt.demographics.service.TitleService;
 public class TitleController {
 
     private static final String INHERITANCE_ROOT = "inheritanceRoot";
+    private static final String INHERITANCE_STYLE = "inheritanceStyle";
 
     private final TitleService titleService;
     private final PersonService personService;
@@ -72,6 +74,14 @@ public class TitleController {
                 title.setInheritanceRoot(root);
             }
             updates.remove(INHERITANCE_ROOT);
+        }
+        if (updates.containsKey(INHERITANCE_STYLE)) {
+            if (updates.get(INHERITANCE_STYLE) == null) {
+                title.setInheritance(null);
+            } else {
+                title.setInheritance(TitleInheritanceStyle.valueOf((String) updates.get(INHERITANCE_STYLE)));
+            }
+            updates.remove(INHERITANCE_STYLE);
         }
 
         if (!updates.isEmpty()) {
