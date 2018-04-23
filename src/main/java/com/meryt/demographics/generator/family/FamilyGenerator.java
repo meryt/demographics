@@ -12,6 +12,7 @@ import javax.annotation.Nullable;
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.domain.person.RelatedPerson;
 import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.domain.person.fertility.Maternity;
 import com.meryt.demographics.generator.person.PersonGenerator;
@@ -20,6 +21,8 @@ import com.meryt.demographics.generator.random.Die;
 import com.meryt.demographics.generator.random.PercentDie;
 import com.meryt.demographics.request.FamilyParameters;
 import com.meryt.demographics.request.PersonParameters;
+import com.meryt.demographics.service.PersonService;
+
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.math3.distribution.NormalDistribution;
@@ -34,8 +37,12 @@ public class FamilyGenerator {
 
     private final PersonGenerator personGenerator;
 
-    public FamilyGenerator(@Autowired PersonGenerator personGenerator) {
+    private final PersonService personService;
+
+    public FamilyGenerator(@Autowired PersonGenerator personGenerator,
+                           @Autowired PersonService personService) {
         this.personGenerator = personGenerator;
+        this.personService = personService;
     }
 
     /**
@@ -165,6 +172,14 @@ public class FamilyGenerator {
                             : familyParameters.getMinHusbandAge();
                     if (minAge != null && potentialSpouse.getAgeInYears(currentDate) < minAge) {
                         return null;
+                    }
+                } else if (familyParameters.isAllowExistingSpouse()) {
+                    // We're not given a spouse, but are allowed to chose an eligible one from the database
+                    List<RelatedPerson> potentialSpouses = personService.findPotentialSpouses(person, currentDate,
+                            false, familyParameters);
+                    if (familyParameters.getMinSpouseSelection() != null &&
+                            potentialSpouses.size() < familyParameters.getMinSpouseSelection()) {
+
                     }
                 } else {
                     // Generate a random person of the appropriate gender

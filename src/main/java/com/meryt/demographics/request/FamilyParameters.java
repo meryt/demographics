@@ -16,7 +16,9 @@ public class FamilyParameters {
     public static final int DEFAULT_MAX_HUSBAND_AGE = 50;
     public static final int DEFAULT_MIN_WIFE_AGE = 15;
     public static final int DEFAULT_MAX_WIFE_AGE = 50;
+    public static final int DEFAULT_MAX_OLDER_WIFE_AGE_DIFF = 3;
     public static final int DEFAULT_MAX_MARRIAGEABLE_WIFE_AGE = 35;
+    public static final int DEFAULT_MIN_DEGREES_SEPARATION = 4;
     private static final double DEFAULT_PERCENT_MALE_FOUNDERS = 0.8;
 
     /**
@@ -71,6 +73,19 @@ public class FamilyParameters {
     private Person spouse;
 
     /**
+     * If true, will attempt to find a spouse among existing persons in the database.
+     */
+    private boolean allowExistingSpouse;
+
+    /**
+     * Only used if allowExistingSpouse is true. If there are fewer than this many existing eligible spouses on the
+     * search date, random potential spouses will be created to fill out the selection to this many people. For example
+     * if this is set to 5 and there are only 2 potential spouses in the database, there is a 3/5 chance a random
+     * spouse will be used instead of one from the database.
+     */
+    private Integer minSpouseSelection;
+
+    /**
      * If true, will save the family after generating.
      */
     private boolean persist;
@@ -81,6 +96,20 @@ public class FamilyParameters {
      */
     private boolean cycleToDeath;
 
+    /**
+     * For generated families, the wife will be no more than this many years older than the husband.
+     */
+    private Integer maxOlderWifeAgeDiff;
+
+    /**
+     * For generated families, a woman stops being eligible to marry at this age.
+     */
+    private Integer maxMarriageableWifeAge;
+
+    /**
+     * For relatives to marry there must be at least this many degrees of separation
+     */
+    private Integer minDegreesSeparation;
 
     public int getMinHusbandAgeOrDefault() {
         return minHusbandAge == null ? DEFAULT_MIN_HUSBAND_AGE : minHusbandAge;
@@ -102,8 +131,20 @@ public class FamilyParameters {
         return maxWifeAge == null ? DEFAULT_MAX_WIFE_AGE : maxWifeAge;
     }
 
+    public int getMaxOlderWifeAgeDiffOrDefault() {
+        return maxOlderWifeAgeDiff == null ? DEFAULT_MAX_OLDER_WIFE_AGE_DIFF : maxOlderWifeAgeDiff;
+    }
+
+    public int getMaxMarriageableWifeAgeOrDefault() {
+        return maxMarriageableWifeAge == null ? DEFAULT_MAX_MARRIAGEABLE_WIFE_AGE : maxMarriageableWifeAge;
+    }
+
     public double getPercentMaleFoundersOrDefault() {
         return percentMaleFounders == null ? DEFAULT_PERCENT_MALE_FOUNDERS : percentMaleFounders;
+    }
+
+    public int getMinDegreesSeparationOrDefault() {
+        return minDegreesSeparation == null ? DEFAULT_MIN_DEGREES_SEPARATION : minDegreesSeparation;
     }
 
     public void validate() {
