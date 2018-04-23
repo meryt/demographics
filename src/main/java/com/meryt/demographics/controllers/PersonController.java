@@ -1,13 +1,12 @@
 package com.meryt.demographics.controllers;
 
-import javax.annotation.Nullable;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
+import javax.annotation.Nullable;
 import lombok.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -40,7 +39,6 @@ import com.meryt.demographics.response.PersonPotentialSpouseResponse;
 import com.meryt.demographics.response.PersonTitleResponse;
 import com.meryt.demographics.rest.BadRequestException;
 import com.meryt.demographics.rest.ResourceNotFoundException;
-import com.meryt.demographics.service.AncestryService;
 import com.meryt.demographics.service.FamilyService;
 import com.meryt.demographics.service.FertilityService;
 import com.meryt.demographics.service.PersonService;
@@ -62,8 +60,6 @@ public class PersonController {
 
     private final FamilyService familyService;
 
-    private final AncestryService ancestryService;
-
     private final FertilityService fertilityService;
 
     public PersonController(@Autowired PersonGenerator personGenerator,
@@ -71,14 +67,12 @@ public class PersonController {
                             @Autowired TitleService titleService,
                             @Autowired FamilyGenerator familyGenerator,
                             @Autowired FamilyService familyService,
-                            @Autowired AncestryService ancestryService,
                             @Autowired FertilityService fertilityService) {
         this.personGenerator = personGenerator;
         this.personService = personService;
         this.titleService = titleService;
         this.familyGenerator = familyGenerator;
         this.familyService = familyService;
-        this.ancestryService = ancestryService;
         this.fertilityService = fertilityService;
     }
 
@@ -238,6 +232,18 @@ public class PersonController {
         return new PersonDetailResponse(personService.save(person));
     }
 
+    /**
+     * Finds potential spouses for the person.
+     *
+     * @param personId the person
+     * @param onDate the optional search date; if provided, the results will only include potential spouses who are
+     *               eligible on that exact date; otherwise may includes spouses that are not yet old enough but will
+     *               become eligible in the future
+     * @param minHusbandAge minimum age for men to marry
+     * @param minWifeAge minimum age for women to marry
+     * @param maxWifeAge maximum age for women to marry
+     * @return a list of potential spouses with their relationship to the person
+     */
     @RequestMapping(value = "/api/persons/{personId}/potential-spouses", method = RequestMethod.GET)
     public List<PersonPotentialSpouseResponse> getPersonPotentialSpouses(@PathVariable long personId,
                                                            @RequestParam(value = "onDate", required = false)
@@ -257,14 +263,17 @@ public class PersonController {
 
         final LocalDate finalSearchDate = searchDate;
 
-        minHusbandAge = minHusbandAge == null ? FamilyParameters.DEFAULT_MIN_HUSBAND_AGE : minHusbandAge;
-        minWifeAge = minWifeAge == null ? FamilyParameters.DEFAULT_MIN_WIFE_AGE : minWifeAge;
-        maxWifeAge = maxWifeAge == null ? FamilyParameters.DEFAULT_MAX_MARRIAGEABLE_WIFE_AGE : maxWifeAge;
-        return personService.findPotentialSpouses(person, searchDate, minHusbandAge, minWifeAge, maxWifeAge)
-                .stream()
-                .map(spouse -> new PersonPotentialSpouseResponse(person, spouse, finalSearchDate,
-                        ancestryService.calculateRelationship(spouse, person)))
-                .filter(resp -> resp.getRelationship() == null || resp.getRelationship().getDegreeOfSeparation() > 4)
+        FamilyParameters familyParameters = new FamilyParameters();
+        familyParameters.setMinWifeAge(minWifeAge);
+        familyParameters.setMinHusbandAge(minHusbandAge);
+        familyParameters.setMaxWifeAge(maxWifeAge);
+
+        // If a specific date is given, include only people eligible on that day. Otherwise include people eligible
+        // in the future.
+        boolean includeFuture = onDate == null;
+        return personService.findPotentialSpouses(person, searchDate, includeFuture, familyParameters).stream()
+                .map(pr -> new PersonPotentialSpouseResponse(person, pr.getPerson(), finalSearchDate,
+                        pr.getRelationship()))
                 .collect(Collectors.toList());
     }
 

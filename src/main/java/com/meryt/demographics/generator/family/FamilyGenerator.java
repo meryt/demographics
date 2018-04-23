@@ -158,7 +158,7 @@ public class FamilyGenerator {
                                        @NonNull LocalDate endDate,
                                        @NonNull Person person,
                                        @NonNull FamilyParameters familyParameters) {
-        Gender spouseGender = person.isFemale() ? Gender.MALE : Gender.FEMALE;
+
         PercentDie die = new PercentDie();
         for (LocalDate currentDate = startDate; currentDate.isBefore(endDate) ; currentDate = currentDate.plusDays(1)) {
             double percentPerDay = MatchMaker.getDesireToMarryProbability(person, currentDate);
@@ -179,22 +179,25 @@ public class FamilyGenerator {
                             false, familyParameters);
                     if (familyParameters.getMinSpouseSelection() != null &&
                             potentialSpouses.size() < familyParameters.getMinSpouseSelection()) {
-
+                        // If there are fewer potential spouses than the min selection size, we may need to generate
+                        // a spouse. Get a random value between 1 and the selection size, and if the value is above
+                        // the size of the list, generate a random person. Otherwise use the die roll as the index
+                        // into the list.
+                        int roll = new Die(familyParameters.getMinSpouseSelection()).roll();
+                        if (roll > potentialSpouses.size()) {
+                            // generate a random spouse
+                            potentialSpouse = generateRandomPotentialSpouse(person, currentDate, familyParameters);
+                        } else {
+                            potentialSpouse = potentialSpouses.get(roll - 1).getPerson();
+                        }
+                    } else if (potentialSpouses.isEmpty()) {
+                        potentialSpouse = generateRandomPotentialSpouse(person, currentDate, familyParameters);
+                    } else {
+                        potentialSpouse = potentialSpouses.get(new Die(potentialSpouses.size()).roll() - 1).getPerson();
                     }
                 } else {
-                    // Generate a random person of the appropriate gender
-                    // and age, and do a random check against the domesticity and other factors. If success, do a marriage.
-                    // Otherwise discard the random person and continue searching.
-                    LocalDate birthDate = getRandomSpouseBirthDate(person, currentDate, familyParameters);
-                    SocialClass socialClass = getRandomSpouseSocialClass(person);
-                    PersonParameters spouseParameters = new PersonParameters();
-                    spouseParameters.setGender(spouseGender);
-                    spouseParameters.setBirthDate(birthDate);
-                    spouseParameters.setAliveOnDate(currentDate);
-                    spouseParameters.setMinSocialClass(socialClass);
-                    spouseParameters.setMaxSocialClass(socialClass);
-                    spouseParameters.setLastName(familyParameters.getSpouseLastName());
-                    potentialSpouse = personGenerator.generate(spouseParameters);
+                    // generate a random spouse
+                    potentialSpouse = generateRandomPotentialSpouse(person, currentDate, familyParameters);
                 }
                 if (MatchMaker.checkCompatibility(person, potentialSpouse, currentDate)) {
                     Family family = new Family();
@@ -211,6 +214,25 @@ public class FamilyGenerator {
             }
         }
         return null;
+    }
+
+    private Person generateRandomPotentialSpouse(@NonNull Person person,
+                                                 @NonNull LocalDate onDate,
+                                                 @NonNull FamilyParameters familyParameters) {
+        // Generate a random person of the appropriate gender
+        // and age, and do a random check against the domesticity and other factors. If success, do a marriage.
+        // Otherwise discard the random person and continue searching.
+        LocalDate birthDate = getRandomSpouseBirthDate(person, onDate, familyParameters);
+        SocialClass socialClass = getRandomSpouseSocialClass(person);
+        PersonParameters spouseParameters = new PersonParameters();
+        spouseParameters.setGender(person.isMale() ? Gender.FEMALE : Gender.MALE);
+        spouseParameters.setBirthDate(birthDate);
+        spouseParameters.setAliveOnDate(onDate);
+        spouseParameters.setMinSocialClass(socialClass);
+        spouseParameters.setMaxSocialClass(socialClass);
+        spouseParameters.setLastName(familyParameters.getSpouseLastName());
+        return personGenerator.generate(spouseParameters);
+
     }
 
     private void validate(FamilyParameters familyParameters) {

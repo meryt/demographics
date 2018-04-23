@@ -45,60 +45,6 @@ public class PersonService {
     }
 
     /**
-     * Finds potential spouses for this person on this date
-     *
-     * @param person the person looking for a spouse
-     * @param onDate the date he or she begins looking
-     * @param minHusbandAge the minimum age for a man to get married
-     * @param minWifeAge the minimum age for a woman to get married
-     * @param maxWifeAge if the person looking for a spouse is a man, he will not accept a wife over this age
-     * @return a list of persons, possibly empty
-     */
-    public List<Person> findPotentialSpouses(@NonNull Person person,
-                                             @Nullable LocalDate onDate,
-                                             int minHusbandAge,
-                                             int minWifeAge,
-                                             int maxWifeAge) {
-        LocalDate searchDate = MatchMaker.getDateToStartMarriageSearch(person, minHusbandAge, minWifeAge);
-        if (onDate != null && onDate.isAfter(searchDate)) {
-            searchDate = onDate;
-        }
-
-        LocalDate minBirthDate = null;
-        LocalDate maxBirthDate;
-        Integer minAgeAtDeath;
-        if (person.isMale()) {
-            // A woman should be no more than three years older than man
-            minBirthDate = person.getBirthDate().minusYears(3);
-            // At death she should be at least minWifeAge, otherwise there is no use considering her as she died a child.
-            maxBirthDate = person.getDeathDate().minusYears(minWifeAge);
-            // A woman should be no more than maxWifeAge years old at the start of the search, so she should be born
-            // no more than maxAge years ago (searchDate - maxAge)
-            if (searchDate.minusYears(maxWifeAge).isAfter(minBirthDate)){
-                minBirthDate = searchDate.minusYears(maxWifeAge);
-            }
-
-            minAgeAtDeath = minWifeAge;
-        } else {
-            maxBirthDate = person.getBirthDate().plusYears(3);
-            minAgeAtDeath = minHusbandAge;
-        }
-
-        final LocalDate filterSearchDate = searchDate;
-
-        Gender gender = person.isMale() ? Gender.FEMALE : Gender.MALE;
-        return personRepository.findPotentialSpouses(gender, searchDate, minBirthDate, maxBirthDate,
-                minAgeAtDeath).stream()
-                // Filter out women who were married more than once, or widows with children
-                .filter(p -> p.getFamilies().isEmpty()
-                        || (p.isFemale()
-                            && p.getFamilies().size() == 1
-                            && p.getLivingChildren(filterSearchDate).isEmpty()
-                            && p.getFamilies().iterator().next().getHusband().getDeathDate().isBefore(filterSearchDate)))
-                .collect(Collectors.toList());
-    }
-
-    /**
      * Find potential spouses for a person based on family parameters.
      *
      * @param person the person looking for a spouse
@@ -106,7 +52,7 @@ public class PersonService {
      * @param includeFutureSpouses if true, results may include spouses who are not yet eligible but will be in the
      *                             person's lifespan
      * @param familyParameters extra parameters
-     * @return a list of potential spouses, possibly empty
+     * @return a list of potential spouses, possibly empty, with their relationship to the person
      */
     public List<RelatedPerson> findPotentialSpouses(@NonNull Person person,
                                              @Nullable LocalDate onDate,

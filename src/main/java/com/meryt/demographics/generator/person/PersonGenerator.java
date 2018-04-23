@@ -59,7 +59,8 @@ public class PersonGenerator {
     /**
      * Generates a random person according to some parameters. The person is not saved.
      */
-    public Person generate(PersonParameters personParameters) {
+    @NonNull
+    public Person generate(@NonNull PersonParameters personParameters) {
         validatePersonParameters(personParameters);
 
         LocalDate nameDate = personParameters.getBirthDate() == null
