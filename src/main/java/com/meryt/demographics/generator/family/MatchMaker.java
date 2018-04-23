@@ -125,10 +125,15 @@ public class MatchMaker {
         SocialClass manClass = man.getSocialClass();
         SocialClass womanClass = woman.getSocialClass();
 
-        int diff = Math.abs(manClass.getRank() - womanClass.getRank());
-        // A man can marry at his rank or 1 lower without problem
+        int diff = manClass.getRank() - womanClass.getRank();
+        // A man can marry at his rank or 1 lower without problem.
         if (diff == 0 || diff == 1) {
             return true;
+        }
+        // A woman cannot readily marry below her rank and must check attractiveness etc. as if the difference was 1
+        // greater than it really is.
+        if (diff < 0) {
+            diff = Math.abs(diff) + 1;
         }
 
         // The likelihood depends on the desirability of the lower-ranking spouse.

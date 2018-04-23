@@ -18,12 +18,16 @@ abstract class AbstractFamilyResponse {
     private final long id;
 
     private final LocalDate weddingDate;
+    private String husbandAgeAtMarriage;
+    private String wifeAgeAtMarriage;
 
     private final List<PersonResponse> children;
 
     AbstractFamilyResponse(@NonNull Family family) {
         id = family.getId();
         weddingDate = family.getWeddingDate();
+        husbandAgeAtMarriage = family.getHusbandAgeAtMarriage();
+        wifeAgeAtMarriage = family.getWifeAgeAtMarriage();
 
         List<Person> sortedChildren = family.getChildren().stream()
                 .sorted(Comparator.comparing(Person::getBirthDate))

@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.meryt.demographics.domain.family.Family;
+import com.meryt.demographics.domain.family.Relationship;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.PersonTitlePeriod;
 import com.meryt.demographics.domain.person.SocialClass;
@@ -27,6 +28,7 @@ import com.meryt.demographics.domain.title.Title;
 import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.generator.family.MatchMaker;
 import com.meryt.demographics.generator.person.PersonGenerator;
+import com.meryt.demographics.repository.AncestryRepository;
 import com.meryt.demographics.request.FamilyParameters;
 import com.meryt.demographics.request.PersonFamilyPost;
 import com.meryt.demographics.request.PersonFertilityPost;
@@ -39,6 +41,7 @@ import com.meryt.demographics.response.PersonPotentialSpouseResponse;
 import com.meryt.demographics.response.PersonTitleResponse;
 import com.meryt.demographics.rest.BadRequestException;
 import com.meryt.demographics.rest.ResourceNotFoundException;
+import com.meryt.demographics.service.AncestryService;
 import com.meryt.demographics.service.FamilyService;
 import com.meryt.demographics.service.FertilityService;
 import com.meryt.demographics.service.PersonService;
@@ -62,18 +65,22 @@ public class PersonController {
 
     private final FertilityService fertilityService;
 
+    private final AncestryService ancestryService;
+
     public PersonController(@Autowired PersonGenerator personGenerator,
                             @Autowired PersonService personService,
                             @Autowired TitleService titleService,
                             @Autowired FamilyGenerator familyGenerator,
                             @Autowired FamilyService familyService,
-                            @Autowired FertilityService fertilityService) {
+                            @Autowired FertilityService fertilityService,
+                            @Autowired AncestryService ancestryService) {
         this.personGenerator = personGenerator;
         this.personService = personService;
         this.titleService = titleService;
         this.familyGenerator = familyGenerator;
         this.familyService = familyService;
         this.fertilityService = fertilityService;
+        this.ancestryService = ancestryService;
     }
 
     @RequestMapping("/api/persons/random")
@@ -179,6 +186,14 @@ public class PersonController {
         return families;
     }
 
+    /**
+     * Attempt to create a family for a person. Depending on the parameters, this may or may not succeed in finding
+     * a spouse for the person, and if it fails, no family will be created and an empty response will be returned.
+     *
+     * @param personId the person looking to create a family
+     * @param personFamilyPost parameters used to generate the family
+     * @return a response describing the new family, or an empty response if none was created
+     */
     @RequestMapping(value = "/api/persons/{personId}/families", method = RequestMethod.POST)
     public ResponseEntity<PersonFamilyResponse> postPersonFamily(@PathVariable long personId,
                                                                  @RequestBody PersonFamilyPost personFamilyPost) {
@@ -196,6 +211,9 @@ public class PersonController {
         if (personFamilyPost.getSpouseId() != null) {
             familyParameters.setSpouse(loadPerson(personFamilyPost.getSpouseId()));
         }
+        familyParameters.setAllowExistingSpouse(personFamilyPost.isAllowExistingSpouse());
+        familyParameters.setMinSpouseSelection(personFamilyPost.getMinSpouseSelection());
+
         Family family = familyGenerator.generate(person, familyParameters);
         if (family == null) {
             return new ResponseEntity<>((PersonFamilyResponse) null, HttpStatus.NO_CONTENT);
@@ -203,9 +221,14 @@ public class PersonController {
             if (personFamilyPost.isPersist()) {
                 family = familyService.save(family);
             }
-            return new ResponseEntity<>(new PersonFamilyResponse(person, family), personFamilyPost.isPersist()
-                    ? HttpStatus.CREATED
-                    : HttpStatus.OK);
+
+            Relationship relationship = ancestryService.calculateRelationship(person, person.isMale()
+                    ? family.getWife() : family.getHusband(), true);
+
+            return new ResponseEntity<>(new PersonFamilyResponse(person, family, relationship),
+                    personFamilyPost.isPersist()
+                            ? HttpStatus.CREATED
+                            : HttpStatus.OK);
         }
     }
 

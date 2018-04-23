@@ -1,10 +1,12 @@
 package com.meryt.demographics.response;
 
+import javax.annotation.Nullable;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import lombok.Getter;
 import lombok.NonNull;
 
 import com.meryt.demographics.domain.family.Family;
+import com.meryt.demographics.domain.family.Relationship;
 import com.meryt.demographics.domain.person.Person;
 
 /**
@@ -12,12 +14,17 @@ import com.meryt.demographics.domain.person.Person;
  * a member of the person. Shows only the "spouse" field.
  */
 @Getter
-@JsonPropertyOrder({ "id", "weddingDate", "spouse", "children" })
+@JsonPropertyOrder({ "id", "weddingDate", "husbandAgeAtMarriage", "wifeAgeAtMarriage", "relationshipBetweenSpouses",
+        "spouse", "children" })
 public class PersonFamilyResponse extends AbstractFamilyResponse {
 
     private PersonResponse spouse;
 
-    public PersonFamilyResponse(@NonNull Person person, @NonNull Family family) {
+    private String relationshipBetweenSpouses;
+
+    public PersonFamilyResponse(@NonNull Person person,
+                                @NonNull Family family,
+                                @Nullable Relationship relationshipBetweenSpouses) {
         super(family);
 
         if (person.isMale() && family.getWife() != null) {
@@ -25,6 +32,11 @@ public class PersonFamilyResponse extends AbstractFamilyResponse {
         } else if (person.isFemale() && family.getHusband() != null) {
             spouse = new PersonResponse(family.getHusband());
         }
+        this.relationshipBetweenSpouses = relationshipBetweenSpouses == null ? null : relationshipBetweenSpouses.getName();
+    }
+
+    public PersonFamilyResponse(@NonNull Person person, @NonNull Family family) {
+        this(person, family, null);
     }
 
 }

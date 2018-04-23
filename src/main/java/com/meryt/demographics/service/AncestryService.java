@@ -41,19 +41,23 @@ public class AncestryService {
      *
      * @param person1 subject person
      * @param person2 related person
+     * @param bloodOnly if true, result only considers blood relationships and will not report relationships due to
+     *                  marriage
      * @return the relationship, or null if they are not related in any way
      */
     @Nullable
-    public Relationship calculateRelationship(@NonNull Person person1, @NonNull Person person2) {
+    public Relationship calculateRelationship(@NonNull Person person1, @NonNull Person person2, boolean bloodOnly) {
         if (person1.getId() == 0 || person2.getId() == 0) {
             throw new IllegalArgumentException("Cannot calculate relationship between persons that have not been persisted");
         }
         if (person1.getId() == person2.getId()) {
             return new Relationship("self", 0);
         }
-        Relationship maritalRelationship = determineMaritalRelationship(person1, person2);
-        if (maritalRelationship != null) {
-            return maritalRelationship;
+        if (!bloodOnly) {
+            Relationship maritalRelationship = determineMaritalRelationship(person1, person2);
+            if (maritalRelationship != null) {
+                return maritalRelationship;
+            }
         }
         Relationship leastCommonAncestorRelationship = determineLeastCommonAncestorRelationship(person1, person2);
         if (leastCommonAncestorRelationship != null) {
@@ -62,6 +66,23 @@ public class AncestryService {
         // TODO perhaps add in-law relationships
 
         return null;
+    }
+
+    /**
+     * Calculate the relationship between two people. Considers marital and in-law relationships.
+     * <p>
+     * The Relationship returned describes the relationship of person1 to person2. E.g. if person1 is the father of
+     * person2 then the relationship is "father".
+     * <p>
+     * So this method fills in the blank of "Person 1 is the ______ of Person 2"
+     *
+     * @param person1 subject person
+     * @param person2 related person
+     * @return the relationship, or null if they are not related in any way
+     */
+    @Nullable
+    Relationship calculateRelationship(@NonNull Person person1, @NonNull Person person2) {
+        return calculateRelationship(person1, person2, false);
     }
 
     /**

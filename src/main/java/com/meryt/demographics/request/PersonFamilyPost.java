@@ -31,6 +31,18 @@ public class PersonFamilyPost {
      */
     private Long spouseId;
 
+    /**
+     * If true, and if spouseId is null, then we will load potential spouses from the database and possibly pick one
+     * at random.
+     */
+    private boolean allowExistingSpouse;
+
+    /**
+     * If non-null, and allowExistingSpouse is true and is used, then if there is less than this many potential
+     * spouses, there's a possibility a random spouse will be generated instead.
+     */
+    private Integer minSpouseSelection;
+
     public void validate() {
         // nothing to validate yet
     }
