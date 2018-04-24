@@ -48,7 +48,8 @@ public class AncestryService {
     @Nullable
     public Relationship calculateRelationship(@NonNull Person person1, @NonNull Person person2, boolean bloodOnly) {
         if (person1.getId() == 0 || person2.getId() == 0) {
-            throw new IllegalArgumentException("Cannot calculate relationship between persons that have not been persisted");
+            // Cannot determine relationship between people that have not been persisted.
+            return null;
         }
         if (person1.getId() == person2.getId()) {
             return new Relationship("self", 0);
