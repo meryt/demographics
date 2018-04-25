@@ -33,4 +33,9 @@ public interface PersonRepository extends PagingAndSortingRepository<Person, Lon
                                       @Param("minAgeAtDeath") @NonNull Integer minAgeAtDeath);
 
 
+    @Query("SELECT p FROM Person p " +
+            "WHERE (:gender IS NULL OR p.gender = :gender) " +
+            "AND NOT p.isFinishedGeneration " +
+            "ORDER BY p.birthDate")
+    List<Person> findUnfinishedPersons(@Param("gender") @Nullable Gender gender);
 }

@@ -96,6 +96,8 @@ public class Person {
 
     private Double heightInches;
 
+    private boolean finishedGeneration;
+
     @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
     @PrimaryKeyJoinColumn
     private Maternity maternity;
@@ -142,7 +144,7 @@ public class Person {
     /**
      * Gets the person's age in years on a given date. Does not check death date to ensure person is still alive.
      *
-     * @return age in full years (may be negative if date is before birth date
+     * @return age in full years (may be negative if date is before birth date)
      * @throws IllegalStateException if the person has a null birth date
      */
     public int getAgeInYears(@NonNull LocalDate onDate) {
@@ -167,8 +169,6 @@ public class Person {
     }
 
     /**
-     * Expose the age at death to the JSON
-     *
      * @return null if there is no death and/or birth date, or the age in years, months, days (a string)
      */
     public String getAgeAtDeath() {
@@ -208,7 +208,7 @@ public class Person {
      * Determines whether the person is married on this date or gets married any time after this date. Useful for
      * determining whether a person is eligible to be married on a given date.
      *
-     * @param onDate
+     * @param onDate the date to check
      * @return true if any of the peron's wedding dates are after this date, or if the person's spouse for any previous
      * marriage is still living
      */
@@ -317,10 +317,7 @@ public class Person {
 
         Person myMother = getMother();
         Person theirMother = person.getMother();
-        if (myMother != null && theirMother != null && myMother.getId() == theirMother.getId()) {
-            return true;
-        }
-        return false;
+        return myMother != null && theirMother != null && myMother.getId() == theirMother.getId();
     }
 
     private Person getFather() {
@@ -337,19 +334,6 @@ public class Person {
         } else {
             return getFamily().getWife();
         }
-    }
-
-    private List<Person> getParents() {
-        List<Person> parents = new ArrayList<>();
-        Person father = getFather();
-        Person mother = getMother();
-        if (father != null) {
-            parents.add(father);
-        }
-        if (mother != null) {
-            parents.add(mother);
-        }
-        return parents;
     }
 
     /**

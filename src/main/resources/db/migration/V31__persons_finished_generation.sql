@@ -1,0 +1,2 @@
+
+ALTER TABLE persons ADD COLUMN finished_generation BOOLEAN NOT NULL DEFAULT FALSE;

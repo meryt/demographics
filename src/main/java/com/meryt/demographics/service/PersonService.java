@@ -119,4 +119,8 @@ public class PersonService {
                 .collect(Collectors.toList());
     }
 
+    List<Person> loadUnfinishedMales() {
+        return personRepository.findUnfinishedPersons(Gender.MALE);
+    }
+
 }
