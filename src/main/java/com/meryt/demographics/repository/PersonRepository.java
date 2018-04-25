@@ -16,6 +16,8 @@ import com.meryt.demographics.domain.person.Person;
 @Repository
 public interface PersonRepository extends PagingAndSortingRepository<Person, Long> {
 
+    List<Person> findByFounderTrueOrderByBirthDate();
+
     @Query("SELECT p FROM Person p " +
             "WHERE p.gender = :gender " +
             "AND (p.motheredFamilies IS EMPTY OR (SIZE(p.motheredFamilies) = 1)) " +
@@ -25,6 +27,7 @@ public interface PersonRepository extends PagingAndSortingRepository<Person, Lon
             "AND (:minAgeAtDeath IS NULL OR (YEAR(p.deathDate) - YEAR(p.birthDate)) >= :minAgeAtDeath) " +
             "AND (CAST(:minBirthDate AS date) IS NULL OR p.birthDate >= :minBirthDate) " +
             "AND (CAST(:maxBirthDate AS date) IS NULL OR p.birthDate <= :maxBirthDate) " +
+            "AND p.finishedGeneration = FALSE " +
             "ORDER BY p.birthDate")
     List<Person> findPotentialSpouses(@Param("gender") @NonNull Gender gender,
                                       @Param("aliveOnDate") @NonNull LocalDate aliveOnDate,
@@ -35,7 +38,7 @@ public interface PersonRepository extends PagingAndSortingRepository<Person, Lon
 
     @Query("SELECT p FROM Person p " +
             "WHERE (:gender IS NULL OR p.gender = :gender) " +
-            "AND NOT p.isFinishedGeneration " +
+            "AND p.finishedGeneration = FALSE " +
             "ORDER BY p.birthDate")
     List<Person> findUnfinishedPersons(@Param("gender") @Nullable Gender gender);
 }

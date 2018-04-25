@@ -6,7 +6,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -96,7 +95,15 @@ public class Person {
 
     private Double heightInches;
 
+    /**
+     * For randomly generated persons, this flag can be set to indicate that no more work needs to be done on them.
+     */
     private boolean finishedGeneration;
+
+    /**
+     * This flag can be used to indicate a person is a founder of a family
+     */
+    private boolean founder;
 
     @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
     @PrimaryKeyJoinColumn
@@ -112,12 +119,12 @@ public class Person {
     @OneToMany(mappedBy = "husband")
     @Setter(AccessLevel.PRIVATE)
     @OrderBy("wedding_date")
-    private Set<Family> fatheredFamilies = new HashSet<>();
+    private List<Family> fatheredFamilies = new ArrayList<>();
 
     @OneToMany(mappedBy = "wife")
     @Setter(AccessLevel.PRIVATE)
     @OrderBy("wedding_date")
-    private Set<Family> motheredFamilies = new HashSet<>();
+    private List<Family> motheredFamilies = new ArrayList<>();
 
     /**
      * A list of the households the person has been a part of, over time
@@ -227,8 +234,25 @@ public class Person {
         return false;
     }
 
+    /**
+     * Determines whether this person had a spouse living when he or she died. Returns false if the person was never
+     * married as well.
+     */
+    public boolean isSurvivedByASpouse() {
+        return isMarriedNowOrAfter(getDeathDate());
+    }
+
     public String getName() {
-        return (firstName + " " + lastName).trim();
+        return (firstName + " " + (lastName == null ? "" : lastName)).trim();
+    }
+
+    @Override
+    public String toString() {
+        String s = getId() + " " + getName();
+        if (birthDate != null && deathDate != null) {
+            s += " " + birthDate.getYear() + "-" + deathDate.getYear();
+        }
+        return s;
     }
 
     public String getLastName(@NonNull LocalDate onDate) {
@@ -340,7 +364,7 @@ public class Person {
      * Gets all children from this person's marriages. Excludes any children who do not have birth dates.
      */
     private List<Person> getLegitimateChildren() {
-        Set<Family> families = getFamilies();
+        List<Family> families = getFamilies();
         List<Person> children = new ArrayList<>();
         for (Family fam : families) {
             if (fam.isMarriage()) {
@@ -356,7 +380,7 @@ public class Person {
     /**
      * Gets the families of which this person is the father or mother, NOT the one of which he is a child.
      */
-    public Set<Family> getFamilies() {
+    public List<Family> getFamilies() {
         if (isMale()) {
             return getFatheredFamilies();
         } else {
@@ -374,6 +398,18 @@ public class Person {
                 .collect(Collectors.toList());
     }
 
+    public List<Person> getSpouses() {
+        List<Person> spouses = new ArrayList<>();
+        for (Family fam : getFamilies()) {
+            if (isMale() && fam.getWife() != null) {
+                spouses.add(fam.getWife());
+            } else if (isFemale() && fam.getHusband() != null) {
+                spouses.add(fam.getHusband());
+            }
+        }
+        return spouses;
+    }
+
     /**
      * Returns all children living on the date. Does not include children not yet born.
      */
@@ -383,12 +419,12 @@ public class Person {
                 .collect(Collectors.toList());
     }
 
-    private Set<Family> getFatheredFamilies() {
-        return Collections.unmodifiableSet(fatheredFamilies);
+    private List<Family> getFatheredFamilies() {
+        return Collections.unmodifiableList(fatheredFamilies);
     }
 
-    private Set<Family> getMotheredFamilies() {
-        return Collections.unmodifiableSet(motheredFamilies);
+    private List<Family> getMotheredFamilies() {
+        return Collections.unmodifiableList(motheredFamilies);
     }
 
     public void setMaternity(Maternity maternity) {

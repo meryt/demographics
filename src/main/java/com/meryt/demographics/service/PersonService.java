@@ -44,6 +44,11 @@ public class PersonService {
         return personRepository.findById(personId).orElse(null);
     }
 
+    @NonNull
+    List<Person> loadFounders() {
+        return personRepository.findByFounderTrueOrderByBirthDate();
+    }
+
     /**
      * Find potential spouses for a person based on family parameters.
      *
@@ -119,8 +124,8 @@ public class PersonService {
                 .collect(Collectors.toList());
     }
 
-    List<Person> loadUnfinishedMales() {
-        return personRepository.findUnfinishedPersons(Gender.MALE);
+    List<Person> loadUnfinishedPersons() {
+        return personRepository.findUnfinishedPersons(null);
     }
 
 }

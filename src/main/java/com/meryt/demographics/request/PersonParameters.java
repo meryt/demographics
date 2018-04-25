@@ -14,6 +14,8 @@ import lombok.Setter;
 @Setter
 public class PersonParameters {
 
+    public static final String NO_LAST_NAME = "NO_LAST_NAME";
+
     private Gender gender;
     /**
      * If set, ensures the person was alive on this date

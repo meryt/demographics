@@ -2,14 +2,14 @@ package com.meryt.demographics.generator.family;
 
 import java.time.LocalDate;
 import java.time.Period;
-import java.util.Set;
+import java.util.List;
+import lombok.NonNull;
+import org.apache.commons.math3.distribution.BetaDistribution;
 
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.generator.random.PercentDie;
-import lombok.NonNull;
-import org.apache.commons.math3.distribution.BetaDistribution;
 
 public class MatchMaker {
 
@@ -45,7 +45,7 @@ public class MatchMaker {
         }
 
         // Create a new family only after the death of the last existing spouse.
-        Set<Family> existingFamilies = person.getFamilies();
+        List<Family> existingFamilies = person.getFamilies();
         for (Family existingFamily : existingFamilies) {
             Person spouse = person.isMale() ? existingFamily.getWife() : existingFamily.getHusband();
             if (spouse != null && spouse.getDeathDate() != null && spouse.getDeathDate().isAfter(startDate)) {

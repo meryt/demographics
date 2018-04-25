@@ -33,6 +33,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class FamilyGenerator {
 
+    private static final int DIED_IN_CHILDHOOD_AGE = 13;
     private static final int MAX_MONTHS_PREMARITAL = 6;
 
     private final PersonGenerator personGenerator;
@@ -79,7 +80,20 @@ public class FamilyGenerator {
             return null;
         }
 
+        if (family.getWife().isSurvivedByASpouse()) {
+            family.getWife().setFinishedGeneration(true);
+        }
+        if (family.getHusband().isSurvivedByASpouse()) {
+            family.getHusband().setFinishedGeneration(true);
+        }
+
         generateChildren(family, familyParameters);
+
+        for (Person child : family.getChildren()) {
+            if (child.getAgeInYears(child.getDeathDate()) <= DIED_IN_CHILDHOOD_AGE) {
+                child.setFinishedGeneration(true);
+            }
+        }
 
         for (Person p : Arrays.asList(family.getWife(), family.getHusband())) {
             if (p != null && familyParameters.getReferenceDate() != null && !p.isLiving(familyParameters.getReferenceDate())) {

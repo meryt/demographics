@@ -5,6 +5,7 @@ import javax.annotation.Nullable;
 import java.util.Optional;
 
 import lombok.NonNull;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.util.StringUtils;
@@ -15,6 +16,7 @@ import com.meryt.demographics.domain.family.Relationship;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.repository.AncestryRepository;
 
+@Slf4j
 @Service
 public class AncestryService {
 
@@ -28,7 +30,9 @@ public class AncestryService {
      * Truncates and rebuilds the ancestry table in the database.
      */
     public void updateAncestryTable() {
+        log.info("Truncating and rebuilding ancestry table");
         ancestryRepository.updateAncestryTable();
+        log.info("Ancestry table regeneration complete");
     }
 
     /**

@@ -73,10 +73,12 @@ public class PersonGenerator {
                 nameDate));
 
         // People didn't use last names till about 1400. But if one is specified, use it.
-        if (personParameters.getLastName() != null || nameDate.isAfter(LocalDate.of(LAST_NAME_BEGINNING_YEAR, 1, 1))) {
-            person.setLastName(personParameters.getLastName() != null
-                    ? personParameters.getLastName()
-                    : nameService.randomLastName());
+        if (!PersonParameters.NO_LAST_NAME.equals(personParameters.getLastName())) {
+            if (personParameters.getLastName() != null) {
+                person.setLastName(personParameters.getLastName());
+            } else if (nameDate.isAfter(LocalDate.of(LAST_NAME_BEGINNING_YEAR, 1, 1))) {
+                person.setLastName(nameService.randomLastName());
+            }
         }
 
         generatePersonLifespan(personParameters, person);
@@ -132,6 +134,10 @@ public class PersonGenerator {
             personParameters.setLastName(family.getHusband().getLastName());
         } else {
             personParameters.setLastName(family.getWife().getLastName(birthDate));
+        }
+        if (personParameters.getLastName() == null) {
+            // If there is no last name from the parents, do not invent last names for the children.
+            personParameters.setLastName(PersonParameters.NO_LAST_NAME);
         }
 
         // Don't name kids after other kids already born and not yet dead
