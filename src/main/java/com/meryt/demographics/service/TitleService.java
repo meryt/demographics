@@ -1,7 +1,6 @@
 package com.meryt.demographics.service;
 
 import javax.annotation.Nullable;
-
 import lombok.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;

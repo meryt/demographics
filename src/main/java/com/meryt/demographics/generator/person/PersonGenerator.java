@@ -85,7 +85,7 @@ public class PersonGenerator {
 
         // Set the social class from the parents if they are present.
         SocialClass socialClass = familyService.getCalculatedChildSocialClass(personParameters.getFather(),
-                personParameters.getMother(), person, false, person.getBirthDate());
+                personParameters.getMother(), person, false, person.getDeathDate());
 
         if (socialClass != null) {
             person.setSocialClass(socialClass);

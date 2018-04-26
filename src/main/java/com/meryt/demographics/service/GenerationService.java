@@ -3,21 +3,21 @@ package com.meryt.demographics.service;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.nio.Buffer;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
-
 import com.google.common.base.Strings;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
-import org.hibernate.cfg.InheritanceState;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.domain.person.PersonTitlePeriod;
 import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.domain.title.Peerage;
 import com.meryt.demographics.domain.title.Title;
@@ -43,17 +43,20 @@ public class GenerationService {
     private final FamilyGenerator familyGenerator;
     private final AncestryService ancestryService;
     private final TitleService titleService;
+    private final InheritanceService inheritanceService;
 
     public GenerationService(@Autowired @NonNull PersonService personService,
                              @Autowired @NonNull FamilyService familyService,
                              @Autowired @NonNull FamilyGenerator familyGenerator,
                              @Autowired @NonNull AncestryService ancestryService,
-                             @Autowired @NonNull TitleService titleService) {
+                             @Autowired @NonNull TitleService titleService,
+                             @Autowired @NonNull InheritanceService inheritanceService) {
         this.personService = personService;
         this.familyService = familyService;
         this.familyGenerator = familyGenerator;
         this.ancestryService = ancestryService;
         this.titleService = titleService;
+        this.inheritanceService = inheritanceService;
     }
 
     public List<Family> seedInitialGeneration(@NonNull InitialGenerationPost generationPost) {
@@ -81,43 +84,14 @@ public class GenerationService {
                 family = familyService.save(family);
             }
             if (family.getHusband().getSocialClass().getRank() >= SocialClass.BARONET.getRank()) {
-                Person founder = family.getHusband();
-                Title title = new Title();
-                title.setInheritanceRoot(founder);
-                title.setName("Lord " + founder.getLastName());
-                title.setSocialClass(founder.getSocialClass());
-                if (new Die(10).roll() <= 2) {
-                    title.setPeerage(Peerage.SCOTLAND);
-                } else {
-                    title.setPeerage(Peerage.ENGLAND);
-                }
-                int roll = new Die(4).roll();
-                if (roll == 1) {
-                    title.setInheritance(TitleInheritanceStyle.HEIRS_GENERAL);
-                } else if (roll == 2) {
-                    title.setInheritance(TitleInheritanceStyle.HEIRS_MALE_GENERAL);
-                } else if (roll == 3) {
-                    title.setInheritance(TitleInheritanceStyle.HEIRS_OF_THE_BODY);
-                } else {
-                    title.setInheritance(TitleInheritanceStyle.HEIRS_MALE_OF_THE_BODY);
-                }
-                title = titleService.save(title);
-                int maxYear = founder.getDeathDate().getYear() - 1;
-                int minYear = founder.getBirthDate().getYear() + 15;
-                BetweenDie betweenDie = new BetweenDie();
-                // Get the first of the month
-                LocalDate fromDate = LocalDate.of(betweenDie.roll(minYear, maxYear),
-                        betweenDie.roll(1, 12), 1);
-                // Get a random date in that month
-                fromDate = LocalDate.of(fromDate.getYear(), fromDate.getMonthValue(),
-                        betweenDie.roll(1, fromDate.getMonth().length(false)));
-                founder.addOrUpdateTitle(title, fromDate, null);
-                personService.save(founder);
+                addRandomTitleToFounder(family.getHusband());
             }
 
             ancestryService.updateAncestryTable();
             result.add(family);
         }
+
+        updateTitles();
 
         if (generationPost.getOutputToFile() != null) {
             writeGenerationsToFile(generationPost.getOutputToFile());
@@ -167,11 +141,66 @@ public class GenerationService {
             }
         }
 
+        updateTitles();
+
         if (generationPost.getOutputToFile() != null) {
             writeGenerationsToFile(generationPost.getOutputToFile());
         }
 
         return results;
+    }
+
+    private void addRandomTitleToFounder(@NonNull Person founder) {
+        Title title = new Title();
+        title.setInheritanceRoot(founder);
+        title.setName("Lord " + founder.getLastName());
+        title.setSocialClass(founder.getSocialClass());
+        if (new Die(10).roll() <= 2) {
+            title.setPeerage(Peerage.SCOTLAND);
+        } else {
+            title.setPeerage(Peerage.ENGLAND);
+        }
+        int roll = new Die(4).roll();
+        if (roll == 1) {
+            title.setInheritance(TitleInheritanceStyle.HEIRS_GENERAL);
+        } else if (roll == 2) {
+            title.setInheritance(TitleInheritanceStyle.HEIRS_MALE_GENERAL);
+        } else if (roll == 3) {
+            title.setInheritance(TitleInheritanceStyle.HEIRS_OF_THE_BODY);
+        } else {
+            title.setInheritance(TitleInheritanceStyle.HEIRS_MALE_OF_THE_BODY);
+        }
+        title = titleService.save(title);
+        int maxYear = founder.getDeathDate().getYear() - 1;
+        int minYear = founder.getBirthDate().getYear() + 15;
+        BetweenDie betweenDie = new BetweenDie();
+        // Get the first of the month
+        LocalDate fromDate = LocalDate.of(betweenDie.roll(minYear, maxYear),
+                betweenDie.roll(1, 12), 1);
+        // Get a random date in that month
+        fromDate = LocalDate.of(fromDate.getYear(), fromDate.getMonthValue(),
+                betweenDie.roll(1, fromDate.getMonth().length(false)));
+        founder.addOrUpdateTitle(title, fromDate, null);
+        personService.save(founder);
+    }
+
+    private void updateTitles() {
+        for (Title title : titleService.findAll()) {
+            Optional<PersonTitlePeriod> latestHolder = title.getTitleHolders().stream()
+                    .max(Comparator.comparing(PersonTitlePeriod::getFromDate));
+            if (latestHolder.isPresent()) {
+                Person currentHolder = latestHolder.get().getPerson();
+                if (!currentHolder.isFinishedGeneration()) {
+                    continue;
+                }
+                Person nextHolder = inheritanceService.findHeirForPerson(currentHolder, currentHolder.getDeathDate(),
+                        title.getInheritance(), title.getInheritanceRoot());
+                if (nextHolder != null) {
+                    nextHolder.addOrUpdateTitle(title, currentHolder.getDeathDate(), null);
+                    personService.save(nextHolder);
+                }
+            }
+        }
     }
 
     private void writeGenerationsToFile(@NonNull String filePath) {
@@ -206,8 +235,9 @@ public class GenerationService {
     }
 
     private String writePersonEntry(@NonNull Person person) {
-        return String.format("%d %s %d-%d",
+        return String.format("%d %s%s %d-%d",
                 person.getId(),
+                writerPersonTitles(person),
                 person.getName(),
                 person.getBirthDate().getYear(),
                 person.getDeathDate().getYear());
@@ -222,5 +252,18 @@ public class GenerationService {
             s.append(writePersonEntry(spouse));
         }
         return s.toString();
+    }
+
+    private String writerPersonTitles(@NonNull Person person) {
+        String titles = person.getTitles().stream()
+                .sorted(Comparator.comparing(t -> t.getTitle().getSocialClass().getRank()))
+                .map(t -> t.getTitle().getName())
+                .collect(Collectors.joining(", "));
+
+        if (titles != null && !titles.isEmpty()) {
+            return "[" + titles + "] ";
+        } else {
+            return "";
+        }
     }
 }
