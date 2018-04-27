@@ -344,7 +344,7 @@ public class Person {
         return myMother != null && theirMother != null && myMother.getId() == theirMother.getId();
     }
 
-    private Person getFather() {
+    public Person getFather() {
         if (getFamily() == null) {
             return null;
         } else {

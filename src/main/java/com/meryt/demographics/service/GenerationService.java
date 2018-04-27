@@ -30,6 +30,7 @@ import com.meryt.demographics.request.FamilyParameters;
 import com.meryt.demographics.request.GenerationPost;
 import com.meryt.demographics.request.InitialGenerationPost;
 import com.meryt.demographics.request.PersonFamilyPost;
+import com.meryt.demographics.time.LocalDateComparator;
 
 /**
  * Service used for processing entire generations of randomly generated people
@@ -193,10 +194,22 @@ public class GenerationService {
                 if (!currentHolder.isFinishedGeneration()) {
                     continue;
                 }
-                Person nextHolder = inheritanceService.findHeirForPerson(currentHolder, currentHolder.getDeathDate(),
-                        title.getInheritance(), title.getInheritanceRoot());
-                if (nextHolder != null) {
-                    nextHolder.addOrUpdateTitle(title, currentHolder.getDeathDate(), null);
+                log.info("Looking for heir to " + title.getName());
+                List<Person> nextHolders = inheritanceService.findHeirForPerson(currentHolder,
+                        currentHolder.getDeathDate(), title.getInheritance(), title.getInheritanceRoot());
+                log.info(nextHolders.size() + " possible heir(s) found");
+                if (nextHolders.size() == 1) {
+                    Person nextHolder = nextHolders.get(0);
+                    // The person may not have been born when the current title-holder died (e.g. he inherited via
+                    // his mother), so in that case he inherited at birth.
+                    LocalDate dateObtained = LocalDateComparator.max(currentHolder.getDeathDate(),
+                            nextHolder.getBirthDate());
+                    log.info(String.format("Adding title for %s starting %s", nextHolder, dateObtained));
+                    nextHolder.addOrUpdateTitle(title, dateObtained, null);
+                    if (Strings.isNullOrEmpty(nextHolder.getLastName())) {
+                        String lastNameFromTitle = title.getName().replaceAll("^[^ ]+", "");
+                        nextHolder.setLastName(lastNameFromTitle);
+                    }
                     personService.save(nextHolder);
                 }
             }
@@ -225,10 +238,14 @@ public class GenerationService {
                 writePersonEntry(person),
                 spouseEntries.isEmpty() ? "" : " m. " + spouseEntries,
                 person.isFinishedGeneration() ? "." : ""));
-        if (person.isMale()) {
-            for (Person child : person.getChildren().stream()
-                    .filter(p -> p.getAgeInYears(p.getDeathDate()) > 13)
-                    .collect(Collectors.toList())) {
+
+        for (Person child : person.getChildren().stream()
+                .filter(p -> p.getAgeInYears(p.getDeathDate()) > 13)
+                .collect(Collectors.toList())) {
+            if (person.isMale() || hasNoPaternalLineToFounder(child)) {
+                // We always write a man's descendants beneath him. We only write a female's descendants beneath her
+                // if the children do not have a direct patrilineal line to some founder, meaning they won't appear
+                // in the output otherwise.
                 writeFamily(out, child, personDepth + 1);
             }
         }
@@ -265,5 +282,22 @@ public class GenerationService {
         } else {
             return "";
         }
+    }
+
+    /**
+     * Determines whether this person has a direct patrilineal relationship to one of the founders. If not, he may
+     * appear beneath his mother's descendants so he does not get lost.
+     */
+    private boolean hasNoPaternalLineToFounder(@NonNull Person person) {
+        if (person.isFounder()) {
+            return false;
+        }
+        Person father = person;
+        while ((father = father.getFather()) != null) {
+            if (father.isFounder()) {
+                return false;
+            }
+        }
+        return true;
     }
 }
