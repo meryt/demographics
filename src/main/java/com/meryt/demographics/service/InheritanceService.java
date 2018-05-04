@@ -34,6 +34,11 @@ public class InheritanceService {
                 if (!heirs.isEmpty()) {
                     return heirs;
                 }
+                // If the child is not an heir, and does not have children, he may yet be on the line of descent.
+                // Return empty heirs for now, if so.
+                if (mayHaveOrBeHeir(child, onDate)) {
+                    return heirs;
+                }
             }
         }
 

@@ -2,7 +2,6 @@ package com.meryt.demographics.service;
 
 import java.time.LocalDate;
 import java.util.List;
-import javafx.scene.Parent;
 import lombok.NonNull;
 import org.junit.Before;
 import org.junit.Test;
@@ -15,7 +14,6 @@ import com.meryt.demographics.domain.title.Title;
 import com.meryt.demographics.domain.title.TitleInheritanceStyle;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 public class InheritanceServiceTest {
@@ -27,6 +25,7 @@ public class InheritanceServiceTest {
     private Person son2;
     private Person daughter;
     private Person daughter2;
+    private Person grandson1;
 
     @Before
     public void setUp() {
@@ -76,6 +75,13 @@ public class InheritanceServiceTest {
         daughter2.setBirthDate(LocalDate.of(1735, 1, 1));
         daughter2.setDeathDate(LocalDate.of(1785, 1, 1));
 
+        grandson1 = new Person();
+        grandson1.setId(6);
+        grandson1.setSocialClass(SocialClass.GENTLEMAN);
+        grandson1.setGender(Gender.MALE);
+        grandson1.setBirthDate(LocalDate.of(1750, 1, 1));
+        grandson1.setDeathDate(LocalDate.of(1778, 1, 1));
+
     }
 
     @Test
@@ -105,6 +111,20 @@ public class InheritanceServiceTest {
 
         assertEquals(1, heirs.size());
         assertEquals(son, heirs.get(0));
+    }
+
+    @Test
+    public void youngerSonDoesNotInheritUntilElderIsFinishedGeneration() {
+        addChildToPerson(man, son);
+        addChildToPerson(man, son2);
+        // The elder son dies a year before his dad. But he may have still have children, so the younger son should
+        // not inherit yet.
+        son.setFinishedGeneration(false);
+        son.setDeathDate(man.getDeathDate().minusYears(1));
+
+        List<Person> heirs = service.findHeirForPerson(man, man.getDeathDate(), title.getInheritance(),
+                title.getInheritanceRoot());
+        assertTrue(heirs.isEmpty());
     }
 
     @Test
@@ -142,6 +162,19 @@ public class InheritanceServiceTest {
         title.setInheritance(TitleInheritanceStyle.HEIRS_OF_THE_BODY);
         addChildToPerson(man, daughter);
         addChildToPerson(man, daughter2);
+        List<Person> heirs = service.findHeirForPerson(man, man.getDeathDate(), title.getInheritance(),
+                title.getInheritanceRoot());
+        assertEquals(1, heirs.size());
+        assertEquals(daughter2, heirs.get(0));
+    }
+
+    @Test
+    public void twoDaughtersLastLivingInheritsIfNoAdultChildren() {
+        title.setInheritance(TitleInheritanceStyle.HEIRS_OF_THE_BODY);
+        addChildToPerson(man, daughter);
+        addChildToPerson(man, daughter2);
+        addChildToPerson(daughter2, grandson1);
+        grandson1.setDeathDate(grandson1.getBirthDate().plusYears(3));
         List<Person> heirs = service.findHeirForPerson(man, man.getDeathDate(), title.getInheritance(),
                 title.getInheritanceRoot());
         assertEquals(1, heirs.size());

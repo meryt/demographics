@@ -186,34 +186,46 @@ public class GenerationService {
     }
 
     private void updateTitles() {
-        for (Title title : titleService.findAll()) {
-            Optional<PersonTitlePeriod> latestHolder = title.getTitleHolders().stream()
-                    .max(Comparator.comparing(PersonTitlePeriod::getFromDate));
-            if (latestHolder.isPresent()) {
-                Person currentHolder = latestHolder.get().getPerson();
-                if (!currentHolder.isFinishedGeneration()) {
-                    continue;
-                }
-                log.info("Looking for heir to " + title.getName());
-                List<Person> nextHolders = inheritanceService.findHeirForPerson(currentHolder,
-                        currentHolder.getDeathDate(), title.getInheritance(), title.getInheritanceRoot());
-                log.info(nextHolders.size() + " possible heir(s) found");
-                if (nextHolders.size() == 1) {
-                    Person nextHolder = nextHolders.get(0);
-                    // The person may not have been born when the current title-holder died (e.g. he inherited via
-                    // his mother), so in that case he inherited at birth.
-                    LocalDate dateObtained = LocalDateComparator.max(currentHolder.getDeathDate(),
-                            nextHolder.getBirthDate());
-                    log.info(String.format("Adding title for %s starting %s", nextHolder, dateObtained));
-                    nextHolder.addOrUpdateTitle(title, dateObtained, null);
-                    if (Strings.isNullOrEmpty(nextHolder.getLastName())) {
-                        String lastNameFromTitle = title.getName().replaceAll("^[^ ]+", "");
-                        nextHolder.setLastName(lastNameFromTitle);
+        boolean foundAny;
+        do {
+            foundAny = false;
+            for (Title title : titleService.findAll()) {
+                Optional<PersonTitlePeriod> latestHolder = title.getTitleHolders().stream()
+                        .max(Comparator.comparing(PersonTitlePeriod::getFromDate));
+                if (latestHolder.isPresent()) {
+                    Person currentHolder = latestHolder.get().getPerson();
+                    log.info("Looking for heir to " + title.getName());
+                    List<Person> nextHolders = inheritanceService.findHeirForPerson(currentHolder,
+                            currentHolder.getDeathDate(), title.getInheritance(), title.getInheritanceRoot());
+                    log.info(nextHolders.size() + " possible heir(s) found");
+                    if (nextHolders.size() == 1) {
+                        Person nextHolder = nextHolders.get(0);
+                        if (!currentHolder.isFinishedGeneration() &&
+                                (nextHolder.isFemale() || !nextHolder.getFather().equals(currentHolder))) {
+                            // If the current holder is not finished, we can still proceed, but only if the heir is a
+                            // son of the current holder. Otherwise we have to wait to see if he has a son.
+                            // So skip this person if the heir is a female or not his son (but instead his grandson or
+                            // brother or whatever).
+                            log.info(String.format("%s is not an elder son of %s, skipping for now",
+                                    nextHolder.getName(), currentHolder.getName()));
+                            continue;
+                        }
+                        // The person may not have been born when the current title-holder died (e.g. he inherited via
+                        // his mother), so in that case he inherited at birth.
+                        LocalDate dateObtained = LocalDateComparator.max(currentHolder.getDeathDate(),
+                                nextHolder.getBirthDate());
+                        log.info(String.format("Adding title for %s starting %s", nextHolder, dateObtained));
+                        nextHolder.addOrUpdateTitle(title, dateObtained, null);
+                        if (Strings.isNullOrEmpty(nextHolder.getLastName())) {
+                            String lastNameFromTitle = title.getName().replaceAll("^[^ ]+ ", "");
+                            nextHolder.setLastName(lastNameFromTitle);
+                        }
+                        personService.save(nextHolder);
+                        foundAny = true;
                     }
-                    personService.save(nextHolder);
                 }
             }
-        }
+        } while (foundAny);
     }
 
     private void writeGenerationsToFile(@NonNull String filePath) {

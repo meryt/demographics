@@ -517,6 +517,7 @@ public class Person {
             newPeriod.setPerson(this);
             newPeriod.setFromDate(fromDate);
             newPeriod.setToDate(toDate == null ? getDeathDate() : toDate);
+            title.getTitleHolders().add(newPeriod);
             getTitles().add(newPeriod);
         }
 
