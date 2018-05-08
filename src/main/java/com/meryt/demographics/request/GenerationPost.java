@@ -5,8 +5,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class GenerationPost {
-    private String outputToFile;
+public class GenerationPost extends OutputToFilePost {
     private PersonFamilyPost personFamilyPost;
 
     public void validate() {

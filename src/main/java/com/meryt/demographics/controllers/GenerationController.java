@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.meryt.demographics.request.GenerationPost;
 import com.meryt.demographics.request.InitialGenerationPost;
+import com.meryt.demographics.request.OutputToFilePost;
 import com.meryt.demographics.response.FamilyResponse;
 import com.meryt.demographics.rest.BadRequestException;
 import com.meryt.demographics.service.GenerationService;
@@ -52,5 +53,10 @@ public class GenerationController {
                 .collect(Collectors.toList());
     }
 
-
+    @RequestMapping(value = "/api/generations/output", method = RequestMethod.POST)
+    public void regenerateOutputFile(@RequestBody OutputToFilePost outputToFilePost) {
+        if (outputToFilePost.getOutputToFile() != null) {
+            generationService.writeGenerationsToFile(outputToFilePost.getOutputToFile());
+        }
+    }
 }

@@ -7,11 +7,10 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class InitialGenerationPost {
+public class InitialGenerationPost extends OutputToFilePost {
     List<String> lastNames;
     Integer numFamilies;
     FamilyParameters familyParameters;
-    private String outputToFile;
 
     public void validate() {
         if (numFamilies == null || numFamilies <= 0) {

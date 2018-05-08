@@ -34,6 +34,8 @@ public class Title {
 
     private String name;
 
+    private boolean extinct;
+
     @Enumerated(EnumType.STRING)
     private SocialClass socialClass;
 

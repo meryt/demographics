@@ -16,6 +16,7 @@ public class PersonDescendantResponse extends PersonReference {
     private final String ageAtDeath;
     private final SocialClass socialClass;
     private final String relation;
+    private final boolean finishedGeneration;
     private List<PersonDescendantResponse> children;
 
     public PersonDescendantResponse(@NonNull Person person, int distanceFromRoot, int remainingDepth) {
@@ -23,6 +24,7 @@ public class PersonDescendantResponse extends PersonReference {
         relation = calculateRelation(person.getGender(), distanceFromRoot);
         ageAtDeath = person.getAgeAtDeath();
         socialClass = person.getSocialClass();
+        finishedGeneration = person.isFinishedGeneration();
 
         if (remainingDepth == 0) {
             children = null;

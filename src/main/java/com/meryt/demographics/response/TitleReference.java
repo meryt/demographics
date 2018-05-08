@@ -16,6 +16,7 @@ public class TitleReference {
     private final Peerage peerage;
     private final SocialClass socialClass;
     private final TitleInheritanceStyle inheritanceStyle;
+    private final boolean extinct;
 
     public TitleReference(@NonNull Title title) {
         this.id = title.getId();
@@ -23,5 +24,6 @@ public class TitleReference {
         this.peerage = title.getPeerage();
         this.socialClass = title.getSocialClass();
         this.inheritanceStyle = title.getInheritance();
+        this.extinct = title.isExtinct();
     }
 }

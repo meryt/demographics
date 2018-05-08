@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.title.TitleInheritanceStyle;
+import com.meryt.demographics.time.LocalDateComparator;
 
 @Service
 public class InheritanceService {
@@ -60,6 +61,10 @@ public class InheritanceService {
             List<Person> heiressesHeirs = getChildOrChildsHeirAsHeir(heiress, onDate, inheritanceStyle, inheritanceRoot);
             if (!heiressesHeirs.isEmpty()) {
                 return heiressesHeirs;
+            } else if (mayHaveOrBeHeir(heiress, onDate)) {
+                // Perhaps she dies before her parent and has no children, but she may still have an heir. Return empty
+                // list for now.
+                return heiressesHeirs;
             }
         }
 
@@ -102,7 +107,7 @@ public class InheritanceService {
             heirs.add(child);
             return heirs;
         } else if (!child.getChildren().isEmpty()) {
-            List<Person> descendantHeir = findHeirForPerson(child, child.getDeathDate(), inheritanceStyle,
+            List<Person> descendantHeir = findHeirForPerson(child, parentsDeathDate, inheritanceStyle,
                     inheritanceRoot);
             if (!descendantHeir.isEmpty()) {
                 return descendantHeir;
@@ -123,7 +128,8 @@ public class InheritanceService {
         // If she's dead but had children, they may be heirs if they were alive on her death date and/or had heirs of
         // their own.
         for (Person child : person.getChildren()) {
-            if (mayHaveOrBeHeir(child, person.getDeathDate())) {
+            LocalDate childOnDate = LocalDateComparator.max(onDate, person.getDeathDate());
+            if (mayHaveOrBeHeir(child, childOnDate)) {
                 return true;
             }
         }

@@ -28,6 +28,7 @@ public class TitleController {
 
     private static final String INHERITANCE_ROOT = "inheritanceRoot";
     private static final String INHERITANCE_STYLE = "inheritanceStyle";
+    private static final String EXTINCT = "extinct";
 
     private final TitleService titleService;
     private final PersonService personService;
@@ -84,11 +85,25 @@ public class TitleController {
             updates.remove(INHERITANCE_STYLE);
         }
 
+        if (updates.containsKey(EXTINCT)) {
+            if (updates.get(EXTINCT) != null) {
+                title.setExtinct((boolean) updates.get(EXTINCT));
+            }
+            updates.remove(EXTINCT);
+        }
+
         if (!updates.isEmpty()) {
             throw new BadRequestException("No support for PATCHing key(s): " + String.join(", ", updates.keySet()));
         }
 
         return new TitleResponse(titleService.save(title));
+    }
+
+    @RequestMapping(value = "api/titles/{titleId}/heirs", method = RequestMethod.POST)
+    public TitleResponse postTitleHeirs(@PathVariable long titleId) {
+        Title title = loadTitle(titleId);
+        titleService.updateTitleHeirs(title);
+        return new TitleResponse(title);
     }
 
     @NonNull

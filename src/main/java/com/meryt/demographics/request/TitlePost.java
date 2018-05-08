@@ -1,7 +1,5 @@
 package com.meryt.demographics.request;
 
-import javax.annotation.Nullable;
-
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
@@ -26,12 +24,15 @@ public class TitlePost {
 
     private Long inheritanceRoot;
 
+    private Boolean extinct;
+
     public Title toTitle(@NonNull PersonService personService) {
         Title title = new Title();
         title.setName(name);
         title.setSocialClass(socialClass);
         title.setPeerage(peerage);
         title.setInheritance(inheritance);
+        title.setExtinct(extinct == null ? false : extinct);
         if (inheritanceRoot != null) {
             title.setInheritanceRoot(personService.load(inheritanceRoot));
         }

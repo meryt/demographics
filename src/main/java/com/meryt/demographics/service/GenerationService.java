@@ -7,7 +7,6 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 import com.google.common.base.Strings;
 import lombok.NonNull;
@@ -30,7 +29,6 @@ import com.meryt.demographics.request.FamilyParameters;
 import com.meryt.demographics.request.GenerationPost;
 import com.meryt.demographics.request.InitialGenerationPost;
 import com.meryt.demographics.request.PersonFamilyPost;
-import com.meryt.demographics.time.LocalDateComparator;
 
 /**
  * Service used for processing entire generations of randomly generated people
@@ -44,20 +42,17 @@ public class GenerationService {
     private final FamilyGenerator familyGenerator;
     private final AncestryService ancestryService;
     private final TitleService titleService;
-    private final InheritanceService inheritanceService;
 
     public GenerationService(@Autowired @NonNull PersonService personService,
                              @Autowired @NonNull FamilyService familyService,
                              @Autowired @NonNull FamilyGenerator familyGenerator,
                              @Autowired @NonNull AncestryService ancestryService,
-                             @Autowired @NonNull TitleService titleService,
-                             @Autowired @NonNull InheritanceService inheritanceService) {
+                             @Autowired @NonNull TitleService titleService) {
         this.personService = personService;
         this.familyService = familyService;
         this.familyGenerator = familyGenerator;
         this.ancestryService = ancestryService;
         this.titleService = titleService;
-        this.inheritanceService = inheritanceService;
     }
 
     public List<Family> seedInitialGeneration(@NonNull InitialGenerationPost generationPost) {
@@ -190,51 +185,23 @@ public class GenerationService {
         do {
             foundAny = false;
             for (Title title : titleService.findAll()) {
-                Optional<PersonTitlePeriod> latestHolder = title.getTitleHolders().stream()
-                        .max(Comparator.comparing(PersonTitlePeriod::getFromDate));
-                if (latestHolder.isPresent()) {
-                    Person currentHolder = latestHolder.get().getPerson();
-                    log.info("Looking for heir to " + title.getName());
-                    List<Person> nextHolders = inheritanceService.findHeirForPerson(currentHolder,
-                            currentHolder.getDeathDate(), title.getInheritance(), title.getInheritanceRoot());
-                    log.info(nextHolders.size() + " possible heir(s) found");
-                    if (nextHolders.size() == 1) {
-                        Person nextHolder = nextHolders.get(0);
-                        if (!currentHolder.isFinishedGeneration() &&
-                                (nextHolder.isFemale() || !nextHolder.getFather().equals(currentHolder))) {
-                            // If the current holder is not finished, we can still proceed, but only if the heir is a
-                            // son of the current holder. Otherwise we have to wait to see if he has a son.
-                            // So skip this person if the heir is a female or not his son (but instead his grandson or
-                            // brother or whatever).
-                            log.info(String.format("%s is not an elder son of %s, skipping for now",
-                                    nextHolder.getName(), currentHolder.getName()));
-                            continue;
-                        }
-                        // The person may not have been born when the current title-holder died (e.g. he inherited via
-                        // his mother), so in that case he inherited at birth.
-                        LocalDate dateObtained = LocalDateComparator.max(currentHolder.getDeathDate(),
-                                nextHolder.getBirthDate());
-                        log.info(String.format("Adding title for %s starting %s", nextHolder, dateObtained));
-                        nextHolder.addOrUpdateTitle(title, dateObtained, null);
-                        if (Strings.isNullOrEmpty(nextHolder.getLastName())) {
-                            String lastNameFromTitle = title.getName().replaceAll("^[^ ]+ ", "");
-                            nextHolder.setLastName(lastNameFromTitle);
-                        }
-                        personService.save(nextHolder);
-                        foundAny = true;
-                    }
+                if (title.isExtinct()) {
+                    continue;
+                }
+                if (titleService.updateTitleHeirs(title) != null) {
+                    foundAny = true;
                 }
             }
         } while (foundAny);
     }
 
-    private void writeGenerationsToFile(@NonNull String filePath) {
+    public void writeGenerationsToFile(@NonNull String filePath) {
         try (FileWriter writer = new FileWriter(filePath, false); BufferedWriter out = new BufferedWriter(writer)) {
 
             out.write("## syntax=descendants\n\n");
 
             for (Person founder : personService.loadFounders()) {
-                writeFamily(out, founder, 0);
+                writeFamily(out, founder, 0, founder);
                 out.write("\n");
             }
 
@@ -243,7 +210,8 @@ public class GenerationService {
         }
     }
 
-    private void writeFamily(BufferedWriter out, @NonNull Person person, int personDepth) throws IOException {
+    private void writeFamily(BufferedWriter out, @NonNull Person person, int personDepth, @NonNull Person founder)
+            throws IOException {
         String spouseEntries = writeSpouseEntries(person);
         out.write(String.format("%s%s%s%s\n",
                 personDepth == 0 ? "" : Strings.repeat("    ", personDepth) + "+-- ",
@@ -254,11 +222,11 @@ public class GenerationService {
         for (Person child : person.getChildren().stream()
                 .filter(p -> p.getAgeInYears(p.getDeathDate()) > 13)
                 .collect(Collectors.toList())) {
-            if (person.isMale() || hasNoPaternalLineToFounder(child)) {
+            if (person.isMale() || hasNoPaternalLineToFounder(child) || hasSameTitleAsFounder(child, founder)) {
                 // We always write a man's descendants beneath him. We only write a female's descendants beneath her
                 // if the children do not have a direct patrilineal line to some founder, meaning they won't appear
-                // in the output otherwise.
-                writeFamily(out, child, personDepth + 1);
+                // in the output otherwise, or if they have the founder's title.
+                writeFamily(out, child, personDepth + 1, founder);
             }
         }
     }
@@ -266,7 +234,7 @@ public class GenerationService {
     private String writePersonEntry(@NonNull Person person) {
         return String.format("%d %s%s %d-%d",
                 person.getId(),
-                writerPersonTitles(person),
+                writePersonTitles(person),
                 person.getName(),
                 person.getBirthDate().getYear(),
                 person.getDeathDate().getYear());
@@ -283,10 +251,10 @@ public class GenerationService {
         return s.toString();
     }
 
-    private String writerPersonTitles(@NonNull Person person) {
+    private String writePersonTitles(@NonNull Person person) {
         String titles = person.getTitles().stream()
                 .sorted(Comparator.comparing(t -> t.getTitle().getSocialClass().getRank()))
-                .map(t -> t.getTitle().getName())
+                .map(t -> (t.getTitle().isExtinct() ? "*" : "") +  t.getTitle().getName())
                 .collect(Collectors.joining(", "));
 
         if (titles != null && !titles.isEmpty()) {
@@ -311,5 +279,21 @@ public class GenerationService {
             }
         }
         return true;
+    }
+
+    private boolean hasSameTitleAsFounder(@NonNull Person person, @NonNull Person founder) {
+        if (person.equals(founder)) {
+            return true;
+        }
+        List<PersonTitlePeriod> personTitles = person.getTitles();
+        if (personTitles.isEmpty()) {
+            return false;
+        }
+        List<PersonTitlePeriod> founderTitles = founder.getTitles();
+        if (founderTitles.isEmpty()) {
+            return false;
+        }
+        Title title = founderTitles.get(0).getTitle();
+        return personTitles.stream().anyMatch(pt -> pt.getTitle().getId() == title.getId());
     }
 }
