@@ -9,8 +9,10 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import lombok.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.util.Pair;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,10 +27,10 @@ import com.meryt.demographics.domain.person.PersonTitlePeriod;
 import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.domain.person.fertility.Fertility;
 import com.meryt.demographics.domain.title.Title;
+import com.meryt.demographics.domain.title.TitleInheritanceStyle;
 import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.generator.family.MatchMaker;
 import com.meryt.demographics.generator.person.PersonGenerator;
-import com.meryt.demographics.repository.AncestryRepository;
 import com.meryt.demographics.request.FamilyParameters;
 import com.meryt.demographics.request.PersonFamilyPost;
 import com.meryt.demographics.request.PersonFertilityPost;
@@ -37,13 +39,16 @@ import com.meryt.demographics.request.PersonTitlePost;
 import com.meryt.demographics.response.PersonDescendantResponse;
 import com.meryt.demographics.response.PersonDetailResponse;
 import com.meryt.demographics.response.PersonFamilyResponse;
+import com.meryt.demographics.response.PersonHeirResponse;
 import com.meryt.demographics.response.PersonPotentialSpouseResponse;
 import com.meryt.demographics.response.PersonTitleResponse;
+import com.meryt.demographics.response.RelatedPersonResponse;
 import com.meryt.demographics.rest.BadRequestException;
 import com.meryt.demographics.rest.ResourceNotFoundException;
 import com.meryt.demographics.service.AncestryService;
 import com.meryt.demographics.service.FamilyService;
 import com.meryt.demographics.service.FertilityService;
+import com.meryt.demographics.service.InheritanceService;
 import com.meryt.demographics.service.PersonService;
 import com.meryt.demographics.service.TitleService;
 
@@ -67,13 +72,16 @@ public class PersonController {
 
     private final AncestryService ancestryService;
 
+    private final InheritanceService inheritanceService;
+
     public PersonController(@Autowired PersonGenerator personGenerator,
                             @Autowired PersonService personService,
                             @Autowired TitleService titleService,
                             @Autowired FamilyGenerator familyGenerator,
                             @Autowired FamilyService familyService,
                             @Autowired FertilityService fertilityService,
-                            @Autowired AncestryService ancestryService) {
+                            @Autowired AncestryService ancestryService,
+                            @Autowired InheritanceService inheritanceService) {
         this.personGenerator = personGenerator;
         this.personService = personService;
         this.titleService = titleService;
@@ -81,6 +89,7 @@ public class PersonController {
         this.familyService = familyService;
         this.fertilityService = fertilityService;
         this.ancestryService = ancestryService;
+        this.inheritanceService = inheritanceService;
     }
 
     @RequestMapping("/api/persons/random")
@@ -127,9 +136,15 @@ public class PersonController {
     @RequestMapping(value = "/api/persons/{personId}/descendants", method = RequestMethod.GET)
     public PersonDescendantResponse getPersonDescendants(@PathVariable long personId,
                                                          @RequestParam(value = "numGenerations", required = false)
-                                                                 Integer numGenerations) {
+                                                            Integer numGenerations,
+                                                         @RequestParam(value = "minAge", required = false)
+                                                            Integer minAge,
+                                                         @RequestParam(value = "bornBefore", required = false)
+                                                            String bornBefore) {
         Person person = loadPerson(personId);
-        return new PersonDescendantResponse(person, 0, numGenerations == null ? 3 : numGenerations);
+        LocalDate bornBeforeDate = parseDate(bornBefore);
+        return new PersonDescendantResponse(person, minAge, bornBeforeDate, 0,
+                numGenerations == null ? 3 : numGenerations);
     }
 
     @RequestMapping("/api/persons/{personId}/titles")
@@ -300,6 +315,58 @@ public class PersonController {
                 .collect(Collectors.toList());
     }
 
+    @RequestMapping(value = "/api/persons/{personId}/heirs", method = RequestMethod.GET)
+    public List<RelatedPersonResponse> getPersonPotentialHeirs(@PathVariable long personId,
+                                                               @RequestParam(value = "onDate", required = false)
+                                                                  String onDate,
+                                                               @RequestParam(value = "inheritance", required = false)
+                                                                  String inheritance) {
+        final Person person = loadPerson(personId);
+        LocalDate date = parseDate(onDate);
+        if (date == null) {
+            date = person.getDeathDate();
+        }
+        TitleInheritanceStyle inheritanceStyle = TitleInheritanceStyle.HEIRS_GENERAL;
+        if (!StringUtils.isEmpty(inheritance)) {
+            try {
+                inheritanceStyle = TitleInheritanceStyle.valueOf(inheritance);
+            } catch (IllegalArgumentException e) {
+                throw new BadRequestException("Invalid value for inheritance: " + e.getMessage());
+            }
+        }
+        List<Person> heirs = inheritanceService.findPotentialHeirsForPerson(person, date, inheritanceStyle);
+        return heirs.stream()
+                .map(p -> new RelatedPersonResponse(p, ancestryService.calculateRelationship(p, person, false)))
+                .collect(Collectors.toList());
+    }
+
+    @RequestMapping(value = "/api/persons/{personId}/heir", method = RequestMethod.GET)
+    public PersonHeirResponse getPersonHeir(@PathVariable long personId,
+                                            @RequestParam(value = "onDate", required = false)
+                                                    String onDate,
+                                            @RequestParam(value = "inheritance", required = false)
+                                                    String inheritance) {
+        final Person person = loadPerson(personId);
+        LocalDate date = parseDate(onDate);
+        if (date == null) {
+            date = person.getDeathDate();
+        }
+        TitleInheritanceStyle inheritanceStyle = TitleInheritanceStyle.HEIRS_GENERAL;
+        if (!StringUtils.isEmpty(inheritance)) {
+            try {
+                inheritanceStyle = TitleInheritanceStyle.valueOf(inheritance);
+            } catch (IllegalArgumentException e) {
+                throw new BadRequestException("Invalid value for inheritance: " + e.getMessage());
+            }
+        }
+        Pair<Person, LocalDate> heir = inheritanceService.findHeirForPerson(person, date, inheritanceStyle);
+        if (heir == null) {
+            return null;
+        }
+        return new PersonHeirResponse(heir.getFirst(), heir.getSecond(),
+                ancestryService.calculateRelationship(heir.getFirst(), person, false));
+    }
+
     @NonNull
     private Person loadPerson(Long personId) {
         if (personId == null) {
@@ -315,7 +382,7 @@ public class PersonController {
 
     @Nullable
     private LocalDate parseDate(@Nullable String date) {
-        if (date == null) {
+        if (StringUtils.isEmpty(date)) {
             return null;
         }
         try {

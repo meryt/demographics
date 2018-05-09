@@ -1,8 +1,10 @@
 package com.meryt.demographics.response;
 
+import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import lombok.Getter;
 import lombok.NonNull;
 
@@ -19,7 +21,11 @@ public class PersonDescendantResponse extends PersonReference {
     private final boolean finishedGeneration;
     private List<PersonDescendantResponse> children;
 
-    public PersonDescendantResponse(@NonNull Person person, int distanceFromRoot, int remainingDepth) {
+    public PersonDescendantResponse(@NonNull Person person,
+                                    @Nullable Integer minAge,
+                                    @Nullable LocalDate bornBefore,
+                                    int distanceFromRoot,
+                                    int remainingDepth) {
         super(person);
         relation = calculateRelation(person.getGender(), distanceFromRoot);
         ageAtDeath = person.getAgeAtDeath();
@@ -31,7 +37,9 @@ public class PersonDescendantResponse extends PersonReference {
         } else {
             children = person.getFamilies().stream()
                     .flatMap(f -> f.getChildren().stream())
-                    .map(p -> new PersonDescendantResponse(p, distanceFromRoot + 1, remainingDepth - 1))
+                    .filter(c -> (minAge == null || c.getAgeInYears(c.getDeathDate()) >= minAge) &&
+                            (bornBefore == null || c.getBirthDate().isBefore(bornBefore)))
+                    .map(p -> new PersonDescendantResponse(p, minAge, bornBefore, distanceFromRoot + 1, remainingDepth - 1))
                     .sorted(Comparator.comparing(PersonReference::getBirthDate))
                     .collect(Collectors.toList());
             if (children.isEmpty()) {

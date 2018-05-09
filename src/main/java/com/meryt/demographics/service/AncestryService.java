@@ -56,7 +56,7 @@ public class AncestryService {
             return null;
         }
         if (person1.getId() == person2.getId()) {
-            return new Relationship("self", 0);
+            return new Relationship("self", 0, null, null);
         }
         if (!bloodOnly) {
             Relationship maritalRelationship = determineMaritalRelationship(person1, person2);
@@ -107,9 +107,9 @@ public class AncestryService {
                 .findFirst();
         if (couplesFamily.isPresent()) {
             if (couplesFamily.get().isMarriage()) {
-                return new Relationship("spouse", 1);
+                return new Relationship("spouse", 1, null, null);
             } else {
-                return new Relationship("partner", 1);
+                return new Relationship("partner", 1, null, null);
             }
         }
         return null;
@@ -134,12 +134,14 @@ public class AncestryService {
         if (relationship.getSubject1Distance() == 0) {
             String prefix = getGrandPrefix(relationship.getSubject2Distance());
             String relationshipName = person1.isMale() ? prefix + "father" : prefix + "mother";
-            return new Relationship(relationshipName, relationship.getSubject2Distance());
+            return new Relationship(relationshipName, relationship.getSubject2Distance(), relationship.getSubject1Via(),
+                    relationship.getSubject2Via());
         }
         if (relationship.getSubject2Distance() == 0) {
             String prefix = getGrandPrefix(relationship.getSubject1Distance());
             String relationshipName = person2.isMale() ? prefix + "father" : prefix + "mother";
-            return new Relationship(relationshipName, relationship.getSubject1Distance());
+            return new Relationship(relationshipName, relationship.getSubject1Distance(), relationship.getSubject1Via(),
+                    relationship.getSubject2Via());
         }
 
         // Check for sibling relationships
@@ -153,12 +155,14 @@ public class AncestryService {
             // aunt or uncle
             String greats = getGreatPrefix(relationship.getSubject2Distance());
             String name = person1.isMale() ? greats + "uncle" : greats + "aunt";
-            return new Relationship(name, relationship.getSubject1Distance() + relationship.getSubject2Distance());
+            return new Relationship(name, relationship.getSubject1Distance() + relationship.getSubject2Distance(),
+                    relationship.getSubject1Via(), relationship.getSubject2Via());
         } else if (relationship.getSubject2Distance() == 1) {
             // nephew or niece
             String greats = getGreatPrefix(relationship.getSubject1Distance());
             String name = person1.isMale() ? greats + "nephew" : greats + "niece";
-            return new Relationship(name, relationship.getSubject1Distance() + relationship.getSubject2Distance());
+            return new Relationship(name, relationship.getSubject1Distance() + relationship.getSubject2Distance(),
+                    relationship.getSubject1Via(), relationship.getSubject2Via());
         }
 
         // Check for cousin relationship (everything else > 1).
@@ -179,17 +183,18 @@ public class AncestryService {
         if (!times.isEmpty()) {
             cous += ", " + times + " removed";
         }
-        return new Relationship(cous, relationship.getSubject1Distance() + relationship.getSubject2Distance());
+        return new Relationship(cous, relationship.getSubject1Distance() + relationship.getSubject2Distance(),
+                relationship.getSubject1Via(), relationship.getSubject2Via());
     }
 
     private Relationship determineSiblingRelationship(@NonNull Person person1, @NonNull Person person2) {
         if (person1.isSibling(person2)) {
             if (person1.getFamily().getId() == person2.getFamily().getId()) {
                 String name = person1.isMale() ? "brother" : "sister";
-                return new Relationship(name, 2);
+                return new Relationship(name, 2, null, null);
             } else {
                 String name = person1.isMale() ? "half-brother" : "half-sister";
-                return new Relationship(name, 2);
+                return new Relationship(name, 2, null, null);
             }
         }
         return null;

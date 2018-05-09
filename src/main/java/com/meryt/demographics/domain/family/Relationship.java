@@ -8,4 +8,6 @@ import lombok.Data;
 public class Relationship {
     private final String name;
     private final int degreeOfSeparation;
+    private final String personVia;
+    private final String relatedPersonVia;
 }

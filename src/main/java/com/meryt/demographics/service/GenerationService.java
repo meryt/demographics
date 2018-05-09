@@ -200,7 +200,21 @@ public class GenerationService {
 
             out.write("## syntax=descendants\n\n");
 
-            for (Person founder : personService.loadFounders()) {
+            List<Person> founders = personService.loadFounders();
+            List<Person> foundersWithoutTitles = founders.stream()
+                    .filter(p -> p.getTitles().isEmpty())
+                    .collect(Collectors.toList());
+            for (Person founder : foundersWithoutTitles) {
+                writeFamily(out, founder, 0, founder);
+                out.write("\n");
+            }
+
+            List<Person> foundersWithTitles = founders.stream()
+                    .filter(p -> !p.getTitles().isEmpty())
+                    .sorted(Comparator.comparing((Person p) -> p.getTitles().get(0).getTitle().isExtinct())
+                            .thenComparing((Person p) -> p.getTitles().get(0).getTitle().getName()))
+                    .collect(Collectors.toList());
+            for (Person founder : foundersWithTitles) {
                 writeFamily(out, founder, 0, founder);
                 out.write("\n");
             }
@@ -222,7 +236,11 @@ public class GenerationService {
         for (Person child : person.getChildren().stream()
                 .filter(p -> p.getAgeInYears(p.getDeathDate()) > 13)
                 .collect(Collectors.toList())) {
-            if (person.isMale() || hasNoPaternalLineToFounder(child) || hasSameTitleAsFounder(child, founder)) {
+            if (person.isMale()
+                    || hasNoPaternalLineToFounder(child)
+                    || hasSameTitleAsFounder(child, founder)
+                    || anyChildHasSameTitleAsFounder(child, founder)
+                    || anyGrandchildHasSameTitleAsFounder(child, founder)) {
                 // We always write a man's descendants beneath him. We only write a female's descendants beneath her
                 // if the children do not have a direct patrilineal line to some founder, meaning they won't appear
                 // in the output otherwise, or if they have the founder's title.
@@ -281,6 +299,9 @@ public class GenerationService {
         return true;
     }
 
+    /**
+     * Returns true if this person has a title matching the first (and presumably only) title of the given founder
+     */
     private boolean hasSameTitleAsFounder(@NonNull Person person, @NonNull Person founder) {
         if (person.equals(founder)) {
             return true;
@@ -295,5 +316,28 @@ public class GenerationService {
         }
         Title title = founderTitles.get(0).getTitle();
         return personTitles.stream().anyMatch(pt -> pt.getTitle().getId() == title.getId());
+    }
+
+    /**
+     * Returns true if any of this person's children has the same title as this founder's title
+     */
+    private boolean anyChildHasSameTitleAsFounder(@NonNull Person person, @NonNull Person founder) {
+        if (person.equals(founder)) {
+            return true;
+        }
+        return person.getChildren().stream()
+                .anyMatch(child -> hasSameTitleAsFounder(child, founder));
+    }
+
+    /**
+     * Returns true if any of this person's grandchildren has the same title as this founder's title
+     */
+    private boolean anyGrandchildHasSameTitleAsFounder(@NonNull Person person, @NonNull Person founder) {
+        if (person.equals(founder)) {
+            return true;
+        }
+        return person.getChildren().stream()
+                .flatMap(l -> l.getChildren().stream())
+                .anyMatch(grandchild -> hasSameTitleAsFounder(grandchild, founder));
     }
 }

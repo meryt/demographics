@@ -6,10 +6,12 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import lombok.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.meryt.demographics.domain.person.Person;
@@ -40,9 +42,20 @@ public class TitleController {
     }
 
     @RequestMapping("/api/titles")
-    public List<TitleReference> getTitles() {
-        Iterable<Title> titles = titleService.findAll();
+    public List<TitleReference> getTitles(@RequestParam(value = "extinct", required = false)
+                                                      String isExtinct) {
+        Boolean extinct = null;
+        if (!StringUtils.isEmpty(isExtinct)) {
+            try {
+                extinct = Boolean.parseBoolean(isExtinct);
+            } catch (IllegalArgumentException e) {
+                throw new BadRequestException("Unable to parse boolean from 'extinct' value of '" + isExtinct + "'");
+            }
+        }
+        final Boolean filterExtinct = extinct;
+        Iterable<Title> titles = titleService.findAllOrderByName();
         return StreamSupport.stream(titles.spliterator(), false)
+                .filter(t -> filterExtinct == null || filterExtinct.equals(t.isExtinct()))
                 .map(TitleReference::new)
                 .collect(Collectors.toList());
     }

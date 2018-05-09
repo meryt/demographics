@@ -48,6 +48,11 @@ public class TitleService {
         return titleRepository.findAll();
     }
 
+    @NonNull
+    public List<Title> findAllOrderByName() {
+        return titleRepository.findAllByOrderByNameAsc();
+    }
+
     /**
      * Finds the next heir to a title, if possible, and sets him as title holder if so. The person is returned if a
      * new heir is found, otherwise null is returned.
