@@ -3,6 +3,7 @@ package com.meryt.demographics.generator.family;
 import java.time.LocalDate;
 import java.time.Period;
 import java.util.List;
+import javax.annotation.Nullable;
 import lombok.NonNull;
 import org.apache.commons.math3.distribution.BetaDistribution;
 
@@ -59,7 +60,10 @@ public class MatchMaker {
     /**
      * Determine how eager a person of this age will be to marry
      */
-    static double getDesireToMarryProbability(@NonNull Person person, @NonNull LocalDate onDate) {
+    static double getDesireToMarryProbability(@NonNull Person person,
+                                              @NonNull LocalDate onDate,
+                                              @Nullable Integer numPreviousSpouses,
+                                              @Nullable Boolean hadAnyLivingSons) {
         LocalDate birthDate = person.getBirthDate();
         if (birthDate == null) {
             throw new NullPointerException("Cannot calculate without person birth date");
@@ -70,7 +74,16 @@ public class MatchMaker {
         }
         double adjustedAge = age / 100.0;
         double ageAdjustedDesirePercent = (DESIRE_TO_MARRY_BETA.density(adjustedAge) / DESIRE_TO_MARRY_MAX);
-        return ageAdjustedDesirePercent * person.getDomesticity() * BASE_PER_DAY_MARRY_DESIRE_PERCENT;
+        double dailyAgeAdjustedDesirePercent = ageAdjustedDesirePercent * person.getDomesticity() * BASE_PER_DAY_MARRY_DESIRE_PERCENT;
+        // Previous marriages reduce desire to marry again for women, and likewise for men assuming they have at
+        // least one living a son. A man without sons is not affected by previous marriages.
+        if (numPreviousSpouses != null &&
+                (person.isFemale() ||
+                    (hadAnyLivingSons == Boolean.TRUE
+                            && person.getLivingChildren(onDate).stream().anyMatch(Person::isMale)))) {
+            dailyAgeAdjustedDesirePercent /= numPreviousSpouses;
+        }
+        return dailyAgeAdjustedDesirePercent;
     }
 
     /**

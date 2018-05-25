@@ -1,11 +1,14 @@
 package com.meryt.demographics.controllers;
 
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import lombok.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.util.Pair;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -18,10 +21,12 @@ import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.title.Title;
 import com.meryt.demographics.domain.title.TitleInheritanceStyle;
 import com.meryt.demographics.request.TitlePost;
+import com.meryt.demographics.response.RelatedPersonResponse;
 import com.meryt.demographics.response.TitleReference;
 import com.meryt.demographics.response.TitleResponse;
 import com.meryt.demographics.rest.BadRequestException;
 import com.meryt.demographics.rest.ResourceNotFoundException;
+import com.meryt.demographics.service.AncestryService;
 import com.meryt.demographics.service.PersonService;
 import com.meryt.demographics.service.TitleService;
 
@@ -34,11 +39,14 @@ public class TitleController {
 
     private final TitleService titleService;
     private final PersonService personService;
+    private final AncestryService ancestryService;
 
     public TitleController(@Autowired @NonNull TitleService titleService,
-                           @Autowired @NonNull PersonService personService) {
+                           @Autowired @NonNull PersonService personService,
+                           @Autowired @NonNull AncestryService ancestryService) {
         this.titleService = titleService;
         this.personService = personService;
+        this.ancestryService = ancestryService;
     }
 
     @RequestMapping("/api/titles")
@@ -110,6 +118,19 @@ public class TitleController {
         }
 
         return new TitleResponse(titleService.save(title));
+    }
+
+    @RequestMapping(value = "api/titles/{titleId}/heirs", method = RequestMethod.GET)
+    public List<RelatedPersonResponse> getTitleHeirs(@PathVariable long titleId) {
+        Title title = loadTitle(titleId);
+        Pair<LocalDate, List<Person>> heirs = titleService.getTitleHeirs(title);
+        if (heirs == null || heirs.getSecond().isEmpty()) {
+            return new ArrayList<>();
+        }
+        Person currentHolder = titleService.getLatestHolder(title);
+        return heirs.getSecond().stream()
+                .map(p -> new RelatedPersonResponse(p, ancestryService.calculateRelationship(p, currentHolder, false)))
+                .collect(Collectors.toList());
     }
 
     @RequestMapping(value = "api/titles/{titleId}/heirs", method = RequestMethod.POST)

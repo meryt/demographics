@@ -24,7 +24,7 @@ public class InheritanceService {
      *
      * @param person the person whose heirs we want to find
      * @param onDate the date (may be his death date, but if we're calling recursively for a grandchild where the
-     *               parent predecesases the person, then it would be the grandparent's death date)
+     *               parent predeceases the person, then it would be the grandparent's death date)
      * @param inheritanceStyle the inheritance style to use (used to determine whether women can inherit)
      * @return a list, possibly empty, of one or more potential heirs, sorted by death date
      */
@@ -48,6 +48,11 @@ public class InheritanceService {
             List<Person> sonsHeirs = findPotentialHeirsForPerson(son, onDate, inheritanceStyle);
             if (!sonsHeirs.isEmpty()) {
                 return sonsHeirs;
+            } else if (mayHaveOrBeHeir(son, onDate, inheritanceStyle.isMalesOnly())) {
+                // A dead son may not have finished generation or may have children that may be heirs once finished
+                // generation. Return the son for now since we don't know what will happen in the future.
+                sonsHeirs.add(son);
+                return sonsHeirs;
             }
         }
 
@@ -61,16 +66,23 @@ public class InheritanceService {
                 .collect(Collectors.toList());
 
         for (Person daughter : daughtersByBirthDate) {
-            // A living daughter is a possible heir. But unlike sons, we don't return immediately, but continue looping.
+            // A living daughter is a possible heir. But unlike sons, we don't return immediately, but continue looping
+            // through all daughters, since daughters split an inheritance.
             if (daughter.isLiving(onDate) || daughter.getBirthDate().isAfter(onDate)) {
                 results.add(daughter);
+            } else {
+                // A dead daughter may herself have heirs.
+                List<Person> daughtersHeirs = findPotentialHeirsForPerson(daughter, onDate, inheritanceStyle);
+                if (daughtersHeirs.isEmpty() && !daughter.isFinishedGeneration()) {
+                    // if she does not have heirs but is not finished generation, add her anyway
+                    results.add(daughter);
+                } else {
+                    results.addAll(daughtersHeirs);
+                }
             }
-            // A dead daughter may herself have heirs.
-            List<Person> daughtersHeirs = findPotentialHeirsForPerson(daughter, onDate, inheritanceStyle);
-            results.addAll(daughtersHeirs);
         }
 
-        return results.stream().sorted(Comparator.comparing(Person::getDeathDate)).collect(Collectors.toList());
+        return results.stream().sorted(Comparator.comparing(Person::getDeathDate)).distinct().collect(Collectors.toList());
     }
 
     @Nullable
@@ -117,107 +129,10 @@ public class InheritanceService {
 
     }
 
-    @NonNull
-    List<Person> findHeirForPerson(@NonNull Person person,
-                                    @NonNull LocalDate onDate,
-                                    @NonNull TitleInheritanceStyle inheritanceStyle,
-                                    @Nullable Person inheritanceRoot) {
-
-        List<Person> childrenByBirthDate = person.getChildren().stream()
-                .sorted(Comparator.comparing(Person::getBirthDate))
-                .collect(Collectors.toList());
-
-        // First check sons. A first born son and his line inherit before younger sons and their lines.
-        for (Person child : childrenByBirthDate) {
-            // Loop through the sons in order of birth
-            if (child.isMale()) {
-                // If the son or one (or some, if he has only daughters) of his line is alive, return them.
-                List<Person> heirs = getChildOrChildsHeirAsHeir(child, onDate, inheritanceStyle, inheritanceRoot);
-                if (!heirs.isEmpty()) {
-                    return heirs;
-                }
-                // If the child is not an heir, and does not have children, he may yet be on the line of descent.
-                // Return empty heirs for now, if so.
-                if (mayHaveOrBeHeir(child, onDate)) {
-                    return heirs;
-                }
-            }
+    private boolean mayHaveOrBeHeir(@NonNull Person person, @NonNull LocalDate onDate, boolean malesOnly) {
+        if (malesOnly && person.isFemale()) {
+            return false;
         }
-
-        // We've gone through the sons. For male-only inheritance, we should check brothers, nephews, etc.
-        // For now return none.
-        if (inheritanceStyle.isMalesOnly()) {
-            return new ArrayList<>();
-        }
-
-
-        // We've gone through the sons. We may now consider the daughters for some inheritance styles.
-        List<Person> girls = childrenByBirthDate.stream()
-                .filter(Person::isFemale)
-                .collect(Collectors.toList());
-
-        // If there is only one daughter, she or her heirs are heir.
-        if (girls.size() == 1) {
-            Person heiress = girls.get(0);
-            List<Person> heiressesHeirs = getChildOrChildsHeirAsHeir(heiress, onDate, inheritanceStyle, inheritanceRoot);
-            if (!heiressesHeirs.isEmpty()) {
-                return heiressesHeirs;
-            } else if (mayHaveOrBeHeir(heiress, onDate)) {
-                // Perhaps she dies before her parent and has no children, but she may still have an heir. Return empty
-                // list for now.
-                return heiressesHeirs;
-            }
-        }
-
-        // If there is more than 1 girl, the title may have gone into abeyance.
-        List<Person> possibleFemaleHeirs = girls.stream()
-                .filter(p -> mayHaveOrBeHeir(p, onDate))
-                .collect(Collectors.toList());
-
-        // Any girl who is finished generation and has no children may be eliminated as of her death date.
-        // If there are any
-        List<Person> possibleHeirsInOrderOfDeath = possibleFemaleHeirs.stream()
-                .sorted(Comparator.comparing(Person::getDeathDate))
-                .collect(Collectors.toList());
-
-        do {
-            if (possibleHeirsInOrderOfDeath.isEmpty() || !possibleHeirsInOrderOfDeath.get(0).isFinishedGeneration()) {
-                break;
-            }
-            Person nextToDie = possibleHeirsInOrderOfDeath.remove(0);
-            List<Person> heirsOfNextToDie = findHeirForPerson(nextToDie, nextToDie.getDeathDate(), inheritanceStyle,
-                    inheritanceRoot);
-            if (!heirsOfNextToDie.isEmpty()) {
-                possibleHeirsInOrderOfDeath.addAll(heirsOfNextToDie);
-                possibleHeirsInOrderOfDeath = possibleHeirsInOrderOfDeath.stream()
-                        .sorted(Comparator.comparing(Person::getDeathDate))
-                        .collect(Collectors.toList());
-            }
-        } while (possibleHeirsInOrderOfDeath.size() > 1);
-
-        return possibleHeirsInOrderOfDeath;
-    }
-
-    private List<Person> getChildOrChildsHeirAsHeir(@NonNull Person child,
-                                                    @NonNull LocalDate parentsDeathDate,
-                                                    @NonNull TitleInheritanceStyle inheritanceStyle,
-                                                    @Nullable Person inheritanceRoot) {
-        List<Person> heirs = new ArrayList<>();
-        // If the child is alive when the parent dies, or if he is a posthumous child, he is himself the heir.
-        if (child.isLiving(parentsDeathDate) || child.getBirthDate().isAfter(parentsDeathDate)) {
-            heirs.add(child);
-            return heirs;
-        } else if (!child.getChildren().isEmpty()) {
-            List<Person> descendantHeir = findHeirForPerson(child, parentsDeathDate, inheritanceStyle,
-                    inheritanceRoot);
-            if (!descendantHeir.isEmpty()) {
-                return descendantHeir;
-            }
-        }
-        return heirs;
-    }
-
-    private boolean mayHaveOrBeHeir(@NonNull Person person, @NonNull LocalDate onDate) {
         if (!person.isFinishedGeneration()) {
             // She may yet have children, so she may have or be an heir
             return true;
@@ -230,7 +145,7 @@ public class InheritanceService {
         // their own.
         for (Person child : person.getChildren()) {
             LocalDate childOnDate = LocalDateComparator.max(onDate, person.getDeathDate());
-            if (mayHaveOrBeHeir(child, childOnDate)) {
+            if (mayHaveOrBeHeir(child, childOnDate, malesOnly)) {
                 return true;
             }
         }

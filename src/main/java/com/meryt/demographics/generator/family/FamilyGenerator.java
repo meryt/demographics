@@ -175,7 +175,9 @@ public class FamilyGenerator {
 
         PercentDie die = new PercentDie();
         for (LocalDate currentDate = startDate; currentDate.isBefore(endDate) ; currentDate = currentDate.plusDays(1)) {
-            double percentPerDay = MatchMaker.getDesireToMarryProbability(person, currentDate);
+            double percentPerDay = MatchMaker.getDesireToMarryProbability(person, currentDate,
+                    person.getSpouses().size(),
+                    person.getLivingChildren(startDate).stream().anyMatch(Person::isMale));
             if (die.roll() <= percentPerDay) {
                 // He wants to get married. Can he find a spouse?
                 Person potentialSpouse;

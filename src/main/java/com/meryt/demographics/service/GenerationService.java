@@ -6,7 +6,9 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 import com.google.common.base.Strings;
 import lombok.NonNull;
@@ -205,7 +207,8 @@ public class GenerationService {
                     .filter(p -> p.getTitles().isEmpty())
                     .collect(Collectors.toList());
             for (Person founder : foundersWithoutTitles) {
-                writeFamily(out, founder, 0, founder);
+                Set<Long> alreadyWrittenPersons = new HashSet<>();
+                writeFamily(out, founder, 0, founder, alreadyWrittenPersons);
                 out.write("\n");
             }
 
@@ -215,7 +218,8 @@ public class GenerationService {
                             .thenComparing((Person p) -> p.getTitles().get(0).getTitle().getName()))
                     .collect(Collectors.toList());
             for (Person founder : foundersWithTitles) {
-                writeFamily(out, founder, 0, founder);
+                Set<Long> alreadyWrittenPersons = new HashSet<>();
+                writeFamily(out, founder, 0, founder, alreadyWrittenPersons);
                 out.write("\n");
             }
 
@@ -224,12 +228,16 @@ public class GenerationService {
         }
     }
 
-    private void writeFamily(BufferedWriter out, @NonNull Person person, int personDepth, @NonNull Person founder)
+    private void writeFamily(BufferedWriter out,
+                             @NonNull Person person,
+                             int personDepth,
+                             @NonNull Person founder,
+                             @NonNull Set<Long> alreadyWrittenPersons)
             throws IOException {
-        String spouseEntries = writeSpouseEntries(person);
+        String spouseEntries = writeSpouseEntries(person, alreadyWrittenPersons);
         out.write(String.format("%s%s%s%s\n",
                 personDepth == 0 ? "" : Strings.repeat("    ", personDepth) + "+-- ",
-                writePersonEntry(person),
+                writePersonEntry(person, alreadyWrittenPersons),
                 spouseEntries.isEmpty() ? "" : " m. " + spouseEntries,
                 person.isFinishedGeneration() ? "." : ""));
 
@@ -239,17 +247,19 @@ public class GenerationService {
             if (person.isMale()
                     || hasNoPaternalLineToFounder(child)
                     || hasSameTitleAsFounder(child, founder)
-                    || anyChildHasSameTitleAsFounder(child, founder)
-                    || anyGrandchildHasSameTitleAsFounder(child, founder)) {
+                    || anyChildHasSameTitleAsFounder(child, founder, alreadyWrittenPersons)
+                    || anyGrandchildHasSameTitleAsFounder(child, founder, alreadyWrittenPersons)
+                    || anyGreatGrandchildHasSameTitleAsFounder(child, founder, alreadyWrittenPersons)) {
                 // We always write a man's descendants beneath him. We only write a female's descendants beneath her
                 // if the children do not have a direct patrilineal line to some founder, meaning they won't appear
                 // in the output otherwise, or if they have the founder's title.
-                writeFamily(out, child, personDepth + 1, founder);
+                writeFamily(out, child, personDepth + 1, founder, alreadyWrittenPersons);
             }
         }
     }
 
-    private String writePersonEntry(@NonNull Person person) {
+    private String writePersonEntry(@NonNull Person person, @NonNull Set<Long> alreadyWrittenPersons) {
+        alreadyWrittenPersons.add(person.getId());
         return String.format("%d %s%s %d-%d",
                 person.getId(),
                 writePersonTitles(person),
@@ -258,13 +268,13 @@ public class GenerationService {
                 person.getDeathDate().getYear());
     }
 
-    private String writeSpouseEntries(@NonNull Person person) {
+    private String writeSpouseEntries(@NonNull Person person, @NonNull Set<Long> alreadyWrittenPersons) {
         StringBuilder s = new StringBuilder();
         for (Person spouse : person.getSpouses()) {
             if (s.length() > 0) {
                 s.append(", ");
             }
-            s.append(writePersonEntry(spouse));
+            s.append(writePersonEntry(spouse, alreadyWrittenPersons));
         }
         return s.toString();
     }
@@ -272,7 +282,11 @@ public class GenerationService {
     private String writePersonTitles(@NonNull Person person) {
         String titles = person.getTitles().stream()
                 .sorted(Comparator.comparing(t -> t.getTitle().getSocialClass().getRank()))
-                .map(t -> (t.getTitle().isExtinct() ? "*" : "") +  t.getTitle().getName())
+                .map(t -> String.format("%s%s - %s%s",
+                        (t.getTitle().isExtinct() ? "*" : ""),
+                        t.getTitle().getId(),
+                        t.getTitle().getName(),
+                        (t.getTitle().getInheritance().isMalesOnly() ? " (M)": "")))
                 .collect(Collectors.joining(", "));
 
         if (titles != null && !titles.isEmpty()) {
@@ -321,23 +335,44 @@ public class GenerationService {
     /**
      * Returns true if any of this person's children has the same title as this founder's title
      */
-    private boolean anyChildHasSameTitleAsFounder(@NonNull Person person, @NonNull Person founder) {
+    private boolean anyChildHasSameTitleAsFounder(@NonNull Person person,
+                                                  @NonNull Person founder,
+                                                  @NonNull Set<Long> alreadyWrittenPersons) {
         if (person.equals(founder)) {
             return true;
         }
         return person.getChildren().stream()
+                .filter(p -> !alreadyWrittenPersons.contains(p.getId()))
                 .anyMatch(child -> hasSameTitleAsFounder(child, founder));
     }
 
     /**
      * Returns true if any of this person's grandchildren has the same title as this founder's title
      */
-    private boolean anyGrandchildHasSameTitleAsFounder(@NonNull Person person, @NonNull Person founder) {
+    private boolean anyGrandchildHasSameTitleAsFounder(@NonNull Person person,
+                                                       @NonNull Person founder,
+                                                       @NonNull Set<Long> alreadyWrittenPersons) {
+        if (person.equals(founder)) {
+            return true;
+        }
+        return person.getChildren().stream()
+                .filter(child -> !alreadyWrittenPersons.contains(child.getId()))
+                .flatMap(l -> l.getChildren().stream())
+                .filter(grandchild -> !alreadyWrittenPersons.contains(grandchild.getId()))
+                .anyMatch(grandchild -> hasSameTitleAsFounder(grandchild, founder));
+    }
+
+    /**
+     * Returns true if any of this person's grandchildren has the same title as this founder's title
+     */
+    private boolean anyGreatGrandchildHasSameTitleAsFounder(@NonNull Person person,
+                                                            @NonNull Person founder,
+                                                            @NonNull Set<Long> alreadyWrittenPersons) {
         if (person.equals(founder)) {
             return true;
         }
         return person.getChildren().stream()
                 .flatMap(l -> l.getChildren().stream())
-                .anyMatch(grandchild -> hasSameTitleAsFounder(grandchild, founder));
+                .anyMatch(grandchild -> anyGrandchildHasSameTitleAsFounder(grandchild, founder, alreadyWrittenPersons));
     }
 }

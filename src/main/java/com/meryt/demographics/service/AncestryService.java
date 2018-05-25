@@ -116,7 +116,7 @@ public class AncestryService {
     }
 
     /**
-     * Determines a relationship based on least common ancestors, ifany
+     * Determines a relationship based on least common ancestors, if any
      *
      * @param person1 subject person
      * @param person2 related person
@@ -139,7 +139,7 @@ public class AncestryService {
         }
         if (relationship.getSubject2Distance() == 0) {
             String prefix = getGrandPrefix(relationship.getSubject1Distance());
-            String relationshipName = person2.isMale() ? prefix + "father" : prefix + "mother";
+            String relationshipName = person1.isMale() ? prefix + "son" : prefix + "daughter";
             return new Relationship(relationshipName, relationship.getSubject1Distance(), relationship.getSubject1Via(),
                     relationship.getSubject2Via());
         }
