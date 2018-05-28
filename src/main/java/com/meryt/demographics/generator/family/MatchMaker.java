@@ -63,7 +63,7 @@ public class MatchMaker {
     static double getDesireToMarryProbability(@NonNull Person person,
                                               @NonNull LocalDate onDate,
                                               @Nullable Integer numPreviousSpouses,
-                                              @Nullable Boolean hadAnyLivingSons) {
+                                              @Nullable LocalDate lastLivingSonDeathDate) {
         LocalDate birthDate = person.getBirthDate();
         if (birthDate == null) {
             throw new NullPointerException("Cannot calculate without person birth date");
@@ -79,8 +79,7 @@ public class MatchMaker {
         // least one living a son. A man without sons is not affected by previous marriages.
         if (numPreviousSpouses != null &&
                 (person.isFemale() ||
-                    (hadAnyLivingSons == Boolean.TRUE
-                            && person.getLivingChildren(onDate).stream().anyMatch(Person::isMale)))) {
+                    (lastLivingSonDeathDate != null && onDate.isBefore(lastLivingSonDeathDate)))) {
             dailyAgeAdjustedDesirePercent /= numPreviousSpouses;
         }
         return dailyAgeAdjustedDesirePercent;
