@@ -24,6 +24,7 @@ import com.meryt.demographics.request.PersonParameters;
 import com.meryt.demographics.service.FamilyService;
 import com.meryt.demographics.service.LifeTableService;
 import com.meryt.demographics.service.NameService;
+import com.meryt.demographics.service.TraitService;
 
 @Service
 public class PersonGenerator {
@@ -47,13 +48,16 @@ public class PersonGenerator {
     private final NameService nameService;
     private final LifeTableService lifeTableService;
     private final FamilyService familyService;
+    private final TraitService traitService;
 
     PersonGenerator(@Autowired NameService nameService,
-                           @Autowired LifeTableService lifeTableService,
-                           @Autowired FamilyService familyService) {
+                    @Autowired LifeTableService lifeTableService,
+                    @Autowired FamilyService familyService,
+                    @Autowired TraitService traitService) {
         this.nameService = nameService;
         this.lifeTableService = lifeTableService;
         this.familyService = familyService;
+        this.traitService = traitService;
     }
 
     /**
@@ -225,6 +229,10 @@ public class PersonGenerator {
      * @param person the person whose traits will be set
      */
     private void generateAndSetTraits(@NonNull PersonParameters personParameters, @NonNull Person person) {
+
+        // A person gets 2 - 4 random traits
+        person.getTraits().addAll(traitService.randomTraits(new Die(3).roll() + 1));
+
         Person favoredParent = null;
         Person otherParent = null;
         Person father = personParameters.getFather();

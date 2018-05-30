@@ -2,7 +2,10 @@ package com.meryt.demographics.generator.family;
 
 import java.time.LocalDate;
 import java.time.Period;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collector;
 import javax.annotation.Nullable;
 import lombok.NonNull;
 import org.apache.commons.math3.distribution.BetaDistribution;
@@ -10,6 +13,7 @@ import org.apache.commons.math3.distribution.BetaDistribution;
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.SocialClass;
+import com.meryt.demographics.domain.person.Trait;
 import com.meryt.demographics.generator.random.PercentDie;
 
 public class MatchMaker {
@@ -118,7 +122,20 @@ public class MatchMaker {
         double personDom = person.getDomesticity();
         double spouseDom = potentialSpouse.getDomesticity();
         double femaleAgeModifier = femaleAgeDesireToMarryModifier(woman, onDate);
-        return (die.roll() < ((personDom + spouseDom + femaleAgeModifier) - comelinessDiff - charismaDiff));
+
+        Set<Trait> sharedTraits = new HashSet<>(person.getTraits());
+        sharedTraits.retainAll(potentialSpouse.getTraits());
+
+        // People who share one or more traits will get on especially well.
+        double sharedTraitModifier = 0.25 * sharedTraits.size();
+
+        // A person with desirable traits will be a desirable partner. If both have bad traits, it will greatly
+        // decrease compatibility. If both have good traits, it will increase. If they cancel each other out, it
+        // means one spouse was desirable and the other not particularly.
+        double traitModifier = getTraitModifier(person, 0.03) + getTraitModifier(potentialSpouse, 0.03);
+
+        return (die.roll() < ((personDom + spouseDom + femaleAgeModifier + sharedTraitModifier + traitModifier)
+                - comelinessDiff - charismaDiff));
     }
 
     /**
@@ -162,6 +179,9 @@ public class MatchMaker {
         // Get the average of comeliness and charisma
         double attractiveness = (lesser.getComeliness() + lesser.getCharisma()) / 2.0;
 
+        // Get the ranking from the traits. Positive traits provide a bonus, negative traits a malus.
+        attractiveness += getTraitModifier(lesser, 0.05);
+
         // An aging woman of a greater rank will be less discriminating
         attractiveness += femaleAgeDesireToMarryModifier(greater, onDate);
 
@@ -172,6 +192,20 @@ public class MatchMaker {
         double minAttractiveness = 0.5 + (0.1 * diff);
 
         return (new PercentDie().roll() < (attractiveness - minAttractiveness));
+    }
+
+    /**
+     * Gets a modifier based on a person's traits sum of + and - values.
+     *
+     * @param person the person whose traits to check
+     * @param baseModifier the value by which to multiple the integer sum, e.g. 0.05
+     * @return a double
+     */
+    private static double getTraitModifier(@NonNull Person person, double baseModifier) {
+        int rating = person.getTraits().stream()
+                .mapToInt(Trait::getRating)
+                .sum();
+        return (baseModifier * rating);
     }
 
     /**

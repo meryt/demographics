@@ -11,6 +11,7 @@ import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.PersonOccupationPeriod;
 import com.meryt.demographics.domain.person.PersonTitlePeriod;
+import com.meryt.demographics.domain.person.Trait;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.HouseholdInhabitantPeriod;
 

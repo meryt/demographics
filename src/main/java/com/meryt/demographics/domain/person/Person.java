@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -18,6 +19,9 @@ import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.JoinTable;
+import javax.persistence.ManyToMany;
 import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 import javax.persistence.OneToOne;
@@ -138,6 +142,15 @@ public class Person {
     @OneToMany(mappedBy = "person", cascade = { CascadeType.ALL })
     @OrderBy("from_date")
     private List<PersonTitlePeriod> titles = new ArrayList<>();
+
+    @ManyToMany
+    @JoinTable(
+            name = "person_traits",
+            joinColumns = @JoinColumn(name = "person_id"),
+            inverseJoinColumns = @JoinColumn(name = "trait_id")
+    )
+    @OrderBy("name")
+    private Set<Trait> traits = new HashSet<>();
 
     public Fertility getFertility() {
         if (gender == null) {

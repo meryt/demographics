@@ -1,12 +1,15 @@
 package com.meryt.demographics.response;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.Getter;
 import lombok.NonNull;
 
 import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.SocialClass;
+import com.meryt.demographics.domain.person.Trait;
 
 /**
  * This response shows details about a person without descending into members. It is ideal for showing the person as
@@ -38,6 +41,8 @@ class PersonResponse {
     private final double morality;
     private final double strength;
 
+    private final List<String> traits;
+
     PersonResponse(@NonNull Person person) {
         id = person.getId();
         firstName = person.getFirstName();
@@ -61,6 +66,15 @@ class PersonResponse {
         intelligence = person.getIntelligence();
         morality = person.getMorality();
         strength = person.getStrength();
+
+        if (person.getTraits().isEmpty()) {
+            traits = null;
+        } else {
+            traits = new ArrayList<>();
+            for (Trait t : person.getTraits()) {
+                traits.add(t.getName());
+            }
+        }
     }
 
 }
