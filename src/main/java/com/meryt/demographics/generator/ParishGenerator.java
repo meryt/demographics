@@ -68,8 +68,8 @@ public class ParishGenerator {
 
         Parish parish = new Parish();
         parish.setAcres(parishParameters.getSquareMiles() * ACRES_PER_SQUARE_MILE);
-        if (parishParameters.getParishPrefix() != null) {
-            parish.setName(parishParameters.getParishPrefix() + " Parish");
+        if (parishParameters.getParishName() != null) {
+            parish.setName(parishParameters.getParishName());
         } else {
             parish.setName("Parish");
         }
@@ -86,7 +86,7 @@ public class ParishGenerator {
         long lastPopulation = largestTownPopulation(totalPopulation);
         currentPopulation += lastPopulation;
         List<TownTemplate> towns = new ArrayList<>();
-        String name = parishParameters.getParishPrefix() != null ? parishParameters.getParishPrefix() + " Town 1" : "Town 1";
+        String name = randomTownName(parishParameters, 1);
         TownTemplate town1 = createTown(name, lastPopulation, parishParameters.isPersist());
         towns.add(town1);
         parish.addDwellingPlace(town1.getTown());
@@ -106,11 +106,7 @@ public class ParishGenerator {
 
             currentPopulation += lastPopulation;
 
-            if (parishParameters.getParishPrefix() == null) {
-                name = "Town " + townIndex++;
-            } else {
-                name = parishParameters.getParishPrefix() + " Town " + townIndex++;
-            }
+            name = randomTownName(parishParameters, townIndex++);
             TownTemplate town = createTown(name, lastPopulation, parishParameters.isPersist());
             parish.addDwellingPlace(town.getTown());
             towns.add(town);
@@ -212,6 +208,27 @@ public class ParishGenerator {
                                       long previousTownPopulation) {
         return ((parishParameters.getPopulation() - currentTownPopulation) > parishParameters.getMinTownPopulation())
                 && previousTownPopulation > parishParameters.getMinTownPopulation();
+    }
+
+    /**
+     * Get a random town name from the list, if there is a list, otherwise make a name from the parish name if any,
+     * otherwise just a placeholder from the index
+     *
+     * @param parishParameters the parameters which may contain a list of names or at least a parish name. If a random
+     *                         name is chosen from the list, it will also remove it from the list so it won't be reused
+     * @param townIndex the number of the town we are creating, in case we need to create a name like "Town 3"
+     * @return a string name
+     */
+    @NonNull
+    private String randomTownName(@NonNull ParishParameters parishParameters, int townIndex) {
+        String name = parishParameters.getAndRemoveRandomTownName();
+        if (name != null) {
+            return name;
+        }
+        name = parishParameters.getParishName() != null
+                ? parishParameters.getParishName() + " Town " + townIndex
+                : "Town " + townIndex;
+        return name;
     }
 
 }
