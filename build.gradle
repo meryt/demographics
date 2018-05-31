@@ -1,5 +1,6 @@
 buildscript {
     ext {
+        apacheCommonsLangVersion = '3.7'
         apacheCommonsMathVersion = '3.6.1'
         flywayVersion = '5.0.7'
         guavaVersion = '24.0-jre'
@@ -61,6 +62,7 @@ dependencies {
 
     compile("com.google.guava:guava:${guavaVersion}")
     compile("org.apache.commons:commons-math3:${apacheCommonsMathVersion}")
+    compile("org.apache.commons:commons-lang3:${apacheCommonsLangVersion}")
 
 
     compileOnly("org.projectlombok:lombok:${lombokVersion}")

@@ -139,7 +139,9 @@ public class FamilyGenerator {
         personParameters.setMaxSocialClass(familyParameters.getMaxSocialClass());
         personParameters.setLastName(familyParameters.getFounderLastName());
 
-        return personGenerator.generate(personParameters);
+        Person founder = personGenerator.generate(personParameters);
+        founder.setFounder(true);
+        return founder;
     }
 
     @Nullable

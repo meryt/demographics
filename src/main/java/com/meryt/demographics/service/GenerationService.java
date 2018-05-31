@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 import com.google.common.base.Strings;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -57,6 +58,13 @@ public class GenerationService {
         this.titleService = titleService;
     }
 
+    /**
+     * Create one or more founding families. A husband, wife, and possibly children will be generated. If the husband
+     * has a rank of baronet or higher, a random title will be generated and assigned to him.
+     *
+     * @param generationPost defines options for the families in this generation generation
+     * @return a list of all the families generated
+     */
     public List<Family> seedInitialGeneration(@NonNull InitialGenerationPost generationPost) {
         List<String> lastNames = generationPost.getLastNames();
         if (lastNames == null) {
@@ -98,6 +106,15 @@ public class GenerationService {
         return result;
     }
 
+    /**
+     * Process the next generation. This takes all persons that are not yet marked as finished generation, and attempts
+     * to create a family for them within their lifetime. If they cannot find a spouse or die before their spouse, they
+     * are marked as finished generation. It also updates titles with the next heirs, if any can be identified, and
+     * finally writes the output to a file if a filename is specified.
+     *
+     * @param generationPost options for processing this generation
+     * @return a list of the new families that were created
+     */
     public List<Family> processGeneration(@NonNull GenerationPost generationPost) {
         generationPost.validate();
         PersonFamilyPost personFamilyPost = generationPost.getPersonFamilyPost();
@@ -148,10 +165,27 @@ public class GenerationService {
         return results;
     }
 
+    /**
+     * Generates a title for the person, using his last name as the title name. The peerage and inheritance style
+     * are random.
+     *
+     * @param founder
+     */
     private void addRandomTitleToFounder(@NonNull Person founder) {
         Title title = new Title();
         title.setInheritanceRoot(founder);
-        title.setName("Lord " + founder.getLastName());
+        String namePrefix = "Lord ";
+        switch (founder.getSocialClass()) {
+            case DUKE:
+            case MARQUESS:
+            case EARL:
+            case VISCOUNT:
+            case BARON:
+                namePrefix = StringUtils.capitalize(founder.getSocialClass().getFriendlyName()) + " ";
+                break;
+        }
+        title.setName(namePrefix + founder.getLastName());
+
         title.setSocialClass(founder.getSocialClass());
         if (new Die(10).roll() <= 2) {
             title.setPeerage(Peerage.SCOTLAND);
