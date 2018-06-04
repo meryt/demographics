@@ -1,6 +1,8 @@
 package com.meryt.demographics.controllers;
 
 import java.time.LocalDate;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.response.HouseholdResponse;
+import com.meryt.demographics.rest.BadRequestException;
 import com.meryt.demographics.rest.ResourceNotFoundException;
 import com.meryt.demographics.service.HouseholdService;
 
@@ -36,5 +39,19 @@ public class HouseholdController {
             date = LocalDate.parse(onDate);
         }
         return new HouseholdResponse(result, date);
+    }
+
+    @RequestMapping("/api/households/homeless")
+    public List<HouseholdResponse> getHouseholdsWithoutHouses(@RequestParam(value = "onDate", required = true)
+                                                                      String onDate) {
+        if (onDate == null) {
+            throw new BadRequestException("onDate cannot be null");
+        }
+        final LocalDate date = LocalDate.parse(onDate);
+
+        List<Household> results = householdService.loadHouseholdsWithoutHouses(date);
+        return results.stream()
+                .map(h -> new HouseholdResponse(h, date))
+                .collect(Collectors.toList());
     }
 }

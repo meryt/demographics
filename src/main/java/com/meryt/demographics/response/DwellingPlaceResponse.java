@@ -13,10 +13,14 @@ import lombok.NonNull;
 
 import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.domain.place.DwellingPlace;
+import com.meryt.demographics.domain.place.Household;
 
 @Getter
 public class DwellingPlaceResponse extends DwellingPlaceSummaryResponse {
+
+    private List<HouseholdSummaryResponse> leadingHouseholds;
 
     private List<DwellingPlaceSummaryResponse> places;
 
@@ -31,6 +35,14 @@ public class DwellingPlaceResponse extends DwellingPlaceSummaryResponse {
             places = new ArrayList<>();
             for (DwellingPlace place : dwellingPlace.getDwellingPlaces()) {
                 places.add(new DwellingPlaceSummaryResponse(place, onDate));
+            }
+        }
+
+        List<Household> leadingList = dwellingPlace.getLeadingHouseholds(onDate, SocialClass.GENTLEMAN, true);
+        if (!leadingList.isEmpty()) {
+            leadingHouseholds = new ArrayList<>();
+            for (Household household : leadingList) {
+                leadingHouseholds.add(new HouseholdSummaryResponse(household, onDate));
             }
         }
 

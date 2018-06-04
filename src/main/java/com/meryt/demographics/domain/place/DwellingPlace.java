@@ -7,11 +7,13 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import javax.persistence.CascadeType;
+import javax.persistence.Column;
 import javax.persistence.DiscriminatorColumn;
 import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
@@ -21,9 +23,13 @@ import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
+
+import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.domain.person.SocialClass;
 
 @Getter
 @Setter
@@ -55,6 +61,11 @@ public abstract class DwellingPlace {
     private List<HouseholdLocationPeriod> householdPeriods = new ArrayList<>();
 
     private Double acres;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "dwelling_place_type", updatable = false, insertable = false)
+    @Setter(AccessLevel.PROTECTED)
+    private DwellingPlaceType type;
 
     public Double getSquareMiles() {
         if (acres == null) {
@@ -100,6 +111,28 @@ public abstract class DwellingPlace {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Get all households where the head is at least the given social class
+     *
+     * @param onDate the date to check for household residency
+     * @param minSocialClass the minimum social class to qualify as "leading"
+     * @param recursive if true, recurses into dwelling places inside of this dwelling place; otherwise shows only
+     *                  households directly dwelling in this place
+     * @return a list of households, possibly empty
+     */
+    @NonNull
+    public List<Household> getLeadingHouseholds(@NonNull LocalDate onDate,
+                                                @NonNull SocialClass minSocialClass,
+                                                boolean recursive) {
+        List<Household> households = recursive ? getAllHouseholds(onDate) : getHouseholds(onDate);
+        return households.stream()
+                .filter(h -> {
+                    Person head = h.getHead(onDate);
+                    return (head != null && head.getSocialClass().getRank() >= minSocialClass.getRank());
+                })
+                .collect(Collectors.toList());
+    }
+
     public Set<DwellingPlace> getDwellingPlaces() {
         return Collections.unmodifiableSet(dwellingPlaces);
     }
@@ -109,7 +142,11 @@ public abstract class DwellingPlace {
      * @param newMember a DwellingPlace of a type appropriate to belong to this place
      * @throws IllegalArgumentException if the given dwelling place is not a valid child of the this one
      */
-    public void addDwellingPlace(@NonNull DwellingPlace newMember) {
+    public final void addDwellingPlace(@NonNull DwellingPlace newMember) {
+        if (!getType().canContain(newMember.getType())) {
+            throw new IllegalArgumentException(String.format("A %s cannot contain a %s", getType().name(),
+                    newMember.getType().name()));
+        }
         dwellingPlaces.add(newMember);
         newMember.setParent(this);
     }
@@ -127,8 +164,21 @@ public abstract class DwellingPlace {
         }
     }
 
+    private Set<DwellingPlace> getRecursiveDwellingPlaces() {
+        return getDwellingPlaces().stream()
+                .map(DwellingPlace::getRecursiveDwellingPlaces)
+                .flatMap(Collection::stream)
+                .collect(Collectors.toSet());
+    }
+
+    public Set<DwellingPlace> getRecursiveDwellingPlaces(@NonNull DwellingPlaceType ofType) {
+        return getRecursiveDwellingPlaces().stream()
+                .filter(dp -> dp.getType() == ofType)
+                .collect(Collectors.toSet());
+    }
+
     /**
-     * Gets all households that are in this town as of the date
+     * Gets all households that are directly a member of this dwelling place as of the date
      */
     public List<Household> getHouseholds(@NonNull LocalDate onDate) {
         return getHouseholdPeriods().stream()

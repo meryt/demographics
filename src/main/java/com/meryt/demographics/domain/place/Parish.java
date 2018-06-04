@@ -14,6 +14,11 @@ import lombok.Setter;
 public class Parish extends DwellingPlace {
     private static final double SETTLED_SQUARE_MILE_POPULATION_SUPPORTED = 180.0;
 
+    public Parish() {
+        super();
+        setType(DwellingPlaceType.PARISH);
+    }
+
     public Double getSettledSquareMiles(@NonNull LocalDate onDate) {
         if (getSquareMiles() == null) {
             return null;

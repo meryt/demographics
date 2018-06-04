@@ -1,14 +1,19 @@
 package com.meryt.demographics.controllers;
 
 import java.time.LocalDate;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.meryt.demographics.domain.place.DwellingPlace;
+import com.meryt.demographics.domain.place.DwellingPlaceType;
 import com.meryt.demographics.response.DwellingPlaceResponse;
 import com.meryt.demographics.rest.ResourceNotFoundException;
 import com.meryt.demographics.service.DwellingPlaceService;
@@ -36,6 +41,43 @@ public class PlacesController {
             }
             return new DwellingPlaceResponse(place, date);
         }
+    }
+
+    @RequestMapping(value = "/api/places", method = RequestMethod.POST)
+    public DwellingPlaceResponse postPlace(@RequestBody DwellingPlace place) {
+        return new DwellingPlaceResponse(dwellingPlaceService.save(place), null);
+    }
+
+    @RequestMapping("/api/places/estates")
+    public List<DwellingPlaceResponse> getEstates(@RequestParam(value = "onDate", required = false) String onDate) {
+        final LocalDate date = (onDate != null) ? LocalDate.parse(onDate) : null;
+
+        List<DwellingPlace> estates = dwellingPlaceService.loadByType(DwellingPlaceType.ESTATE);
+        return estates.stream().map(e -> new DwellingPlaceResponse(e, date)).collect(Collectors.toList());
+    }
+
+    @RequestMapping("/api/places/parishes")
+    public List<DwellingPlaceResponse> getParishes(@RequestParam(value = "onDate", required = false) String onDate) {
+        final LocalDate date = (onDate != null) ? LocalDate.parse(onDate) : null;
+
+        List<DwellingPlace> estates = dwellingPlaceService.loadByType(DwellingPlaceType.PARISH);
+        return estates.stream().map(e -> new DwellingPlaceResponse(e, date)).collect(Collectors.toList());
+    }
+
+    @RequestMapping("/api/places/towns")
+    public List<DwellingPlaceResponse> getTowns(@RequestParam(value = "onDate", required = false) String onDate) {
+        final LocalDate date = (onDate != null) ? LocalDate.parse(onDate) : null;
+
+        List<DwellingPlace> estates = dwellingPlaceService.loadByType(DwellingPlaceType.TOWN);
+        return estates.stream().map(e -> new DwellingPlaceResponse(e, date)).collect(Collectors.toList());
+    }
+
+    @RequestMapping("/api/places/farms")
+    public List<DwellingPlaceResponse> getFarms(@RequestParam(value = "onDate", required = false) String onDate) {
+        final LocalDate date = (onDate != null) ? LocalDate.parse(onDate) : null;
+
+        List<DwellingPlace> estates = dwellingPlaceService.loadByType(DwellingPlaceType.FARM);
+        return estates.stream().map(e -> new DwellingPlaceResponse(e, date)).collect(Collectors.toList());
     }
 
 }

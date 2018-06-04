@@ -1,6 +1,8 @@
 package com.meryt.demographics.generator;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -12,7 +14,12 @@ import lombok.extern.slf4j.Slf4j;
 import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.domain.person.SocialClass;
+import com.meryt.demographics.domain.place.Dwelling;
 import com.meryt.demographics.domain.place.DwellingPlace;
+import com.meryt.demographics.domain.place.DwellingPlaceType;
+import com.meryt.demographics.domain.place.Estate;
+import com.meryt.demographics.domain.place.Farm;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.Parish;
 import com.meryt.demographics.domain.place.Town;
@@ -20,11 +27,14 @@ import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.generator.family.HouseholdGenerator;
 import com.meryt.demographics.generator.random.Die;
 import com.meryt.demographics.request.FamilyParameters;
+import com.meryt.demographics.request.ParishParameters;
 import com.meryt.demographics.service.FamilyService;
 import com.meryt.demographics.service.HouseholdService;
 
 @Slf4j
 class ParishPopulator {
+
+    private final ParishParameters parishParameters;
 
     private final HouseholdGenerator householdGenerator;
 
@@ -34,10 +44,12 @@ class ParishPopulator {
 
     private final HouseholdService householdService;
 
-    ParishPopulator(@NonNull HouseholdGenerator householdGenerator,
+    ParishPopulator(@NonNull ParishParameters parishParameters,
+                    @NonNull HouseholdGenerator householdGenerator,
                     @NonNull FamilyGenerator familyGenerator,
                     @NonNull FamilyService familyService,
                     @NonNull HouseholdService householdService) {
+        this.parishParameters = parishParameters;
         this.householdGenerator = householdGenerator;
         this.familyGenerator = familyGenerator;
         this.familyService = familyService;
@@ -361,7 +373,86 @@ class ParishPopulator {
     private void addHouseholdToDwellingPlaceOnWeddingDate(@NonNull DwellingPlace dwellingPlace,
                                                           @NonNull Household household,
                                                           @NonNull LocalDate moveInDate) {
-        household.addToDwellingPlace(dwellingPlace, moveInDate, null);
+        Person headOfHousehold = household.getHead(moveInDate);
+        Occupation occupationOnDate = headOfHousehold == null ? null : headOfHousehold.getOccupation(moveInDate);
+        if (headOfHousehold != null && headOfHousehold.getSocialClass().getRank() >= SocialClass.GENTLEMAN.getRank()
+                && headOfHousehold.getOccupations().isEmpty()) {
+            // An unemployed gentleman or better moves into an estate rather than directly into the town or parish.
+            moveGentlemanIntoEstate(dwellingPlace, headOfHousehold, household, moveInDate);
+        } else if (headOfHousehold != null &&
+                (headOfHousehold.getSocialClass().getRank() >= SocialClass.YEOMAN_OR_MERCHANT.getRank()
+                || (occupationOnDate != null &&
+                        occupationOnDate.getMinClass().getRank() >= SocialClass.YEOMAN_OR_MERCHANT.getRank()))) {
+            // An employed gentleman or a yeoman/merchant moves into a house
+            Dwelling house = new Dwelling();
+            dwellingPlace.addDwellingPlace(house);
+            household.addToDwellingPlace(house, moveInDate, null);
+        } else if (headOfHousehold != null && occupationOnDate != null && occupationOnDate.isFarmOwner()) {
+            // Farm-owners move into a house on a farm
+            Farm farm = new Farm();
+            farm.setName(headOfHousehold.getLastName() + " Farm");
+            dwellingPlace.addDwellingPlace(farm);
+            Dwelling farmHouse = new Dwelling();
+            farm.addDwellingPlace(farmHouse);
+            household.addToDwellingPlace(farmHouse, moveInDate, null);
+
+        } else if (headOfHousehold != null & occupationOnDate != null && occupationOnDate.isRural()) {
+            // Rural non-farm-owners get a house on an existing farm or estate, if possible, otherwise just a house in
+            // the area.
+            List<DwellingPlace> farmsInPlace = new ArrayList<>(dwellingPlace.getRecursiveDwellingPlaces(
+                    DwellingPlaceType.FARM));
+            farmsInPlace.addAll(dwellingPlace.getRecursiveDwellingPlaces(DwellingPlaceType.ESTATE));
+
+            Dwelling house = new Dwelling();
+            dwellingPlace.addDwellingPlace(house);
+            household.addToDwellingPlace(house, moveInDate, null);
+
+            if (farmsInPlace.isEmpty()) {
+                dwellingPlace.addDwellingPlace(house);
+            } else {
+                Collections.shuffle(farmsInPlace);
+                DwellingPlace farmOrEstate = farmsInPlace.get(0);
+                farmOrEstate.addDwellingPlace(house);
+            }
+        } else {
+            household.addToDwellingPlace(dwellingPlace, moveInDate, null);
+        }
+    }
+
+    /**
+     * Create a house on an estate, put the estate into the provided dwelling place, and add the household to the house.
+     *
+     * @param dwellingPlace the place (such as a parish or town) where the estate should be created
+     * @param headOfHousehold the head of the household
+     * @param household the household
+     * @param moveInDate the date on which the inhabitants should move in
+     */
+    private void moveGentlemanIntoEstate(@NonNull DwellingPlace dwellingPlace,
+                                         @NonNull Person headOfHousehold,
+                                         @NonNull Household household,
+                                         @NonNull LocalDate moveInDate) {
+        Estate estate = new Estate();
+        estate.setName(parishParameters.getAndRemoveRandomEstateName());
+        dwellingPlace.addDwellingPlace(estate);
+        Dwelling manorHouse = new Dwelling();
+        manorHouse.setName(estate.getName());
+        estate.addDwellingPlace(manorHouse);
+        log.info(String.format("Generated estate '%s' for household of %s, %s", estate.getName(),
+                headOfHousehold.getName(), headOfHousehold.getSocialClass().getFriendlyName()));
+        household.addToDwellingPlace(manorHouse, moveInDate, null);
+    }
+
+    /**
+     * Creates a house in a dwelling place and moves a household into it
+     *
+     * @param dwellingPlace the place, such as a town, parish, or estate
+     * @param household the household
+     * @param moveInDate the date they begin to inhabit the place
+     */
+    private void moveFamilyIntoNewHouse(@NonNull DwellingPlace dwellingPlace,
+                                        @NonNull Household household,
+                                        @NonNull LocalDate moveInDate) {
+
     }
 
     /**

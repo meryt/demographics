@@ -2,9 +2,7 @@ package com.meryt.demographics.domain.place;
 
 import javax.persistence.DiscriminatorValue;
 import javax.persistence.Entity;
-
 import lombok.Getter;
-import lombok.NonNull;
 import lombok.Setter;
 
 /**
@@ -17,8 +15,9 @@ import lombok.Setter;
 @DiscriminatorValue(value = "DWELLING")
 public class Dwelling extends DwellingPlace {
 
-    @Override
-    public void addDwellingPlace(@NonNull DwellingPlace newMember) {
-        throw new IllegalArgumentException("A Dwelling can only contain Households");
+    public Dwelling() {
+        super();
+        setType(DwellingPlaceType.DWELLING);
     }
+
 }

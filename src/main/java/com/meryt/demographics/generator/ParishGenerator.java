@@ -8,6 +8,8 @@ import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 
 import com.meryt.demographics.domain.Occupation;
+import com.meryt.demographics.domain.place.DwellingPlace;
+import com.meryt.demographics.domain.place.DwellingPlaceType;
 import com.meryt.demographics.domain.place.Parish;
 import com.meryt.demographics.domain.place.Town;
 import com.meryt.demographics.generator.family.FamilyGenerator;
@@ -63,6 +65,29 @@ public class ParishGenerator {
         if (parishParameters.getFamilyParameters().getReferenceDate() == null) {
             throw new IllegalArgumentException("Reference date is required when creating a parish");
         }
+        DwellingPlace location = null;
+        if (parishParameters.getLocationId() != null) {
+            location = dwellingPlaceService.load(parishParameters.getLocationId());
+            if (location == null) {
+                throw new IllegalArgumentException(String.format(
+                        "Cannot create parish: there is no location with ID %d to add it to.",
+                        parishParameters.getLocationId()));
+            }
+            if (!location.getType().canContain(DwellingPlaceType.PARISH)) {
+                throw new IllegalArgumentException(
+                        String.format("Cannot create parish: the location %d %s of type %s cannot contain a parish.",
+                        location.getId(), location.getName(), location.getType().name()));
+            }
+        } else if (parishParameters.getLocation() != null) {
+            // Create the location if it does not exist
+            location = parishParameters.getLocation();
+            if (location.getId() <= 0 && parishParameters.isPersist()) {
+                location = dwellingPlaceService.save(location);
+            } else {
+                throw new IllegalArgumentException("Cannot create parish: to create a new Region to contain this " +
+                    "parish, use the locationId parameter rather than a location object with a non-null ID.");
+            }
+        }
         // Ensure that the parish parameters and family parameters have same setting for persist
         parishParameters.getFamilyParameters().setPersist(parishParameters.isPersist());
 
@@ -79,6 +104,13 @@ public class ParishGenerator {
 
         if (parishParameters.isPersist()) {
             parish = (Parish) dwellingPlaceService.save(parish);
+        }
+
+        if (location != null) {
+            location.addDwellingPlace(parish);
+            if (parishParameters.isPersist()) {
+                dwellingPlaceService.save(location);
+            }
         }
 
         log.info(String.format("Created the Parish %s with expected population %d", parish.getName(), totalPopulation));
@@ -124,8 +156,11 @@ public class ParishGenerator {
         template.setExpectedRuralPopulation(remainingPopulation);
         template.setFamilyParameters(parishParameters.getFamilyParameters());
 
-        ParishPopulator populator = new ParishPopulator(new HouseholdGenerator(familyGenerator,
-                personService, familyService, householdService), familyGenerator, familyService, householdService);
+        ParishPopulator populator = new ParishPopulator(parishParameters,
+                new HouseholdGenerator(familyGenerator, personService, familyService, householdService),
+                familyGenerator,
+                familyService,
+                householdService);
         populator.populateParish(template);
 
         return parish;

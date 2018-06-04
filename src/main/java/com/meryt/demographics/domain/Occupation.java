@@ -34,6 +34,7 @@ public class Occupation {
     @Enumerated(EnumType.STRING)
     private SocialClass maxClass;
     private boolean isRural;
+    private boolean isFarmOwner;
 
     /**
      * How many of this occupation we expect to find per person in the population. Obviously this number is always less

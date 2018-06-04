@@ -61,16 +61,17 @@ public class HouseholdResponse {
 
         Set<Person> people = household.getInhabitants(onDate);
         if (!people.isEmpty()) {
+            Person hhHead = household.getHead(onDate);
+            if (hhHead != null) {
+                head = new PersonSummaryResponse(hhHead, onDate);
+            }
+
             inhabitants = new ArrayList<>();
             for (Person p : people.stream()
                     .sorted(Comparator.comparing(Person::getBirthDate))
+                    .filter(p -> p != hhHead)
                     .collect(Collectors.toList())) {
-                inhabitants.add(new PersonReference(p, onDate));
-            }
-
-            Person hhHead = household.getHead(onDate);
-            if (hhHead != null) {
-                head = new PersonReference(hhHead, onDate);
+                inhabitants.add(new PersonSummaryResponse(p, onDate));
             }
         }
     }

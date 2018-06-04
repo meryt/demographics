@@ -1,5 +1,7 @@
 package com.meryt.demographics.service;
 
+import java.time.LocalDate;
+import java.util.List;
 import javax.annotation.Nullable;
 
 import lombok.NonNull;
@@ -28,6 +30,10 @@ public class HouseholdService {
     @Nullable
     public Household load(long householdId) {
         return householdRepository.findById(householdId).orElse(null);
+    }
+
+    public List<Household> loadHouseholdsWithoutHouses(@NonNull LocalDate onDate) {
+        return householdRepository.findHouseholdsWithoutHouses(onDate);
     }
 
 }
