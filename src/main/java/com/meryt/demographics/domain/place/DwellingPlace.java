@@ -6,8 +6,10 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.DiscriminatorColumn;
@@ -59,6 +61,12 @@ public abstract class DwellingPlace {
      */
     @OneToMany(mappedBy = "dwellingPlace", cascade = { CascadeType.ALL })
     private List<HouseholdLocationPeriod> householdPeriods = new ArrayList<>();
+
+    /**
+     * A list of all the owners of this dwelling place, over time
+     */
+    @OneToMany(mappedBy = "dwellingPlace", cascade = { CascadeType.ALL })
+    private List<DwellingPlaceOwnerPeriod> ownerPeriods = new ArrayList<>();
 
     private Double acres;
 
@@ -186,5 +194,44 @@ public abstract class DwellingPlace {
                 .map(HouseholdLocationPeriod::getHousehold)
                 .collect(Collectors.toList());
     }
+
+    /**
+     * Get the person who owns the property on this date. (May be null.)
+     * @param onDate the date to find an owner; there may be 0 or 1 persons owning the property on this date.
+     * @return the owning person, or null if no one owns it at this time
+     */
+    @Nullable
+    public Person getOwner(@NonNull LocalDate onDate) {
+        Optional<Person> person = getOwnerPeriods().stream()
+                .filter(p -> p.contains(onDate))
+                .map(DwellingPlaceOwnerPeriod::getOwner)
+                .findFirst();
+        return person.orElse(null);
+    }
+
+    /**
+     * Makes a person the owner of this dwelling place, starting from the given date, and optionally ending on the
+     * given date
+     * @param person the owner
+     * @param fromDate the start date
+     * @param toDate the end date (may be null)
+     */
+    public void addOwner(@NonNull Person person, @NonNull LocalDate fromDate, LocalDate toDate) {
+        for (DwellingPlaceOwnerPeriod period : getOwnerPeriods()) {
+            if (period.contains(fromDate)) {
+                period.setToDate(fromDate);
+            }
+        }
+
+        DwellingPlaceOwnerPeriod newPeriod = new DwellingPlaceOwnerPeriod();
+        newPeriod.setDwellingPlaceId(getId());
+        newPeriod.setDwellingPlace(this);
+        newPeriod.setOwner(person);
+        newPeriod.setFromDate(fromDate);
+        newPeriod.setToDate(toDate);
+        person.getOwnedDwellingPlaces().add(newPeriod);
+        getOwnerPeriods().add(newPeriod);
+    }
+
 
 }

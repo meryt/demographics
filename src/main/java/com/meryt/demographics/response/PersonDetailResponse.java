@@ -3,6 +3,7 @@ package com.meryt.demographics.response;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import lombok.Getter;
 import lombok.NonNull;
@@ -11,7 +12,6 @@ import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.PersonOccupationPeriod;
 import com.meryt.demographics.domain.person.PersonTitlePeriod;
-import com.meryt.demographics.domain.person.Trait;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.HouseholdInhabitantPeriod;
 
@@ -26,6 +26,7 @@ public class PersonDetailResponse extends PersonResponse {
     private final List<PersonOccupationResponse> occupations;
     private final HouseholdResponse household;
     private final List<HouseholdResponse> households;
+    private final List<DwellingPlaceReference> ownedProperties;
     private final PersonParentsFamilyResponse family;
 
     public PersonDetailResponse(@NonNull Person person) {
@@ -69,11 +70,29 @@ public class PersonDetailResponse extends PersonResponse {
             Household personHousehold = person.getHousehold(onDate);
             household = personHousehold == null ? null : new HouseholdResponse(personHousehold, onDate);
 
+            List<DwellingPlaceReference> props = person.getOwnedDwellingPlaces(onDate).stream()
+                .map(DwellingPlaceReference::new)
+                .collect(Collectors.toList());
+            if (props.isEmpty()) {
+                ownedProperties = null;
+            } else {
+                ownedProperties = props;
+            }
+
         } else {
             household = null;
             households = new ArrayList<>();
             for (HouseholdInhabitantPeriod householdPeriod : person.getHouseholds()) {
                 households.add(new HouseholdResponse(householdPeriod.getHousehold()));
+            }
+
+            List<DwellingPlaceReference> props = person.getOwnedDwellingPlaces().stream()
+                    .map(o -> new DwellingPlaceReference(o.getDwellingPlace()))
+                    .collect(Collectors.toList());
+            if (props.isEmpty()) {
+                ownedProperties = null;
+            } else {
+                ownedProperties = props;
             }
         }
     }

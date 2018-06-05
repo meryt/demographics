@@ -20,6 +20,8 @@ import com.meryt.demographics.domain.place.Household;
 @Getter
 public class DwellingPlaceResponse extends DwellingPlaceSummaryResponse {
 
+    private PersonReference owner;
+
     private List<HouseholdSummaryResponse> leadingHouseholds;
 
     private List<DwellingPlaceSummaryResponse> places;
@@ -38,27 +40,32 @@ public class DwellingPlaceResponse extends DwellingPlaceSummaryResponse {
             }
         }
 
-        List<Household> leadingList = dwellingPlace.getLeadingHouseholds(onDate, SocialClass.GENTLEMAN, true);
-        if (!leadingList.isEmpty()) {
-            leadingHouseholds = new ArrayList<>();
-            for (Household household : leadingList) {
-                leadingHouseholds.add(new HouseholdSummaryResponse(household, onDate));
+        if (onDate != null) {
+            List<Household> leadingList = dwellingPlace.getLeadingHouseholds(onDate, SocialClass.GENTLEMAN, true);
+            if (!leadingList.isEmpty()) {
+                leadingHouseholds = new ArrayList<>();
+                for (Household household : leadingList) {
+                    leadingHouseholds.add(new HouseholdSummaryResponse(household, onDate));
+                }
             }
-        }
 
-        Map<Occupation, List<Person>> peopleWithOccupations = dwellingPlace.getAllHouseholds(onDate).stream()
-                .map(h -> h.getInhabitants(onDate))
-                .flatMap(Collection::stream)
-                .filter(p -> p.getOccupation(onDate) != null)
-                .collect(Collectors.groupingBy(p -> p.getOccupation(onDate)));
-        if (!peopleWithOccupations.isEmpty()) {
-            occupations = new TreeMap<>();
-            for (Map.Entry<Occupation, List<Person>> entry : peopleWithOccupations.entrySet()) {
-                occupations.put(entry.getKey().getName(),
-                        entry.getValue().stream()
-                            .map(p -> new PersonReference(p, onDate))
-                            .collect(Collectors.toList()));
+            Map<Occupation, List<Person>> peopleWithOccupations = dwellingPlace.getAllHouseholds(onDate).stream()
+                    .map(h -> h.getInhabitants(onDate))
+                    .flatMap(Collection::stream)
+                    .filter(p -> p.getOccupation(onDate) != null)
+                    .collect(Collectors.groupingBy(p -> p.getOccupation(onDate)));
+            if (!peopleWithOccupations.isEmpty()) {
+                occupations = new TreeMap<>();
+                for (Map.Entry<Occupation, List<Person>> entry : peopleWithOccupations.entrySet()) {
+                    occupations.put(entry.getKey().getName(),
+                            entry.getValue().stream()
+                                    .map(p -> new PersonReference(p, onDate))
+                                    .collect(Collectors.toList()));
+                }
             }
+
+            Person owningPerson = dwellingPlace.getOwner(onDate);
+            owner = owningPerson == null ? null : new PersonReference(owningPerson);
         }
     }
 }

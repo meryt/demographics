@@ -57,6 +57,23 @@ public class Household {
     }
 
     /**
+     * Gets the name of the household, if set, otherwise names the household after the head
+     * @return String
+     */
+    @NonNull
+    public String getFriendlyName(@NonNull LocalDate onDate) {
+        if (name != null) {
+            return name;
+        }
+        Person head = getHead(onDate);
+        if (head != null) {
+            return head.getName() + " household";
+        } else {
+            return "Household " + id;
+        }
+    }
+
+    /**
      * Get the head of the household on the given date, if any. If there is more than one (which would be considered a
      * bug), returns an arbitrary one.
      */

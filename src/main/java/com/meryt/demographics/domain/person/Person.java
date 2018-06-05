@@ -39,6 +39,8 @@ import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.fertility.Fertility;
 import com.meryt.demographics.domain.person.fertility.Maternity;
 import com.meryt.demographics.domain.person.fertility.Paternity;
+import com.meryt.demographics.domain.place.DwellingPlace;
+import com.meryt.demographics.domain.place.DwellingPlaceOwnerPeriod;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.HouseholdInhabitantPeriod;
 import com.meryt.demographics.domain.title.Title;
@@ -135,6 +137,9 @@ public class Person {
      */
     @OneToMany(mappedBy = "person")
     private List<HouseholdInhabitantPeriod> households = new ArrayList<>();
+
+    @OneToMany(mappedBy = "owner")
+    private List<DwellingPlaceOwnerPeriod> ownedDwellingPlaces = new ArrayList<>();
 
     @OneToMany(mappedBy = "person", cascade = { CascadeType.ALL })
     private List<PersonOccupationPeriod> occupations = new ArrayList<>();
@@ -585,6 +590,17 @@ public class Person {
                 .collect(Collectors.toSet());
 
         return occupationsOnDate.isEmpty() ? null : occupationsOnDate.iterator().next();
+    }
+
+    /**
+     * Gets a list, possibly empty, of the properties owned by this person on this date
+     */
+    @NonNull
+    public List<DwellingPlace> getOwnedDwellingPlaces(@NonNull LocalDate onDate) {
+        return getOwnedDwellingPlaces().stream()
+                .filter(o -> o.contains(onDate))
+                .map(DwellingPlaceOwnerPeriod::getDwellingPlace)
+                .collect(Collectors.toList());
     }
 
     /**
