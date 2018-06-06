@@ -3,6 +3,7 @@ package com.meryt.demographics.controllers;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,8 +50,8 @@ public class HouseholdController {
         }
         final LocalDate date = LocalDate.parse(onDate);
 
-        List<Household> results = householdService.loadHouseholdsWithoutHouses(date);
-        return results.stream()
+        return Stream.concat(householdService.loadHouseholdsWithoutHouses(date).stream(),
+                householdService.loadHouseholdsWithoutLocations(date).stream())
                 .map(h -> new HouseholdResponse(h, date))
                 .collect(Collectors.toList());
     }

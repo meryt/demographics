@@ -35,6 +35,8 @@ public class Occupation {
     private SocialClass maxClass;
     private boolean isRural;
     private boolean isFarmOwner;
+    private boolean isDomesticServant;
+    private boolean isFarmLaborer;
 
     /**
      * How many of this occupation we expect to find per person in the population. Obviously this number is always less

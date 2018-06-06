@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
@@ -29,6 +30,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
+import org.thymeleaf.util.StringUtils;
 
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.SocialClass;
@@ -81,6 +83,10 @@ public abstract class DwellingPlace {
         }
 
         return acres / ACRES_PER_SQUARE_MILE;
+    }
+
+    public String getFriendlyName() {
+        return name == null ? getType().getFriendlyName() + " " + id : name;
     }
 
     /**
@@ -173,10 +179,12 @@ public abstract class DwellingPlace {
     }
 
     private Set<DwellingPlace> getRecursiveDwellingPlaces() {
-        return getDwellingPlaces().stream()
-                .map(DwellingPlace::getRecursiveDwellingPlaces)
-                .flatMap(Collection::stream)
-                .collect(Collectors.toSet());
+        return Stream.concat(
+                Stream.of(this),
+                getDwellingPlaces().stream()
+                    .map(DwellingPlace::getRecursiveDwellingPlaces)
+                    .flatMap(Collection::stream)
+                ).collect(Collectors.toSet());
     }
 
     public Set<DwellingPlace> getRecursiveDwellingPlaces(@NonNull DwellingPlaceType ofType) {

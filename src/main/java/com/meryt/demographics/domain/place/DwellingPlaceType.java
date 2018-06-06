@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Set;
+import org.thymeleaf.util.StringUtils;
 
 public enum DwellingPlaceType {
     DWELLING(null),
@@ -40,5 +41,9 @@ public enum DwellingPlaceType {
      */
     public boolean canContain(DwellingPlaceType other) {
         return canContain.contains(other);
+    }
+
+    public String getFriendlyName() {
+        return StringUtils.capitalize(name().toLowerCase());
     }
 }

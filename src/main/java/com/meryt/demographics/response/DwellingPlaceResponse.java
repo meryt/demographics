@@ -24,7 +24,7 @@ public class DwellingPlaceResponse extends DwellingPlaceSummaryResponse {
 
     private List<HouseholdSummaryResponse> leadingHouseholds;
 
-    private List<DwellingPlaceSummaryResponse> places;
+    private List<DwellingPlaceChildSummaryResponse> places;
 
     private Map<String, List<PersonReference>> occupations;
 
@@ -36,7 +36,7 @@ public class DwellingPlaceResponse extends DwellingPlaceSummaryResponse {
         } else {
             places = new ArrayList<>();
             for (DwellingPlace place : dwellingPlace.getDwellingPlaces()) {
-                places.add(new DwellingPlaceSummaryResponse(place, onDate));
+                places.add(new DwellingPlaceChildSummaryResponse(place, onDate));
             }
         }
 
@@ -65,7 +65,7 @@ public class DwellingPlaceResponse extends DwellingPlaceSummaryResponse {
             }
 
             Person owningPerson = dwellingPlace.getOwner(onDate);
-            owner = owningPerson == null ? null : new PersonReference(owningPerson);
+            owner = owningPerson == null ? null : new PersonReference(owningPerson, onDate);
         }
     }
 }

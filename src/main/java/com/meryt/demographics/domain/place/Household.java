@@ -116,6 +116,12 @@ public class Household {
             if (period.getFromDate().isBefore(fromDate) &&
                     (period.getToDate() == null || period.getToDate().isAfter(fromDate))) {
                 period.setToDate(fromDate);
+            }  else if (period.getFromDate().equals(fromDate) && (
+                    (period.getToDate() == null && toDate == null)
+                    || (period.getToDate().equals(toDate)))) {
+                // If the periods are identical, just change the dwelling place.
+                period.setDwellingPlace(dwellingPlace);
+                return;
             }
         }
 

@@ -32,6 +32,25 @@ public class HouseholdService {
         return householdRepository.findById(householdId).orElse(null);
     }
 
+
+
+    /**
+     * Finds all households that are not in any location.
+     *
+     * @param onDate the date to use for the search
+     * @return a list of 0 or more households that are not in any type of location
+     */
+    public List<Household> loadHouseholdsWithoutLocations(@NonNull LocalDate onDate) {
+        return householdRepository.findHouseholdsWithoutLocations(onDate);
+    }
+
+    /**
+     * Finds all households that are in a location, but are not in a location of type DWELLING. Does not find
+     * "floating" households that are not in any location.
+     *
+     * @param onDate the date to use for the search
+     * @return a list of 0 or more households that are not in a location of type DWELLING
+     */
     public List<Household> loadHouseholdsWithoutHouses(@NonNull LocalDate onDate) {
         return householdRepository.findHouseholdsWithoutHouses(onDate);
     }
