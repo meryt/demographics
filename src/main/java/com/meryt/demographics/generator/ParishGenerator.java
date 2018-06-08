@@ -16,6 +16,7 @@ import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.generator.family.HouseholdGenerator;
 import com.meryt.demographics.generator.random.Die;
 import com.meryt.demographics.request.ParishParameters;
+import com.meryt.demographics.service.AncestryService;
 import com.meryt.demographics.service.DwellingPlaceService;
 import com.meryt.demographics.service.FamilyService;
 import com.meryt.demographics.service.HouseholdService;
@@ -41,18 +42,22 @@ public class ParishGenerator {
 
     private final DwellingPlaceService dwellingPlaceService;
 
+    private final AncestryService ancestryService;
+
     public ParishGenerator(@NonNull OccupationService occupationService,
                            @NonNull FamilyGenerator familyGenerator,
                            @NonNull FamilyService familyService,
                            @NonNull PersonService personService,
                            @NonNull HouseholdService householdService,
-                           @NonNull DwellingPlaceService dwellingPlaceService) {
+                           @NonNull DwellingPlaceService dwellingPlaceService,
+                           @NonNull AncestryService ancestryService) {
         this.occupationService = occupationService;
         this.familyGenerator = familyGenerator;
         this.householdService = householdService;
         this.familyService = familyService;
         this.personService = personService;
         this.dwellingPlaceService = dwellingPlaceService;
+        this.ancestryService = ancestryService;
     }
 
     /**
@@ -157,7 +162,7 @@ public class ParishGenerator {
         template.setFamilyParameters(parishParameters.getFamilyParameters());
 
         ParishPopulator populator = new ParishPopulator(parishParameters,
-                new HouseholdGenerator(familyGenerator, personService, familyService, householdService),
+                new HouseholdGenerator(familyGenerator, personService, familyService, householdService, ancestryService),
                 familyGenerator,
                 familyService,
                 householdService,

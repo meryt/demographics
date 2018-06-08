@@ -87,6 +87,10 @@ public class FamilyGenerator {
             family.getHusband().setFinishedGeneration(true);
         }
 
+        if (familyParameters.isPersist()) {
+            personService.save(family.getHusband());
+            personService.save(family.getWife());
+        }
         generateChildren(family, familyParameters);
 
         for (Person child : family.getChildren()) {
@@ -350,7 +354,7 @@ public class FamilyGenerator {
             return;
         }
 
-        PregnancyChecker checker = new PregnancyChecker(personGenerator, family, false);
+        PregnancyChecker checker = new PregnancyChecker(personGenerator, family, familyParameters.isAllowMaternalDeath());
         checker.checkDateRange(fromDate, toDate);
 
         // If we're cycling until first death but woman is pregnant, continue cycling till she gives birth

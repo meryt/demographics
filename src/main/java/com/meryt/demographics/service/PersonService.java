@@ -49,6 +49,23 @@ public class PersonService {
     }
 
     /**
+     * Gets all women who are living on or before this date and whose last check day is on or before this date
+     * @param checkDate the date the check should be done. Will find women whose last check day was well before this
+     *                  date, not only 1 day behind
+     * @return a list of women, possibly empty
+     */
+    @NonNull
+    List<Person> findWomenWithPendingMaternities(@NonNull LocalDate checkDate) {
+        return personRepository.findWomenWithPendingMaternities(checkDate);
+    }
+
+    @NonNull
+    List<Person> findUnmarriedMen(@NonNull LocalDate checkDate, int minHusbandAge, int maxHusbandAge) {
+        return personRepository.findUnmarriedMen(checkDate, checkDate.minusYears(maxHusbandAge),
+                checkDate.minusYears(minHusbandAge));
+    }
+
+    /**
      * Find potential spouses for a person based on family parameters.
      *
      * @param person the person looking for a spouse
@@ -59,9 +76,9 @@ public class PersonService {
      * @return a list of potential spouses, possibly empty, with their relationship to the person
      */
     public List<RelatedPerson> findPotentialSpouses(@NonNull Person person,
-                                             @Nullable LocalDate onDate,
-                                             boolean includeFutureSpouses,
-                                             @NonNull FamilyParameters familyParameters) {
+                                                    @Nullable LocalDate onDate,
+                                                    boolean includeFutureSpouses,
+                                                    @NonNull FamilyParameters familyParameters) {
         int minHusbandAge = familyParameters.getMinHusbandAgeOrDefault();
         int minWifeAge = familyParameters.getMinWifeAgeOrDefault();
         LocalDate searchDate = MatchMaker.getDateToStartMarriageSearch(person, minHusbandAge, minWifeAge);
@@ -110,11 +127,7 @@ public class PersonService {
         return personRepository.findPotentialSpouses(spouseGender, searchDate, minBirthDate,
                 maxBirthDate, null).stream()
                 // Filter out women who were married more than once, or widows with children
-                .filter(p -> p.getFamilies().isEmpty()
-                        || (p.isFemale()
-                        && p.getFamilies().size() == 1
-                        && p.getLivingChildren(filterSearchDate).isEmpty()
-                        && p.getFamilies().iterator().next().getHusband().getDeathDate().isBefore(filterSearchDate)))
+                .filter(p -> isWidowWithChildren(p, filterSearchDate))
                 // Convert to a data structure that includes the relationship
                 .map(spouse -> new RelatedPerson(spouse, ancestryService.calculateRelationship(spouse, person)))
                 // Filter out anyone too closely related
@@ -125,6 +138,18 @@ public class PersonService {
 
     List<Person> loadUnfinishedPersons() {
         return personRepository.findUnfinishedPersons(null);
+    }
+
+    private static boolean isWidowWithChildren(@NonNull Person person, @NonNull LocalDate onDate) {
+        if (!person.isFemale() || person.getFamilies().size() != 1) {
+            // We want to filter out both
+            return false;
+        }
+        if (person.getLivingChildren(onDate).isEmpty()) {
+            return false;
+        }
+        Person husband = person.getFamilies().get(0).getHusband();
+        return husband == null || !husband.isLiving(onDate);
     }
 
 }

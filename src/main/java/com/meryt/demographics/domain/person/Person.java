@@ -465,28 +465,6 @@ public class Person {
         }
     }
 
-    public void addToHousehold(@NonNull Household household, @NonNull LocalDate fromDate, boolean isHead) {
-        for (HouseholdInhabitantPeriod period : getHouseholds()) {
-            if (period.getFromDate().isBefore(fromDate) &&
-                    (period.getToDate() == null || period.getToDate().isAfter(fromDate))) {
-                period.setToDate(fromDate);
-                period.getHousehold().endPersonResidence(this.getId(), fromDate);
-            }
-        }
-        HouseholdInhabitantPeriod newPeriod = new HouseholdInhabitantPeriod();
-
-        newPeriod.setHousehold(household);
-
-        household.addInhabitantPeriod(newPeriod);
-
-        newPeriod.setPerson(this);
-        newPeriod.setPersonId(getId());
-        newPeriod.setFromDate(fromDate);
-        newPeriod.setToDate(getDeathDate());
-        newPeriod.setHouseholdHead(isHead);
-        getHouseholds().add(newPeriod);
-    }
-
     public void addOccupation(@NonNull Occupation occupation, @NonNull LocalDate fromDate) {
         for (PersonOccupationPeriod period : getOccupations()) {
             if (period.getFromDate().isBefore(fromDate) &&
@@ -610,7 +588,7 @@ public class Person {
     @Nullable
     public Household getHousehold(@NonNull LocalDate onDate) {
         Set<Household> householdsOnDate = getHouseholds().stream()
-                .filter(o -> o.containsDate(onDate))
+                .filter(o -> o.contains(onDate))
                 .map(HouseholdInhabitantPeriod::getHousehold)
                 .collect(Collectors.toSet());
 

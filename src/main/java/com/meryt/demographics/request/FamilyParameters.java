@@ -1,6 +1,8 @@
 package com.meryt.demographics.request;
 
 import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.NonNull;
 import lombok.Setter;
 
 import java.time.LocalDate;
@@ -8,6 +10,7 @@ import java.time.LocalDate;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.SocialClass;
 
+@NoArgsConstructor
 @Getter
 @Setter
 public class FamilyParameters {
@@ -78,6 +81,11 @@ public class FamilyParameters {
     private boolean allowExistingSpouse;
 
     /**
+     * If true, a woman may die in childbirth
+     */
+    private boolean allowMaternalDeath;
+
+    /**
      * Only used if allowExistingSpouse is true. If there are fewer than this many existing eligible spouses on the
      * search date, random potential spouses will be created to fill out the selection to this many people. For example
      * if this is set to 5 and there are only 2 potential spouses in the database, there is a 3/5 chance a random
@@ -110,6 +118,31 @@ public class FamilyParameters {
      * For relatives to marry there must be at least this many degrees of separation
      */
     private Integer minDegreesSeparation;
+
+    /**
+     * Copy constructor
+     */
+    public FamilyParameters(@NonNull FamilyParameters other) {
+        allowExistingSpouse = other.allowExistingSpouse;
+        allowMaternalDeath = other.allowMaternalDeath;
+        cycleToDeath = other.cycleToDeath;
+        founderLastName = other.founderLastName;
+        maxHusbandAge = other.maxHusbandAge;
+        maxMarriageableWifeAge = other.maxMarriageableWifeAge;
+        maxOlderWifeAgeDiff = other.maxOlderWifeAgeDiff;
+        maxSocialClass = other.maxSocialClass;
+        maxWifeAge = other.maxWifeAge;
+        minDegreesSeparation = other.minDegreesSeparation;
+        minHusbandAge = other.minHusbandAge;
+        minSocialClass = other.minSocialClass;
+        minSpouseSelection = other.minSpouseSelection;
+        minWifeAge = other.minWifeAge;
+        percentMaleFounders = other.percentMaleFounders;
+        persist = other.persist;
+        referenceDate = other.referenceDate;
+        spouse = other.spouse;
+        spouseLastName = other.spouseLastName;
+    }
 
     public int getMinHusbandAgeOrDefault() {
         return minHusbandAge == null ? DEFAULT_MIN_HUSBAND_AGE : minHusbandAge;

@@ -91,7 +91,7 @@ public class Household {
 
     private Set<HouseholdInhabitantPeriod> getHouseholdInhabitants(@NonNull LocalDate onDate) {
         return getInhabitantPeriods().stream()
-                .filter(period -> period.containsDate(onDate))
+                .filter(period -> period.contains(onDate))
                 .collect(Collectors.toSet());
     }
 
@@ -111,30 +111,6 @@ public class Household {
         return places.isEmpty() ? null : places.iterator().next();
     }
 
-    public void addToDwellingPlace(@NonNull DwellingPlace dwellingPlace, @NonNull LocalDate fromDate, LocalDate toDate) {
-        for (HouseholdLocationPeriod period : getDwellingPlaces()) {
-            if (period.getFromDate().isBefore(fromDate) &&
-                    (period.getToDate() == null || period.getToDate().isAfter(fromDate))) {
-                period.setToDate(fromDate);
-            }  else if (period.getFromDate().equals(fromDate) && (
-                    (period.getToDate() == null && toDate == null)
-                    || (period.getToDate().equals(toDate)))) {
-                // If the periods are identical, just change the dwelling place.
-                period.setDwellingPlace(dwellingPlace);
-                return;
-            }
-        }
-
-        HouseholdLocationPeriod newPeriod = new HouseholdLocationPeriod();
-        newPeriod.setHouseholdId(getId());
-        newPeriod.setHousehold(this);
-        newPeriod.setDwellingPlace(dwellingPlace);
-        dwellingPlace.getHouseholdPeriods().add(newPeriod);
-        newPeriod.setFromDate(fromDate);
-        newPeriod.setToDate(toDate);
-        getDwellingPlaces().add(newPeriod);
-    }
-
     public void addInhabitantPeriod(@NonNull HouseholdInhabitantPeriod newPeriod) {
         for (HouseholdInhabitantPeriod period : getInhabitantPeriods()) {
             if (period.getPersonId() == newPeriod.getPersonId() &&
@@ -147,39 +123,4 @@ public class Household {
         }
         getInhabitantPeriods().add(newPeriod);
     }
-
-    /**
-     * Tell this household that the person has moved. Cap his current residency period (if any)
-     * @param personId the person
-     * @param fromDate the date upon which the person moved to another household
-     */
-    public void endPersonResidence(long personId, @NonNull LocalDate fromDate) {
-        for (HouseholdInhabitantPeriod period : getInhabitantPeriods()) {
-            if (period.getPersonId() == personId &&
-                    period.getFromDate().isBefore(fromDate) &&
-                    (period.getToDate() == null || period.getToDate().isAfter(fromDate))) {
-
-                period.setToDate(fromDate);
-            }
-        }
-    }
-
-    /**
-     * Use this method to find and set a new head of household as of the given date. Normally used when the current
-     * head of the household dies.
-     *
-     * @param onDate the date the previous head died or left
-     */
-    public void resetHeadAsOf(@NonNull LocalDate onDate) {
-        List<Person> inhabitantsByAge = getInhabitants(onDate).stream()
-                .filter(p -> p.getBirthDate() != null && p.getAgeInYears(onDate) >= 16)
-                .sorted(Comparator.comparing(Person::getGender).thenComparing(Person::getBirthDate))
-                .collect(Collectors.toList());
-        if (inhabitantsByAge.isEmpty()) {
-            return;
-        }
-
-        inhabitantsByAge.get(0).addToHousehold(this, onDate, true);
-    }
-
 }

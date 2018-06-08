@@ -413,7 +413,7 @@ class ParishPopulator {
             // the area.
             moveRuralLaborerOntoEstateOrFarm(dwellingPlace, headOfHousehold, household, moveInDate);
         } else {
-            household.addToDwellingPlace(dwellingPlace, moveInDate, null);
+            householdService.addToDwellingPlace(household, dwellingPlace, moveInDate, null);
         }
     }
 
@@ -443,7 +443,7 @@ class ParishPopulator {
         manorHouse.addOwner(headOfHousehold, moveInDate, null);
         log.info(String.format("Generated estate '%s' for household of %s, %s", estate.getName(),
                 headOfHousehold.getName(), headOfHousehold.getSocialClass().getFriendlyName()));
-        household.addToDwellingPlace(manorHouse, moveInDate, null);
+        householdService.addToDwellingPlace(household, manorHouse, moveInDate, null);
         maybePersist(household);
     }
 
@@ -460,7 +460,7 @@ class ParishPopulator {
         Dwelling house = new Dwelling();
         maybePersist(house);
         dwellingPlace.addDwellingPlace(house);
-        household.addToDwellingPlace(house, moveInDate, null);
+        householdService.addToDwellingPlace(household, house, moveInDate, null);
         maybePersist(dwellingPlace);
         if (household.getHead(moveInDate) != null) {
             house.addOwner(household.getHead(moveInDate), moveInDate, null);
@@ -484,7 +484,7 @@ class ParishPopulator {
         maybePersist(farmHouse);
         maybePersist(farm);
         farmHouse.addOwner(headOfHousehold, moveInDate, null);
-        household.addToDwellingPlace(farmHouse, moveInDate, null);
+        householdService.addToDwellingPlace(household, farmHouse, moveInDate, null);
         maybePersist(household);
         log.info(String.format("Created %s in %s", farm.getName(), dwellingPlace.getFriendlyName()));
     }
@@ -498,8 +498,8 @@ class ParishPopulator {
         farmsInPlace.addAll(dwellingPlace.getRecursiveDwellingPlaces(DwellingPlaceType.ESTATE));
 
         Dwelling house = new Dwelling();
-        household.addToDwellingPlace(house, moveInDate, null);
         maybePersist(house);
+        householdService.addToDwellingPlace(household, house, moveInDate, null);
         house.addOwner(headOfHousehold, moveInDate, null);
 
         if (farmsInPlace.isEmpty()) {
@@ -580,7 +580,7 @@ class ParishPopulator {
         // Ensure that if the head has died and the household records not been cleaned up, that we find a new head.
         // We don't move out a son if he is the head of his household.
         if (household.getHead(onDate) == null) {
-            household.resetHeadAsOf(onDate);
+            householdService.resetHeadAsOf(household, onDate);
         }
         // We don't want to move out a son who is the head of the household due to the death of his father
         Person head = household.getHead(onDate);
@@ -624,9 +624,7 @@ class ParishPopulator {
                            @NonNull Family family,
                            @NonNull ParishTemplate parishTemplate) {
 
-        if (shouldPersist()) {
-            family = familyService.save(family);
-        }
+        family = familyService.save(family);
 
         LocalDate onDate = parishTemplate.getFamilyParameters().getReferenceDate();
 
@@ -635,7 +633,7 @@ class ParishPopulator {
         maybePersist(oldHousehold);
 
         if (!family.getHusband().isLiving(onDate)) {
-            newHousehold.resetHeadAsOf(family.getHusband().getDeathDate());
+            householdService.resetHeadAsOf(newHousehold, family.getHusband().getDeathDate());
         }
 
         maybePersist(newHousehold);
@@ -662,7 +660,7 @@ class ParishPopulator {
     private void moveHomelessHouseholdIntoHouse(@NonNull Household household, @NonNull LocalDate onDate) {
         Person head = household.getHead(onDate);
         if (head == null) {
-            household.resetHeadAsOf(onDate);
+            householdService.resetHeadAsOf(household, onDate);
             maybePersist(household);
             head = household.getHead(onDate);
             if (head == null) {
@@ -749,7 +747,8 @@ class ParishPopulator {
                 moveFamilyIntoNewHouse(employeeHouseholdParentPlace, household, moveInDate);
         } else {
             // Otherwise add the household directly to the employer's house.
-            household.addToDwellingPlace(employerHousehold.getDwellingPlace(moveInDate), moveInDate, null);
+            householdService.addToDwellingPlace(household, employerHousehold.getDwellingPlace(moveInDate), moveInDate,
+                    null);
             log.info(String.format("%s moved into the house of their employer, %s",
                     household.getFriendlyName(moveInDate), employerHousehold.getFriendlyName(moveInDate)));
         }
@@ -801,7 +800,7 @@ class ParishPopulator {
             Person houseOwner = house.getOwner(moveInDate);
             log.info(String.format("Moved pauper %s into house of %s", household.getFriendlyName(moveInDate),
                     houseOwner == null ? "id " + house.getId() : houseOwner.getName()));
-            household.addToDwellingPlace(house, moveInDate, null);
+            householdService.addToDwellingPlace(household, house, moveInDate, null);
         } else {
             // Create a house for the family and place it in the random dwelling place
             moveFamilyIntoNewHouse(placesOfType.get(0), household, moveInDate);

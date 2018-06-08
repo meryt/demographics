@@ -21,6 +21,11 @@ public class RestResponseEntityExceptionHandler extends ResponseEntityExceptionH
         return buildResponseEntity(new RestErrorMessage(HttpStatus.BAD_REQUEST, e.getMessage()));
     }
 
+    @ExceptionHandler(value = { ConflictException.class })
+    protected ResponseEntity<Object> handleConflict(ConflictException e) {
+        return buildResponseEntity(new RestErrorMessage(HttpStatus.CONFLICT, e.getMessage()));
+    }
+
     private ResponseEntity<Object> buildResponseEntity(RestErrorMessage error) {
         return new ResponseEntity<>(error, error.getStatus());
     }
