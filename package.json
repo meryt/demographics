@@ -26,6 +26,7 @@
     "popper.js": "^1.14.3",
     "react": "^16.2.0",
     "react-dom": "^16.2.0",
+    "reactstrap": "^6.1.0",
     "rest": "^2.0.0",
     "webpack": "^4.3.0",
     "webpack-cli": "^2.0.13"
