@@ -1,7 +1,6 @@
 package com.meryt.demographics.domain.place;
 
 import java.time.LocalDate;
-import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
@@ -30,13 +29,13 @@ public class HouseholdLocationPeriod implements DateRange {
     private long householdId;
 
     @JsonIgnore
-    @ManyToOne(cascade = CascadeType.ALL)
+    @ManyToOne
     @MapsId("household_id")
     @JoinColumn(name = "household_id", referencedColumnName = "id")
     private Household household;
 
     @JsonIgnore
-    @ManyToOne(cascade = CascadeType.ALL)
+    @ManyToOne
     @JoinColumn(name = "dwelling_place_id", referencedColumnName = "id")
     private DwellingPlace dwellingPlace;
 

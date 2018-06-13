@@ -38,14 +38,14 @@ public class Household {
     /**
      * A list of all the people who have ever lived in the household, over time
      */
-    @OneToMany(mappedBy = "household", cascade = { CascadeType.ALL })
+    @OneToMany(mappedBy = "household", cascade = { CascadeType.MERGE })
     private List<HouseholdInhabitantPeriod> inhabitantPeriods = new ArrayList<>();
 
 
     /**
      * A list of the dwelling places the household has lived, over time
      */
-    @OneToMany(mappedBy = "household", cascade = { CascadeType.ALL })
+    @OneToMany(mappedBy = "household", cascade = { CascadeType.MERGE })
     private List<HouseholdLocationPeriod> dwellingPlaces = new ArrayList<>();
 
     /**

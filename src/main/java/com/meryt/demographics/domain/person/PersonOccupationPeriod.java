@@ -1,6 +1,6 @@
 package com.meryt.demographics.domain.person;
 
-import javax.persistence.CascadeType;
+import java.time.LocalDate;
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
@@ -10,8 +10,6 @@ import javax.persistence.ManyToOne;
 import javax.persistence.MapsId;
 import javax.persistence.PrimaryKeyJoinColumn;
 import javax.persistence.Table;
-import java.time.LocalDate;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Getter;
 import lombok.Setter;
@@ -31,12 +29,12 @@ public class PersonOccupationPeriod implements DateRange {
     private long personId;
 
     @JsonIgnore
-    @ManyToOne(cascade = { CascadeType.ALL })
+    @ManyToOne
     @MapsId("person_id")
     @PrimaryKeyJoinColumn(name = "person_id", referencedColumnName = "id")
     private Person person;
 
-    @ManyToOne(cascade = { CascadeType.ALL })
+    @ManyToOne
     @JoinColumn(name = "occupation_id", referencedColumnName = "id")
     private Occupation occupation;
 

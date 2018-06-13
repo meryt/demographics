@@ -1,6 +1,7 @@
 package com.meryt.demographics.service;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -199,6 +200,7 @@ public class HouseholdService {
                                    @NonNull DwellingPlace dwellingPlace,
                                    @NonNull LocalDate fromDate,
                                    LocalDate toDate) {
+        List<HouseholdLocationPeriod> periodsToDelete = new ArrayList<>();
         for (HouseholdLocationPeriod period : household.getDwellingPlaces()) {
             if (period.getFromDate().isBefore(fromDate) &&
                     (period.getToDate() == null || period.getToDate().isAfter(fromDate))) {
@@ -211,18 +213,29 @@ public class HouseholdService {
                 period.setDwellingPlace(dwellingPlace);
                 householdLocationRepository.save(period);
                 return;
+            } else if (toDate == null && period.getFromDate().isAfter(fromDate)) {
+                // If this is an open-ended date range, we should delete any future locations for this household
+                periodsToDelete.add(period);
             }
+        }
+
+        for (HouseholdLocationPeriod periodToDelete : periodsToDelete) {
+            household.getDwellingPlaces().remove(periodToDelete);
+            dwellingPlace.getHouseholdPeriods().remove(periodToDelete);
+            householdLocationRepository.delete(periodToDelete);
         }
 
         HouseholdLocationPeriod newPeriod = new HouseholdLocationPeriod();
         newPeriod.setHouseholdId(household.getId());
         newPeriod.setHousehold(household);
         newPeriod.setDwellingPlace(dwellingPlace);
-        dwellingPlace.getHouseholdPeriods().add(newPeriod);
         newPeriod.setFromDate(fromDate);
         newPeriod.setToDate(toDate);
         household.getDwellingPlaces().add(newPeriod);
-        householdLocationRepository.save(newPeriod);
+
+        newPeriod = householdLocationRepository.save(newPeriod);
+
+        dwellingPlace.getHouseholdPeriods().add(newPeriod);
     }
 
 }

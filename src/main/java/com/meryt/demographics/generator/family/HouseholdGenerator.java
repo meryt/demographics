@@ -11,6 +11,8 @@ import lombok.extern.slf4j.Slf4j;
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.place.Household;
+import com.meryt.demographics.domain.place.HouseholdInhabitantPeriod;
+import com.meryt.demographics.domain.place.HouseholdLocationPeriod;
 import com.meryt.demographics.request.FamilyParameters;
 import com.meryt.demographics.service.AncestryService;
 import com.meryt.demographics.service.FamilyService;
@@ -143,13 +145,7 @@ public class HouseholdGenerator {
         Person oldestLivingSon = null;
         if (family.isHusbandLiving(onDate) && !household.getInhabitants(onDate).contains(family.getHusband())) {
             LocalDate moveInDate = weddingDate != null ? weddingDate : family.getHusband().getBirthDate();
-            Household formerHousehold = family.getHusband().getHousehold(onDate);
-            if (formerHousehold != null) {
-                householdService.endPersonResidence(formerHousehold, family.getHusband(), moveInDate);
-                householdService.save(formerHousehold);
-            }
-            replaceHouseholdHead(household, moveInDate);
-            householdService.addPersonToHousehold(family.getHusband(), household, moveInDate, true);
+            moveToNewHousehold(family.getHusband(), household, moveInDate, true);
         } else {
             oldestLivingSon = getOldestLivingSonOverFifteen(family, onDate);
         }
@@ -159,16 +155,7 @@ public class HouseholdGenerator {
             // She's only the head if she has no husband or son old enough
             boolean isHead = !family.getHusband().isLiving(moveInDate) && household.getHead(moveInDate) == null
                     && oldestLivingSon == null;
-            Household formerHousehold = family.getWife().getHousehold(moveInDate);
-            if (formerHousehold != null) {
-                householdService.endPersonResidence(formerHousehold, family.getWife(), moveInDate);
-                householdService.save(formerHousehold);
-            }
-            if (isHead && !family.getWife().equals(household.getHead(moveInDate))) {
-                replaceHouseholdHead(household, moveInDate);
-            }
-
-            householdService.addPersonToHousehold(family.getWife(), household, moveInDate, isHead);
+            moveToNewHousehold(family.getWife(), household, moveInDate, isHead);
         }
 
         for (Person child : family.getChildren()) {
@@ -180,6 +167,41 @@ public class HouseholdGenerator {
                 householdService.addPersonToHousehold(child, household, child.getBirthDate(), isHead);
             }
         }
+    }
+
+    /**
+     * Moves a person to a new household as of the given date, with no end date. If he was previously a member of
+     * another household, that residence will end as of the given date. If he is only in a household in the future, that
+     * future household membership will be deleted and replaced with the new one, as there is no end date specified
+     * in this method.
+     *
+     * @param person the person to move in (and possibly out of an existing household)
+     * @param household the household to move into
+     * @param moveInDate the date when he takes up residence in the new household
+     */
+    private void moveToNewHousehold(@NonNull Person person,
+                                    @NonNull Household household,
+                                    @NonNull LocalDate moveInDate,
+                                    boolean isHead) {
+        Household formerHousehold = person.getHousehold(moveInDate);
+        if (formerHousehold != null) {
+            householdService.endPersonResidence(formerHousehold, person, moveInDate);
+            householdService.save(formerHousehold);
+        }
+        // Remove any future households
+        List<HouseholdInhabitantPeriod> futureHouseholds = person.getHouseholds().stream()
+                .filter(hip -> hip.getFromDate().isAfter(moveInDate))
+                .collect(Collectors.toList());
+        if (!futureHouseholds.isEmpty()) {
+            for (HouseholdInhabitantPeriod period : futureHouseholds) {
+                householdService.delete(period);
+            }
+        }
+
+        if (isHead && !person.equals(household.getHead(moveInDate))) {
+            replaceHouseholdHead(household, moveInDate);
+        }
+        householdService.addPersonToHousehold(person, household, moveInDate, isHead);
     }
 
     private void replaceHouseholdHead(@NonNull Household household, @NonNull LocalDate endOfHeadShip) {
