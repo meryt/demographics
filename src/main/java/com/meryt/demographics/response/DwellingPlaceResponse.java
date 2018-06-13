@@ -20,7 +20,7 @@ import com.meryt.demographics.domain.place.Household;
 @Getter
 public class DwellingPlaceResponse extends DwellingPlaceSummaryResponse {
 
-    private PersonReference owner;
+    private List<PersonReference> owners;
 
     private List<HouseholdSummaryResponse> leadingHouseholds;
 
@@ -64,8 +64,10 @@ public class DwellingPlaceResponse extends DwellingPlaceSummaryResponse {
                 }
             }
 
-            Person owningPerson = dwellingPlace.getOwner(onDate);
-            owner = owningPerson == null ? null : new PersonReference(owningPerson, onDate);
+            List<Person> owningPersons = dwellingPlace.getOwners(onDate);
+            owners = owningPersons.isEmpty()
+                    ? null
+                    : owningPersons.stream().map(p -> new PersonReference(p, onDate)).collect(Collectors.toList());
         }
     }
 }

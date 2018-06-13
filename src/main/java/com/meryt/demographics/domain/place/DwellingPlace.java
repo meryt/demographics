@@ -6,11 +6,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import javax.annotation.Nullable;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.DiscriminatorColumn;
@@ -26,11 +24,11 @@ import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
+import javax.validation.constraints.NotNull;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
-import org.thymeleaf.util.StringUtils;
 
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.SocialClass;
@@ -204,17 +202,16 @@ public abstract class DwellingPlace {
     }
 
     /**
-     * Get the person who owns the property on this date. (May be null.)
+     * Get the person who owns the property on this date. (May be empty.)
      * @param onDate the date to find an owner; there may be 0 or 1 persons owning the property on this date.
-     * @return the owning person, or null if no one owns it at this time
+     * @return the owning person or persons, or empty list if no one owns it at this time
      */
-    @Nullable
-    public Person getOwner(@NonNull LocalDate onDate) {
-        Optional<Person> person = getOwnerPeriods().stream()
+    @NotNull
+    public List<Person> getOwners(@NonNull LocalDate onDate) {
+        return getOwnerPeriods().stream()
                 .filter(p -> p.contains(onDate))
                 .map(DwellingPlaceOwnerPeriod::getOwner)
-                .findFirst();
-        return person.orElse(null);
+                .collect(Collectors.toList());
     }
 
     /**
@@ -234,12 +231,12 @@ public abstract class DwellingPlace {
         DwellingPlaceOwnerPeriod newPeriod = new DwellingPlaceOwnerPeriod();
         newPeriod.setDwellingPlaceId(getId());
         newPeriod.setDwellingPlace(this);
+        newPeriod.setPersonId(person.getId());
         newPeriod.setOwner(person);
         newPeriod.setFromDate(fromDate);
         newPeriod.setToDate(toDate);
         person.getOwnedDwellingPlaces().add(newPeriod);
         getOwnerPeriods().add(newPeriod);
     }
-
 
 }

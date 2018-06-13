@@ -27,6 +27,15 @@ public class DwellingPlaceOwnerPeriod implements DateRange {
     @Column(name = "dwelling_place_id", updatable = false, insertable = false)
     private long dwellingPlaceId;
 
+    @Id
+    @Column(name = "person_id", updatable = false, insertable = false)
+    private long personId;
+
+    @Id
+    private LocalDate fromDate;
+
+    private LocalDate toDate;
+
     @JsonIgnore
     @ManyToOne(cascade = CascadeType.ALL)
     @MapsId("dwelling_place_id")
@@ -35,12 +44,8 @@ public class DwellingPlaceOwnerPeriod implements DateRange {
 
     @JsonIgnore
     @ManyToOne(cascade = CascadeType.ALL)
+    @MapsId("person_id")
     @JoinColumn(name = "person_id", referencedColumnName = "id")
     private Person owner;
-
-    @Id
-    private LocalDate fromDate;
-
-    private LocalDate toDate;
 
 }

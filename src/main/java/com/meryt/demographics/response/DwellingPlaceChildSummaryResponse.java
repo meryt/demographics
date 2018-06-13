@@ -1,6 +1,9 @@
 package com.meryt.demographics.response;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import lombok.Getter;
 import lombok.NonNull;
@@ -16,7 +19,7 @@ public class DwellingPlaceChildSummaryResponse extends DwellingPlacePointer {
     private final String location;
     private Long directPopulation;
     private Long totalPopulation;
-    private final PersonSummaryResponse owner;
+    private final List<PersonSummaryResponse> owners;
 
     public DwellingPlaceChildSummaryResponse(@NonNull DwellingPlace dwellingPlace, @Nullable LocalDate onDate) {
         super(dwellingPlace);
@@ -36,11 +39,11 @@ public class DwellingPlaceChildSummaryResponse extends DwellingPlacePointer {
         }
 
         if (onDate != null) {
-            Person ownerPerson = dwellingPlace.getOwner(onDate);
-            if (ownerPerson != null) {
-                owner = new PersonSummaryResponse(ownerPerson, onDate);
+            List<Person> ownerPersons = dwellingPlace.getOwners(onDate);
+            if (!ownerPersons.isEmpty()) {
+                owners = ownerPersons.stream().map(p -> new PersonSummaryResponse(p, onDate)).collect(Collectors.toList());
             } else {
-                owner = null;
+                owners = null;
             }
 
             long pop = dwellingPlace.getPopulation(onDate);
@@ -49,7 +52,7 @@ public class DwellingPlaceChildSummaryResponse extends DwellingPlacePointer {
             directPopulation = directPop == 0 ? null : directPop;
 
         } else {
-            owner = null;
+            owners = null;
         }
     }
 }

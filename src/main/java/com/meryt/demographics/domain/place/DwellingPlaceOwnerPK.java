@@ -16,6 +16,9 @@ public class DwellingPlaceOwnerPK implements Serializable {
     @Column(name = "dwelling_place_id")
     private long dwellingPlaceId;
 
+    @Column(name = "person_id")
+    private long personId;
+
     @Column(name = "from_date")
     private LocalDate fromDate;
 }

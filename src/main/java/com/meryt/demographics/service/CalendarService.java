@@ -69,14 +69,14 @@ public class CalendarService {
                                                                            @NonNull FamilyParameters familyParameters) {
         List<Person> unmarriedPeople = personService.findUnmarriedMen(date, familyParameters.getMinHusbandAgeOrDefault(),
                 familyParameters.getMaxHusbandAgeOrDefault());
-        log.info(unmarriedPeople.size() + " men may be looking for a wife");
-        for (Person man : unmarriedPeople.stream().sorted(Comparator.comparing(Person::getBirthDate).reversed()).collect(Collectors.toList())) {
+
+        for (Person man : unmarriedPeople) {
             if (!man.getFamilies().isEmpty()) {
-                log.info(String.format("%s is %s and his wife died on %s", man.getName(), man.getAge(date),
-                        man.getFamilies().get(0).getWife().getDeathDate()));
+                log.info(String.format("%d %s is %s and his last wife died on %s", man.getId(), man.getName(),
+                        man.getAge(date), man.getFamilies().get(man.getFamilies().size() - 1).getWife().getDeathDate()));
             } else {
-                log.info(String.format("%s is %s and has been married %s times", man.getName(), man.getAge(date),
-                        man.getFamilies().size()));
+                log.info(String.format("%d %s is %s and has never been married", man.getId(), man.getName(),
+                        man.getAge(date)));
             }
         }
         return new TreeMap<>();

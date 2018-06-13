@@ -797,9 +797,9 @@ class ParishPopulator {
         if (type == DwellingPlaceType.DWELLING) {
             // Just move the household into the house (you can't put a house inside a house)
             DwellingPlace house = placesOfType.get(0);
-            Person houseOwner = house.getOwner(moveInDate);
+            List<Person> houseOwner = house.getOwners(moveInDate);
             log.info(String.format("Moved pauper %s into house of %s", household.getFriendlyName(moveInDate),
-                    houseOwner == null ? "id " + house.getId() : houseOwner.getName()));
+                    houseOwner.isEmpty() ? "id " + house.getId() : houseOwner.get(0).getName()));
             householdService.addToDwellingPlace(household, house, moveInDate, null);
         } else {
             // Create a house for the family and place it in the random dwelling place
