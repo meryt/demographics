@@ -15,6 +15,7 @@ import com.meryt.demographics.domain.place.DwellingPlace;
 public class DwellingPlaceChildSummaryResponse extends DwellingPlacePointer {
 
     private Double value;
+    private Boolean entailed;
     private final Double acres;
     private final Double squareMiles;
     private final String location;
@@ -27,6 +28,7 @@ public class DwellingPlaceChildSummaryResponse extends DwellingPlacePointer {
         value = dwellingPlace.getValue();
         acres = dwellingPlace.getAcres();
         squareMiles = dwellingPlace.getSquareMiles();
+        entailed = dwellingPlace.isEntailed() ? true : null;
 
         if (dwellingPlace.getParent() == null) {
             location = null;

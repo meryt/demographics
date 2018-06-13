@@ -77,6 +77,8 @@ public abstract class DwellingPlace {
     @Setter(AccessLevel.PROTECTED)
     private DwellingPlaceType type;
 
+    private boolean entailed;
+
     public Double getSquareMiles() {
         if (acres == null) {
             return null;
