@@ -1,0 +1,1 @@
+ALTER TABLE dwelling_places ADD COLUMN value DOUBLE PRECISION;

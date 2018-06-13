@@ -70,6 +70,8 @@ public abstract class DwellingPlace {
 
     private Double acres;
 
+    private Double value;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "dwelling_place_type", updatable = false, insertable = false)
     @Setter(AccessLevel.PROTECTED)

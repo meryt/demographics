@@ -8,6 +8,7 @@ import com.meryt.demographics.domain.place.DwellingPlace;
 @Getter
 public class DwellingPlaceReference extends DwellingPlacePointer {
 
+    private Double value;
     private final Double acres;
     private final Double squareMiles;
     private final String location;
@@ -17,6 +18,7 @@ public class DwellingPlaceReference extends DwellingPlacePointer {
         super(dwellingPlace);
         acres = dwellingPlace.getAcres();
         squareMiles = dwellingPlace.getSquareMiles();
+        value = dwellingPlace.getValue();
 
         if (dwellingPlace.getParent() == null) {
             location = null;
