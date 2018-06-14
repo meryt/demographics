@@ -123,4 +123,11 @@ public class Household {
         }
         getInhabitantPeriods().add(newPeriod);
     }
+
+    @Nullable
+    public HouseholdInhabitantPeriod getInhabitantPeriod(@NonNull LocalDate onDate) {
+        return getInhabitantPeriods().stream()
+                .filter(hip -> hip.contains(onDate))
+                .findFirst().orElse(null);
+    }
 }

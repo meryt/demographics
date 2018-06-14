@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.annotation.Nullable;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.DiscriminatorColumn;
@@ -32,6 +33,7 @@ import lombok.Setter;
 
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.SocialClass;
+import com.meryt.demographics.response.DwellingPlacePointer;
 
 @Getter
 @Setter
@@ -125,6 +127,24 @@ public abstract class DwellingPlace {
                 .map(place -> place.getAllHouseholds(onDate))
                 .flatMap(Collection::stream)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Recursively get the friendly location name of this dwelling place by taking its name (if any) and appending the
+     * result of its parent.
+     * @return a string, or null if neither the place nor any of its parents has a name
+     */
+    @Nullable
+    public String getLocationString() {
+        String name = getName() == null ? null : getName();
+        String location = getParent() == null ? null : getParent().getLocationString();
+        if (name == null) {
+            return location;
+        } else if (location == null) {
+            return name;
+        } else {
+            return name + ", " + location;
+        }
     }
 
     /**

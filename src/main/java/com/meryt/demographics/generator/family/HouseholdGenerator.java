@@ -86,7 +86,7 @@ public class HouseholdGenerator {
             householdService.save(household);
             familyService.save(family);
             if (localParameters.isAllowExistingSpouse()) {
-                addStepchildrenToHousehold(founder, family, household);
+                householdService.addStepchildrenToHousehold(founder, family, household);
             }
 
         } else {
@@ -112,7 +112,7 @@ public class HouseholdGenerator {
                 householdService.save(household);
                 familyService.save(secondFamily);
                 if (localParameters.isAllowExistingSpouse()) {
-                    addStepchildrenToHousehold(founder, secondFamily, household);
+                    householdService.addStepchildrenToHousehold(founder, secondFamily, household);
                 }
             }
         }
@@ -223,37 +223,4 @@ public class HouseholdGenerator {
         }
         return oldestLivingSon;
     }
-
-    private void addStepchildrenToHousehold(@NonNull Person stepParent,
-                                            @NonNull Family stepParentsFamily,
-                                            @NonNull Household stepParentsHousehold) {
-        Person spouse = stepParentsFamily.getHusband().equals(stepParent)
-                ? stepParentsFamily.getWife()
-                : stepParentsFamily.getHusband();
-        if (spouse.getFamilies().size() == 1) {
-            return;
-        }
-        LocalDate moveInDate = stepParentsFamily.getWeddingDate();
-        if (moveInDate == null) {
-            return;
-        }
-
-        for (Family otherFamily : spouse.getFamilies()) {
-            if (otherFamily.equals(stepParentsFamily)) {
-                continue;
-            }
-            List<Person> stepchildren = otherFamily.getChildren().stream()
-                    .filter(p -> p.isLiving(moveInDate)
-                            && p.getAgeInYears(moveInDate) < 16)
-                    .collect(Collectors.toList());
-            for (Person stepchild : stepchildren) {
-                Household currentHousehold = stepchild.getHousehold(moveInDate);
-                if (currentHousehold != null) {
-                    householdService.endPersonResidence(currentHousehold, stepchild, moveInDate);
-                }
-                householdService.addPersonToHousehold(stepchild, stepParentsHousehold, moveInDate, false);
-            }
-        }
-    }
-
 }

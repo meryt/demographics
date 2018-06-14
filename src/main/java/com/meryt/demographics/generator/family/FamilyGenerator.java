@@ -6,8 +6,12 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import javax.annotation.Nullable;
+import lombok.NonNull;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.math3.distribution.NormalDistribution;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Gender;
@@ -22,12 +26,6 @@ import com.meryt.demographics.generator.random.PercentDie;
 import com.meryt.demographics.request.FamilyParameters;
 import com.meryt.demographics.request.PersonParameters;
 import com.meryt.demographics.service.PersonService;
-
-import lombok.NonNull;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.math3.distribution.NormalDistribution;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
@@ -174,13 +172,15 @@ public class FamilyGenerator {
      * @param person the person seeking a spouse
      */
     @Nullable
-    private Family attemptToFindSpouse(@NonNull LocalDate startDate,
+    public Family attemptToFindSpouse(@NonNull LocalDate startDate,
                                        @NonNull LocalDate endDate,
                                        @NonNull Person person,
                                        @NonNull FamilyParameters familyParameters) {
 
         PercentDie die = new PercentDie();
-        for (LocalDate currentDate = startDate; currentDate.isBefore(endDate) ; currentDate = currentDate.plusDays(1)) {
+        for (LocalDate currentDate = startDate;
+             currentDate.isBefore(endDate) || currentDate.equals(endDate);
+             currentDate = currentDate.plusDays(1)) {
             double percentPerDay = MatchMaker.getDesireToMarryProbability(
                     person,
                     currentDate,

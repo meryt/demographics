@@ -16,7 +16,7 @@ import com.meryt.demographics.domain.person.Trait;
  * a member of a family or household.
  */
 @Getter
-class PersonResponse {
+public class PersonResponse {
 
     private final long id;
     private final String firstName;

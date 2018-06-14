@@ -13,11 +13,18 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.domain.place.Dwelling;
+import com.meryt.demographics.domain.place.DwellingPlace;
+import com.meryt.demographics.domain.place.Household;
+import com.meryt.demographics.domain.place.HouseholdInhabitantPeriod;
+import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.repository.CheckDateRepository;
 import com.meryt.demographics.request.FamilyParameters;
 import com.meryt.demographics.response.calendar.CalendarDayEvent;
+import com.meryt.demographics.response.calendar.MarriageEvent;
 
 @Slf4j
 @Service
@@ -25,11 +32,20 @@ public class CalendarService {
 
     private final CheckDateRepository checkDateRepository;
     private final PersonService personService;
+    private final FamilyGenerator familyGenerator;
+    private final HouseholdService householdService;
+    private final FamilyService familyService;
 
     public CalendarService(@Autowired @NonNull CheckDateRepository checkDateRepository,
-                           @Autowired @NonNull PersonService personService) {
+                           @Autowired @NonNull PersonService personService,
+                           @Autowired @NonNull FamilyGenerator familyGenerator,
+                           @Autowired @NonNull HouseholdService householdService,
+                           @Autowired @NonNull FamilyService familyService) {
         this.checkDateRepository = checkDateRepository;
         this.personService = personService;
+        this.familyGenerator = familyGenerator;
+        this.householdService = householdService;
+        this.familyService = familyService;
     }
 
     @Nullable
@@ -58,8 +74,10 @@ public class CalendarService {
         for (LocalDate date = currentDate.plusDays(1); !date.isAfter(toDate); date = date.plusDays(1)) {
             Map<LocalDate, List<CalendarDayEvent>> marriageEvents = generateMarriagesToDate(date, familyParameters);
             results = mergeMaps(results, marriageEvents);
+            /*
             Map<LocalDate, List<CalendarDayEvent>> maternityEvents = advanceMaternitiesToDay(date, familyParameters);
             results = mergeMaps(results, maternityEvents);
+            */
         }
 
         return results;
@@ -68,7 +86,9 @@ public class CalendarService {
     private Map<LocalDate, List<CalendarDayEvent>> generateMarriagesToDate(@NonNull LocalDate date,
                                                                            @NonNull FamilyParameters familyParameters) {
         List<Person> unmarriedPeople = personService.findUnmarriedMen(date, familyParameters.getMinHusbandAgeOrDefault(),
-                familyParameters.getMaxHusbandAgeOrDefault());
+                familyParameters.getMaxHusbandAgeOrDefault(), true);
+        Map<LocalDate, List<CalendarDayEvent>> results = new TreeMap<>();
+        List<CalendarDayEvent> todaysResults = new ArrayList<>();
 
         for (Person man : unmarriedPeople) {
             if (!man.getFamilies().isEmpty()) {
@@ -78,8 +98,80 @@ public class CalendarService {
                 log.info(String.format("%d %s is %s and has never been married", man.getId(), man.getName(),
                         man.getAge(date)));
             }
+
+            // TODO we should consider how likely we want it to be for someone to "import" a bride from outside of the DB
+            Family family = familyGenerator.attemptToFindSpouse(date, date, man, familyParameters);
+            if (family != null) {
+                familyService.save(family);
+                todaysResults.add(new MarriageEvent(date, family));
+                logMarriage(family, date);
+                DwellingPlace wifesFormerHouse = family.getWife().getResidence(date);
+                DwellingPlace husbandsCurrentHouse = man.getResidence(date);
+                DwellingPlace residence;
+                if (wifesFormerHouse == null && husbandsCurrentHouse != null) {
+                    residence = husbandsCurrentHouse;
+                } else if (wifesFormerHouse != null && husbandsCurrentHouse == null) {
+                    residence = wifesFormerHouse;
+                } else if (wifesFormerHouse == null) {
+                    residence = null;
+                } else {
+                    if (!(wifesFormerHouse instanceof Dwelling) && husbandsCurrentHouse instanceof Dwelling) {
+                        residence = husbandsCurrentHouse;
+                    } else if (wifesFormerHouse instanceof Dwelling && !(husbandsCurrentHouse instanceof Dwelling)) {
+                        residence = wifesFormerHouse;
+                    } else if (!wifesFormerHouse.getOwners(date).contains(family.getWife())) {
+                        residence = husbandsCurrentHouse;
+                    } else {
+                        residence = wifesFormerHouse.getValue() > (1.2 * husbandsCurrentHouse.getValue())
+                                ? wifesFormerHouse
+                                : husbandsCurrentHouse;
+                    }
+                }
+
+                // TODO if woman was living with her parents, they should give her some money.
+
+                Household mansHousehold = man.getHousehold(date);
+                householdService.addPersonToHousehold(family.getWife(), mansHousehold, date, false);
+                householdService.save(mansHousehold);
+                householdService.addStepchildrenToHousehold(man, family, mansHousehold);
+
+                if (residence != null && (husbandsCurrentHouse == null || !husbandsCurrentHouse.equals(residence))) {
+                    householdService.addToDwellingPlace(mansHousehold, residence, date, null);
+                }
+
+                DwellingPlace possiblyEmptyResidence = husbandsCurrentHouse == residence
+                        ? wifesFormerHouse
+                        : husbandsCurrentHouse;
+                if (possiblyEmptyResidence != null) {
+                    List<Household> households = possiblyEmptyResidence.getAllHouseholds(date);
+                    for (Household household : households) {
+                        if (household.getInhabitants(date).isEmpty()) {
+                            HouseholdInhabitantPeriod oldPeriod = household.getInhabitantPeriod(date);
+                            if (oldPeriod != null) {
+                                oldPeriod.setToDate(date);
+                                householdService.save(oldPeriod);
+                            }
+                        } else {
+                            if (household.getHead(date) == null) {
+                                householdService.resetHeadAsOf(household, date);
+                                if (household.getHead(date) == null) {
+                                    log.warn("Unable to find a new head for household " + household.getId() + " containing " +
+                                            household.getInhabitants(date).stream()
+                                                .map(p -> p.getId() + " " + p.getName() + " (" + p.getAgeInYears(date) + ")")
+                                            .collect(Collectors.joining(",")));
+                                }
+                            }
+                        }
+                    }
+                }
+
+            }
         }
-        return new TreeMap<>();
+        if (!todaysResults.isEmpty()) {
+            results.put(date, todaysResults);
+        }
+
+        return results;
     }
 
     private Map<LocalDate, List<CalendarDayEvent>> advanceMaternitiesToDay(@NonNull LocalDate date,
@@ -100,5 +192,25 @@ public class CalendarService {
                 .collect(Collectors.toList());
         }));
         return map3;
+    }
+
+    private void logMarriage(@NonNull Family family, @NonNull LocalDate date) {
+        Person husband = family.getHusband();
+        Occupation husbandOccupation = husband.getOccupation(date);
+        String husbandOccupationName = husbandOccupation == null ? "unemployed" : husbandOccupation.getName();
+
+        Person wife = family.getWife();
+        Occupation wifeOccupation = wife.getOccupation(date);
+        String wifeOccupationName = wifeOccupation == null ? "homemaker" : wifeOccupation.getName();
+
+        DwellingPlace husbandResidence = husband.getResidence(date);
+        String husbandLocation = husbandResidence == null ? "elsewhere" : husbandResidence.getLocationString();
+
+        DwellingPlace wifeResidence = wife.getResidence(date);
+        String wifeLocation = wifeResidence == null ? "elsewhere" : wifeResidence.getLocationString();
+
+        log.info(String.format("%d %s, age %d, %s of %s married %d %s, age %d, %s of %s",
+                husband.getId(), husband.getName(), husband.getAgeInYears(date), husbandOccupationName, husbandLocation,
+                wife.getId(), wife.getName(), wife.getAgeInYears(date), wifeOccupationName, wifeLocation));
     }
 }

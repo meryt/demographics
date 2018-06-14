@@ -10,6 +10,7 @@ import lombok.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.Household;
@@ -236,6 +237,38 @@ public class HouseholdService {
         newPeriod = householdLocationRepository.save(newPeriod);
 
         dwellingPlace.getHouseholdPeriods().add(newPeriod);
+    }
+
+    public void addStepchildrenToHousehold(@NonNull Person stepParent,
+                                           @NonNull Family stepParentsFamily,
+                                           @NonNull Household stepParentsHousehold) {
+        Person spouse = stepParentsFamily.getHusband().equals(stepParent)
+                ? stepParentsFamily.getWife()
+                : stepParentsFamily.getHusband();
+        if (spouse.getFamilies().size() == 1) {
+            return;
+        }
+        LocalDate moveInDate = stepParentsFamily.getWeddingDate();
+        if (moveInDate == null) {
+            return;
+        }
+
+        for (Family otherFamily : spouse.getFamilies()) {
+            if (otherFamily.equals(stepParentsFamily)) {
+                continue;
+            }
+            List<Person> stepchildren = otherFamily.getChildren().stream()
+                    .filter(p -> p.isLiving(moveInDate)
+                            && p.getAgeInYears(moveInDate) < 16)
+                    .collect(Collectors.toList());
+            for (Person stepchild : stepchildren) {
+                Household currentHousehold = stepchild.getHousehold(moveInDate);
+                if (currentHousehold != null) {
+                    endPersonResidence(currentHousehold, stepchild, moveInDate);
+                }
+                addPersonToHousehold(stepchild, stepParentsHousehold, moveInDate, false);
+            }
+        }
     }
 
 }

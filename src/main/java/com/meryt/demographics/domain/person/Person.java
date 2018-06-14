@@ -606,6 +606,23 @@ public class Person {
     }
 
     /**
+     * Gets the person's place of residence on the given date. If he does not have a household on the date, or the
+     * household does not have a dwelling place on the date, then returns null. The result is most likely to be a
+     * Dwelling but may not be.
+     *
+     * @param onDate the date on which to look up residence
+     * @return a DwellingPlace (likely a Dwelling) or null
+     */
+    @Nullable
+    public DwellingPlace getResidence(@NonNull LocalDate onDate) {
+        Household household = getHousehold(onDate);
+        if (household == null) {
+            return null;
+        }
+        return household.getDwellingPlace(onDate);
+    }
+
+    /**
      * Gets a person's capital in cash. May be negative if he is in debt. May be null if he has no record of having
      * capital. This may be treated as 0.0, but is left as null to distinguish from someone with exactly 0.0.
      *
