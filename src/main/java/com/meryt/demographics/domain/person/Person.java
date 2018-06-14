@@ -138,7 +138,7 @@ public class Person {
     @OneToMany(mappedBy = "person")
     private List<HouseholdInhabitantPeriod> households = new ArrayList<>();
 
-    @OneToMany(mappedBy = "owner")
+    @OneToMany(mappedBy = "owner", cascade = { CascadeType.MERGE })
     private List<DwellingPlaceOwnerPeriod> ownedDwellingPlaces = new ArrayList<>();
 
     @OneToMany(mappedBy = "person", cascade = { CascadeType.ALL })
@@ -147,6 +147,10 @@ public class Person {
     @OneToMany(mappedBy = "person", cascade = { CascadeType.ALL })
     @OrderBy("from_date")
     private List<PersonTitlePeriod> titles = new ArrayList<>();
+
+    @OneToMany(mappedBy = "person", cascade = { CascadeType.ALL })
+    @OrderBy("from_date")
+    private List<PersonCapitalPeriod> capitalPeriods = new ArrayList<>();
 
     @ManyToMany
     @JoinTable(
@@ -599,5 +603,31 @@ public class Person {
         return getTitles().stream()
                 .filter(o -> o.contains(onDate))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Gets a person's capital in cash. May be negative if he is in debt. May be null if he has no record of having
+     * capital. This may be treated as 0.0, but is left as null to distinguish from someone with exactly 0.0.
+     *
+     * @param onDate the date on which to check
+     * @return a single Double value reflecting his cash resources on that date, or null if there is no record of him
+     * having any on that date.
+     */
+    public Double getCapital(@NonNull LocalDate onDate) {
+        return getCapitalPeriods().stream()
+                .filter(o -> o.contains(onDate))
+                .map(PersonCapitalPeriod::getCapital)
+                .findFirst()
+                .orElse(null);
+    }
+
+    public Double getTotalWealth(@NonNull LocalDate onDate) {
+        Double cashWealth = getCapital(onDate);
+        List<DwellingPlace> realEstate = getOwnedDwellingPlaces(onDate);
+        double realEstateValue = realEstate.stream()
+                .mapToDouble(d -> d.getValue() == null ? 0.0 : d.getValue())
+                .sum();
+        return (cashWealth == null ? 0.0 : cashWealth) + realEstateValue;
+
     }
 }

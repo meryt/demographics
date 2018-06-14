@@ -166,7 +166,8 @@ public class ParishGenerator {
                 familyGenerator,
                 familyService,
                 householdService,
-                dwellingPlaceService);
+                dwellingPlaceService,
+                personService);
         populator.populateParish(template);
 
         return parish;

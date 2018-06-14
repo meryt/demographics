@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.domain.person.PersonCapitalPeriod;
 import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.domain.place.Dwelling;
 import com.meryt.demographics.domain.place.DwellingPlace;
@@ -32,6 +33,7 @@ import com.meryt.demographics.request.ParishParameters;
 import com.meryt.demographics.service.DwellingPlaceService;
 import com.meryt.demographics.service.FamilyService;
 import com.meryt.demographics.service.HouseholdService;
+import com.meryt.demographics.service.PersonService;
 
 @Slf4j
 class ParishPopulator {
@@ -48,18 +50,22 @@ class ParishPopulator {
 
     private final DwellingPlaceService dwellingPlaceService;
 
+    private final PersonService personService;
+
     ParishPopulator(@NonNull ParishParameters parishParameters,
                     @NonNull HouseholdGenerator householdGenerator,
                     @NonNull FamilyGenerator familyGenerator,
                     @NonNull FamilyService familyService,
                     @NonNull HouseholdService householdService,
-                    @NonNull DwellingPlaceService dwellingPlaceService) {
+                    @NonNull DwellingPlaceService dwellingPlaceService,
+                    @NonNull PersonService personService) {
         this.parishParameters = parishParameters;
         this.householdGenerator = householdGenerator;
         this.familyGenerator = familyGenerator;
         this.familyService = familyService;
         this.householdService = householdService;
         this.dwellingPlaceService = dwellingPlaceService;
+        this.personService = personService;
     }
 
     /**
@@ -116,8 +122,15 @@ class ParishPopulator {
         // If persist is true on the family template, the household and its inhabitants will be saved by this method
         // call.
         Household household = householdGenerator.generateHousehold(familyParameters);
+        Person head = household.getHead(familyParameters.getReferenceDate());
 
         moveHouseholdToTownOrParish(household, parishTemplate);
+
+        // Generate the capital after he has moved into a town. We need to know whether he has an employment or whether
+        // he lives off his rents.
+        if (head != null) {
+            generateStartingCapitalForFounder(head, familyParameters.getReferenceDate());
+        }
 
         // After a household is created, there might be adult sons in it. Try to move them out and create their own
         // households too (based on their ability to find a wife).
@@ -160,8 +173,10 @@ class ParishPopulator {
                 occupation.getName()));
 
         person.addOccupation(occupation, getJobStartDate(person));
+        generateStartingCapitalForFounder(person, familyParameters.getReferenceDate());
         addHouseholdToDwellingPlaceOnWeddingDate(townTemplate.getTown(), household,
                 getMoveInDate(person, familyParameters.getReferenceDate()));
+
         maybePersist(townTemplate.getTown());
         maybePersist(household);
     }
@@ -612,6 +627,7 @@ class ParishPopulator {
             if (family != null) {
                 log.info(String.format("Adult son %s married on %s and moved out", adultSon.getName(),
                         family.getWeddingDate()));
+                generateStartingCapitalForFounder(adultSon, onDate);
                 Household sonsHousehold = moveOutSon(household, family, parishTemplate);
 
                 moveHouseholdToTownOrParish(sonsHousehold, parishTemplate);
@@ -634,8 +650,8 @@ class ParishPopulator {
      * @return the son's new household, containing his new family members
      */
     private Household moveOutSon(@NonNull Household oldHousehold,
-                           @NonNull Family family,
-                           @NonNull ParishTemplate parishTemplate) {
+                                 @NonNull Family family,
+                                 @NonNull ParishTemplate parishTemplate) {
 
         family = familyService.save(family);
 
@@ -819,5 +835,19 @@ class ParishPopulator {
             moveFamilyIntoNewHouse(placesOfType.get(0), household, moveInDate);
         }
     }
+
+    private void generateStartingCapitalForFounder(@NonNull Person founder, @NonNull LocalDate onDate) {
+        double startingWealth = WealthGenerator.getRandomStartingCapital(founder.getSocialClass(),
+                !founder.getOccupations().isEmpty());
+        PersonCapitalPeriod period = new PersonCapitalPeriod();
+        period.setPerson(founder);
+        period.setPersonId(founder.getId());
+        period.setFromDate(onDate);
+        period.setToDate(founder.getDeathDate());
+        period.setCapital(startingWealth);
+        founder.getCapitalPeriods().add(period);
+        personService.save(founder);
+    }
+
 
 }

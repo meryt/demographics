@@ -59,13 +59,13 @@ public abstract class DwellingPlace {
     /**
      * A list of all the households who have ever been located directly in this dwelling place, over time
      */
-    @OneToMany(mappedBy = "dwellingPlace", cascade = { CascadeType.ALL })
+    @OneToMany(mappedBy = "dwellingPlace", cascade = { CascadeType.MERGE })
     private List<HouseholdLocationPeriod> householdPeriods = new ArrayList<>();
 
     /**
      * A list of all the owners of this dwelling place, over time
      */
-    @OneToMany(mappedBy = "dwellingPlace", cascade = { CascadeType.ALL })
+    @OneToMany(mappedBy = "dwellingPlace", cascade = { CascadeType.MERGE })
     private List<DwellingPlaceOwnerPeriod> ownerPeriods = new ArrayList<>();
 
     private Double acres;

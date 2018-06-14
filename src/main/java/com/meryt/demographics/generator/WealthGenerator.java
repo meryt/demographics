@@ -10,11 +10,11 @@ public class WealthGenerator {
 
     private static final BetweenDie BETWEEN_DIE = new BetweenDie();
 
-    public static double getRandomStartingCapital(@NonNull SocialClass socialClass) {
+    public static double getRandomStartingCapital(@NonNull SocialClass socialClass, boolean isEmployed) {
         Pair<Integer, Integer> range = getYearlyIncomeValueRange(socialClass);
-        if (socialClass.getRank() <= SocialClass.YEOMAN_OR_MERCHANT.getRank()) {
-            // Assume income is from labor. Take 1-4 years of income as total savings.
-            return BETWEEN_DIE.roll(1, 4) * (BETWEEN_DIE.roll(range.getFirst(), range.getSecond()));
+        if (socialClass.getRank() <= SocialClass.YEOMAN_OR_MERCHANT.getRank() || isEmployed) {
+            // Assume income is from labor. Take 1-5 years of income as total savings.
+            return BETWEEN_DIE.roll(1, 5) * (BETWEEN_DIE.roll(range.getFirst(), range.getSecond()));
         } else {
             // Assume income is from rents. Take 1 year of income and consider it to be 4% of the total capital
             double oneYearInterest = (BETWEEN_DIE.roll(range.getFirst(), range.getSecond()));
