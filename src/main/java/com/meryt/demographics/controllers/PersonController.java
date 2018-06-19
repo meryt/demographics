@@ -31,7 +31,7 @@ import com.meryt.demographics.domain.title.TitleInheritanceStyle;
 import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.generator.family.MatchMaker;
 import com.meryt.demographics.generator.person.PersonGenerator;
-import com.meryt.demographics.request.FamilyParameters;
+import com.meryt.demographics.request.RandomFamilyParameters;
 import com.meryt.demographics.request.PersonFamilyPost;
 import com.meryt.demographics.request.PersonFertilityPost;
 import com.meryt.demographics.request.PersonParameters;
@@ -215,7 +215,7 @@ public class PersonController {
         personFamilyPost.validate();
         Person person = loadPerson(personId);
 
-        FamilyParameters familyParameters = new FamilyParameters();
+        RandomFamilyParameters familyParameters = new RandomFamilyParameters();
         familyParameters.setMinHusbandAge(personFamilyPost.getMinHusbandAge());
         familyParameters.setMinWifeAge(personFamilyPost.getMinWifeAge());
         familyParameters.setReferenceDate(personFamilyPost.getUntilDate() == null
@@ -301,7 +301,7 @@ public class PersonController {
 
         final LocalDate finalSearchDate = searchDate;
 
-        FamilyParameters familyParameters = new FamilyParameters();
+        RandomFamilyParameters familyParameters = new RandomFamilyParameters();
         familyParameters.setMinWifeAge(minWifeAge);
         familyParameters.setMinHusbandAge(minHusbandAge);
         familyParameters.setMaxWifeAge(maxWifeAge);

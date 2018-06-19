@@ -16,13 +16,10 @@ import org.springframework.stereotype.Service;
 import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
-import com.meryt.demographics.domain.place.Dwelling;
 import com.meryt.demographics.domain.place.DwellingPlace;
-import com.meryt.demographics.domain.place.Household;
-import com.meryt.demographics.domain.place.HouseholdInhabitantPeriod;
 import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.repository.CheckDateRepository;
-import com.meryt.demographics.request.FamilyParameters;
+import com.meryt.demographics.request.RandomFamilyParameters;
 import com.meryt.demographics.response.calendar.CalendarDayEvent;
 import com.meryt.demographics.response.calendar.MarriageEvent;
 
@@ -64,7 +61,7 @@ public class CalendarService {
      * @return a list of things that happened on this day
      */
     public Map<LocalDate, List<CalendarDayEvent>> advanceToDay(@NonNull LocalDate toDate,
-                                                               @NonNull FamilyParameters familyParameters) {
+                                                               @NonNull RandomFamilyParameters familyParameters) {
         LocalDate currentDate = getCurrentDate();
         if (currentDate == null) {
             throw new IllegalStateException("Current date is null");
@@ -84,7 +81,7 @@ public class CalendarService {
     }
 
     private Map<LocalDate, List<CalendarDayEvent>> generateMarriagesToDate(@NonNull LocalDate date,
-                                                                           @NonNull FamilyParameters familyParameters) {
+                                                                           @NonNull RandomFamilyParameters familyParameters) {
         List<Person> unmarriedPeople = personService.findUnmarriedMen(date, familyParameters.getMinHusbandAgeOrDefault(),
                 familyParameters.getMaxHusbandAgeOrDefault(), true);
         Map<LocalDate, List<CalendarDayEvent>> results = new TreeMap<>();
@@ -105,66 +102,7 @@ public class CalendarService {
                 familyService.save(family);
                 todaysResults.add(new MarriageEvent(date, family));
                 logMarriage(family, date);
-                DwellingPlace wifesFormerHouse = family.getWife().getResidence(date);
-                DwellingPlace husbandsCurrentHouse = man.getResidence(date);
-                DwellingPlace residence;
-                if (wifesFormerHouse == null && husbandsCurrentHouse != null) {
-                    residence = husbandsCurrentHouse;
-                } else if (wifesFormerHouse != null && husbandsCurrentHouse == null) {
-                    residence = wifesFormerHouse;
-                } else if (wifesFormerHouse == null) {
-                    residence = null;
-                } else {
-                    if (!(wifesFormerHouse instanceof Dwelling) && husbandsCurrentHouse instanceof Dwelling) {
-                        residence = husbandsCurrentHouse;
-                    } else if (wifesFormerHouse instanceof Dwelling && !(husbandsCurrentHouse instanceof Dwelling)) {
-                        residence = wifesFormerHouse;
-                    } else if (!wifesFormerHouse.getOwners(date).contains(family.getWife())) {
-                        residence = husbandsCurrentHouse;
-                    } else {
-                        residence = wifesFormerHouse.getValue() > (1.2 * husbandsCurrentHouse.getValue())
-                                ? wifesFormerHouse
-                                : husbandsCurrentHouse;
-                    }
-                }
-
-                // TODO if woman was living with her parents, they should give her some money.
-
-                Household mansHousehold = man.getHousehold(date);
-                householdService.addPersonToHousehold(family.getWife(), mansHousehold, date, false);
-                householdService.save(mansHousehold);
-                householdService.addStepchildrenToHousehold(man, family, mansHousehold);
-
-                if (residence != null && (husbandsCurrentHouse == null || !husbandsCurrentHouse.equals(residence))) {
-                    householdService.addToDwellingPlace(mansHousehold, residence, date, null);
-                }
-
-                DwellingPlace possiblyEmptyResidence = husbandsCurrentHouse == residence
-                        ? wifesFormerHouse
-                        : husbandsCurrentHouse;
-                if (possiblyEmptyResidence != null) {
-                    List<Household> households = possiblyEmptyResidence.getAllHouseholds(date);
-                    for (Household household : households) {
-                        if (household.getInhabitants(date).isEmpty()) {
-                            HouseholdInhabitantPeriod oldPeriod = household.getInhabitantPeriod(date);
-                            if (oldPeriod != null) {
-                                oldPeriod.setToDate(date);
-                                householdService.save(oldPeriod);
-                            }
-                        } else {
-                            if (household.getHead(date) == null) {
-                                householdService.resetHeadAsOf(household, date);
-                                if (household.getHead(date) == null) {
-                                    log.warn("Unable to find a new head for household " + household.getId() + " containing " +
-                                            household.getInhabitants(date).stream()
-                                                .map(p -> p.getId() + " " + p.getName() + " (" + p.getAgeInYears(date) + ")")
-                                            .collect(Collectors.joining(",")));
-                                }
-                            }
-                        }
-                    }
-                }
-
+                family = familyService.createAndSaveMarriage(family.getHusband(), family.getWife(), family.getWeddingDate());
             }
         }
         if (!todaysResults.isEmpty()) {
@@ -175,7 +113,7 @@ public class CalendarService {
     }
 
     private Map<LocalDate, List<CalendarDayEvent>> advanceMaternitiesToDay(@NonNull LocalDate date,
-                                                                           @NonNull FamilyParameters familyParameters) {
+                                                                           @NonNull RandomFamilyParameters familyParameters) {
         List<Person> women = personService.findWomenWithPendingMaternities(date);
         log.info(women.size() + " women need to be checked");
         return new TreeMap<>();

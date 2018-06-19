@@ -22,7 +22,7 @@ public class ParishParameters {
     private List<String> townNames;
     private List<String> estateNames;
     private List<String> estateSuffixes;
-    private FamilyParameters familyParameters;
+    private RandomFamilyParameters familyParameters;
 
     public long getPopulation() {
         return Math.round(squareMiles * populationPerSquareMile);

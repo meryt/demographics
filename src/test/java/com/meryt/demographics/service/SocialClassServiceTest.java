@@ -12,19 +12,19 @@ import com.meryt.demographics.domain.person.SocialClass;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
-public class FamilyServiceTest {
+public class SocialClassServiceTest {
 
-    private FamilyService familyService;
+    private SocialClassService socialClassService;
 
     @Before
     public void setUp() {
-        familyService = new FamilyService(null);
+        socialClassService = new SocialClassService();
     }
 
     @Test
     public void getCalculatedChildSocialClassReturnsNullForNullParents() {
         Person child = new Person();
-        assertNull(familyService.getCalculatedChildSocialClass(null, null, child, false, LocalDate.of(1700, 1, 1)));
+        assertNull(socialClassService.getCalculatedChildSocialClass(null, null, child, false, LocalDate.of(1700, 1, 1)));
     }
 
     @Test
@@ -128,7 +128,7 @@ public class FamilyServiceTest {
                                            SocialClass mothers,
                                            SocialClass expected) {
         mother.setSocialClass(mothers);
-        assertEquals(expected, familyService.getCalculatedChildSocialClass(null, mother, null,
+        assertEquals(expected, socialClassService.getCalculatedChildSocialClass(null, mother, null,
                 false, LocalDate.of(1700, 1, 1)));
     }
 
@@ -137,7 +137,7 @@ public class FamilyServiceTest {
                                            SocialClass fathers,
                                            SocialClass expected) {
         father.setSocialClass(fathers);
-        assertEquals(expected, familyService.getCalculatedChildSocialClass(father, null, child,
+        assertEquals(expected, socialClassService.getCalculatedChildSocialClass(father, null, child,
                 false, LocalDate.of(1700, 1, 1)));
 
     }
@@ -150,7 +150,7 @@ public class FamilyServiceTest {
                                                 SocialClass expected) {
         father.setSocialClass(fathers);
         mother.setSocialClass(mothers);
-        assertEquals(expected, familyService.getCalculatedChildSocialClass(father, mother, child,
+        assertEquals(expected, socialClassService.getCalculatedChildSocialClass(father, mother, child,
                 false, LocalDate.of(1700, 1, 1)));
     }
 

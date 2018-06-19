@@ -91,7 +91,7 @@ public class Family {
 
     public void setHusband(@NonNull Person husband) {
         if (!husband.isMale()) {
-            throw new IllegalArgumentException("A husband must male");
+            throw new IllegalArgumentException("A husband must be male");
         }
         this.husband = husband;
         husband.addFatheredFamily(this);

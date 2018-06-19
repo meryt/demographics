@@ -103,12 +103,10 @@ public class Household {
 
     @Nullable
     public DwellingPlace getDwellingPlace(@NonNull LocalDate onDate) {
-        Set<DwellingPlace> places = getDwellingPlaces().stream()
+        return getDwellingPlaces().stream()
                 .filter(p -> p.contains(onDate))
                 .map(HouseholdLocationPeriod::getDwellingPlace)
-                .collect(Collectors.toSet());
-
-        return places.isEmpty() ? null : places.iterator().next();
+                .findFirst().orElse(null);
     }
 
     public void addInhabitantPeriod(@NonNull HouseholdInhabitantPeriod newPeriod) {
@@ -125,8 +123,8 @@ public class Household {
     }
 
     @Nullable
-    public HouseholdInhabitantPeriod getInhabitantPeriod(@NonNull LocalDate onDate) {
-        return getInhabitantPeriods().stream()
+    public HouseholdLocationPeriod getHouseholdLocationPeriod(@NonNull LocalDate onDate) {
+        return getDwellingPlaces().stream()
                 .filter(hip -> hip.contains(onDate))
                 .findFirst().orElse(null);
     }

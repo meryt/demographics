@@ -24,6 +24,7 @@ import com.meryt.demographics.request.PersonParameters;
 import com.meryt.demographics.service.FamilyService;
 import com.meryt.demographics.service.LifeTableService;
 import com.meryt.demographics.service.NameService;
+import com.meryt.demographics.service.SocialClassService;
 import com.meryt.demographics.service.TraitService;
 
 @Service
@@ -49,15 +50,18 @@ public class PersonGenerator {
     private final LifeTableService lifeTableService;
     private final FamilyService familyService;
     private final TraitService traitService;
+    private final SocialClassService socialClassService;
 
     PersonGenerator(@Autowired NameService nameService,
                     @Autowired LifeTableService lifeTableService,
                     @Autowired FamilyService familyService,
-                    @Autowired TraitService traitService) {
+                    @Autowired TraitService traitService,
+                    @Autowired SocialClassService socialClassService) {
         this.nameService = nameService;
         this.lifeTableService = lifeTableService;
         this.familyService = familyService;
         this.traitService = traitService;
+        this.socialClassService = socialClassService;
     }
 
     /**
@@ -88,7 +92,7 @@ public class PersonGenerator {
         generatePersonLifespan(personParameters, person);
 
         // Set the social class from the parents if they are present.
-        SocialClass socialClass = familyService.getCalculatedChildSocialClass(personParameters.getFather(),
+        SocialClass socialClass = socialClassService.getCalculatedChildSocialClass(personParameters.getFather(),
                 personParameters.getMother(), person, false, person.getDeathDate());
 
         if (socialClass != null) {
@@ -184,7 +188,7 @@ public class PersonGenerator {
                 child.setDeathDate(birthDate);
             }
             // Set social class in the same loop because a firstborn son may have higher class than the others
-            child.setSocialClass(familyService.getCalculatedChildSocialClass(family.getHusband(), family.getWife(),
+            child.setSocialClass(socialClassService.getCalculatedChildSocialClass(family.getHusband(), family.getWife(),
                     child, false, birthDate));
         }
 

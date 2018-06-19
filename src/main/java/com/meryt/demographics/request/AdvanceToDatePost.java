@@ -15,7 +15,7 @@ import com.meryt.demographics.rest.BadRequestException;
 public class AdvanceToDatePost {
     private LocalDate date;
     private Integer advanceDays;
-    private FamilyParameters familyParameters;
+    private RandomFamilyParameters familyParameters;
 
     public void validate() {
         if (date == null && advanceDays == null) {

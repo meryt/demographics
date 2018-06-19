@@ -28,7 +28,7 @@ import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.generator.family.HouseholdGenerator;
 import com.meryt.demographics.generator.random.BetweenDie;
 import com.meryt.demographics.generator.random.Die;
-import com.meryt.demographics.request.FamilyParameters;
+import com.meryt.demographics.request.RandomFamilyParameters;
 import com.meryt.demographics.request.ParishParameters;
 import com.meryt.demographics.service.DwellingPlaceService;
 import com.meryt.demographics.service.FamilyService;
@@ -117,7 +117,7 @@ class ParishPopulator {
      */
     private int addHousehold(@NonNull ParishTemplate parishTemplate) {
 
-        FamilyParameters familyParameters = parishTemplate.getFamilyParameters();
+        RandomFamilyParameters familyParameters = parishTemplate.getFamilyParameters();
 
         // If persist is true on the family template, the household and its inhabitants will be saved by this method
         // call.
@@ -142,7 +142,7 @@ class ParishPopulator {
     private void createHouseholdToFillOccupation(@NonNull ParishTemplate template,
                                                  @NonNull TownTemplate townTemplate,
                                                  @NonNull Occupation occupation) {
-        FamilyParameters familyParameters = template.getFamilyParameters();
+        RandomFamilyParameters familyParameters = template.getFamilyParameters();
         familyParameters.setMinSocialClass(occupation.getMinClass());
         familyParameters.setMaxSocialClass(occupation.getMaxClass());
         if (occupation.isAllowMale() && occupation.isAllowFemale()) {
@@ -700,7 +700,7 @@ class ParishPopulator {
         }
         Occupation occupation = head.getOccupation(onDate);
 
-        log.info(String.format("Looking for house for homeless family %s%s (%s)", household.getFriendlyName(onDate),
+        log.info(String.format("Looking for house for household of %d %s%s (%s)", head.getId(), head.getName(),
                 occupation == null ? "" : " (" + occupation.getName() + ")",
                 head.getSocialClass().name()));
 
@@ -723,6 +723,7 @@ class ParishPopulator {
                 moveFarmLaborerOntoFarm(currentLocation, household, moveInDate);
             } else {
                 // All other occupations just get a house
+                log.info("Moving household into a new house");
                 moveFamilyIntoNewHouse(currentLocation, household, moveInDate);
             }
             return;
@@ -734,6 +735,7 @@ class ParishPopulator {
             movePauperIntoHouse(currentLocation, household, moveInDate);
         } else {
             // Anyone not a pauper and not employed gets a house
+            log.info("Moving household into a new house");
             moveFamilyIntoNewHouse(currentLocation, household, moveInDate);
         }
 

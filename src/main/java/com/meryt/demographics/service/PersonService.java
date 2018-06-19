@@ -15,7 +15,7 @@ import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.RelatedPerson;
 import com.meryt.demographics.generator.family.MatchMaker;
 import com.meryt.demographics.repository.PersonRepository;
-import com.meryt.demographics.request.FamilyParameters;
+import com.meryt.demographics.request.RandomFamilyParameters;
 import com.meryt.demographics.time.LocalDateComparator;
 
 @Service
@@ -88,7 +88,7 @@ public class PersonService {
     public List<RelatedPerson> findPotentialSpouses(@NonNull Person person,
                                                     @Nullable LocalDate onDate,
                                                     boolean includeFutureSpouses,
-                                                    @NonNull FamilyParameters familyParameters) {
+                                                    @NonNull RandomFamilyParameters familyParameters) {
         int minHusbandAge = familyParameters.getMinHusbandAgeOrDefault();
         int minWifeAge = familyParameters.getMinWifeAgeOrDefault();
         LocalDate searchDate = MatchMaker.getDateToStartMarriageSearch(person, minHusbandAge, minWifeAge);

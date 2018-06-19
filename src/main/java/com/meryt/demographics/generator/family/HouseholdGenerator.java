@@ -12,8 +12,7 @@ import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.HouseholdInhabitantPeriod;
-import com.meryt.demographics.domain.place.HouseholdLocationPeriod;
-import com.meryt.demographics.request.FamilyParameters;
+import com.meryt.demographics.request.RandomFamilyParameters;
 import com.meryt.demographics.service.AncestryService;
 import com.meryt.demographics.service.FamilyService;
 import com.meryt.demographics.service.HouseholdService;
@@ -51,8 +50,8 @@ public class HouseholdGenerator {
      * @param familyParameters the parameters used to generate the family. The reference date must be set.
      * @return Household containing the living members of a Family (one or both spouses and their children)
      */
-    public Household generateHousehold(@NonNull FamilyParameters familyParameters) {
-        FamilyParameters localParameters = new FamilyParameters(familyParameters);
+    public Household generateHousehold(@NonNull RandomFamilyParameters familyParameters) {
+        RandomFamilyParameters localParameters = new RandomFamilyParameters(familyParameters);
         LocalDate onDate = localParameters.getReferenceDate();
         if (onDate == null) {
             throw new IllegalArgumentException("Cannot generate a household for a null reference date");
@@ -194,6 +193,7 @@ public class HouseholdGenerator {
                 .collect(Collectors.toList());
         if (!futureHouseholds.isEmpty()) {
             for (HouseholdInhabitantPeriod period : futureHouseholds) {
+                person.getHouseholds().remove(period);
                 householdService.delete(period);
             }
         }

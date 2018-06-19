@@ -10,7 +10,7 @@ import lombok.Setter;
 public class InitialGenerationPost extends OutputToFilePost {
     List<String> lastNames;
     Integer numFamilies;
-    FamilyParameters familyParameters;
+    RandomFamilyParameters familyParameters;
 
     public void validate() {
         if (numFamilies == null || numFamilies <= 0) {

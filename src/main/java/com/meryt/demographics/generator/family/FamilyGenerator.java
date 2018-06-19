@@ -23,7 +23,7 @@ import com.meryt.demographics.generator.person.PersonGenerator;
 import com.meryt.demographics.generator.random.BetweenDie;
 import com.meryt.demographics.generator.random.Die;
 import com.meryt.demographics.generator.random.PercentDie;
-import com.meryt.demographics.request.FamilyParameters;
+import com.meryt.demographics.request.RandomFamilyParameters;
 import com.meryt.demographics.request.PersonParameters;
 import com.meryt.demographics.service.PersonService;
 
@@ -48,7 +48,7 @@ public class FamilyGenerator {
      * This method will always generate a family (provided the family parameters are not impossible to satisfy).
      */
     @NonNull
-    public Family generate(@NonNull FamilyParameters familyParameters) {
+    public Family generate(@NonNull RandomFamilyParameters familyParameters) {
         Person person = generateFounder(familyParameters);
         Family family = null;
         while (family == null) {
@@ -66,7 +66,7 @@ public class FamilyGenerator {
      * @return a family with a husband and wife and possibly children, or null
      */
     @Nullable
-    public Family generate(@NonNull Person founder, @NonNull FamilyParameters familyParameters) {
+    public Family generate(@NonNull Person founder, @NonNull RandomFamilyParameters familyParameters) {
 
         Family family = searchForSpouse(founder, familyParameters);
         if (family != null && family.getHusband() != null && family.getWife() != null) {
@@ -112,7 +112,7 @@ public class FamilyGenerator {
      * @return a person suitable to found a family
      */
     @NonNull
-    Person generateFounder(FamilyParameters familyParameters) {
+    Person generateFounder(RandomFamilyParameters familyParameters) {
         validate(familyParameters);
 
         PercentDie die = new PercentDie();
@@ -147,7 +147,7 @@ public class FamilyGenerator {
     }
 
     @Nullable
-    private Family searchForSpouse(@NonNull Person person, @NonNull FamilyParameters familyParameters) {
+    private Family searchForSpouse(@NonNull Person person, @NonNull RandomFamilyParameters familyParameters) {
 
         LocalDate untilDate = familyParameters.getReferenceDate();
 
@@ -175,12 +175,12 @@ public class FamilyGenerator {
     public Family attemptToFindSpouse(@NonNull LocalDate startDate,
                                        @NonNull LocalDate endDate,
                                        @NonNull Person person,
-                                       @NonNull FamilyParameters familyParameters) {
+                                       @NonNull RandomFamilyParameters familyParameters) {
 
         PercentDie die = new PercentDie();
         for (LocalDate currentDate = startDate;
-             currentDate.isBefore(endDate) || currentDate.equals(endDate);
-             currentDate = currentDate.plusDays(1)) {
+                currentDate.isBefore(endDate) || currentDate.equals(endDate);
+                currentDate = currentDate.plusDays(1)) {
             double percentPerDay = MatchMaker.getDesireToMarryProbability(
                     person,
                     currentDate,
@@ -247,7 +247,7 @@ public class FamilyGenerator {
 
     private Person generateRandomPotentialSpouse(@NonNull Person person,
                                                  @NonNull LocalDate onDate,
-                                                 @NonNull FamilyParameters familyParameters) {
+                                                 @NonNull RandomFamilyParameters familyParameters) {
         // Generate a random person of the appropriate gender
         // and age, and do a random check against the domesticity and other factors. If success, do a marriage.
         // Otherwise discard the random person and continue searching.
@@ -264,7 +264,7 @@ public class FamilyGenerator {
 
     }
 
-    private void validate(FamilyParameters familyParameters) {
+    private void validate(RandomFamilyParameters familyParameters) {
         if (familyParameters.getReferenceDate() == null) {
             throw new IllegalArgumentException("referenceDate is required for generating a family.");
         }
@@ -279,7 +279,7 @@ public class FamilyGenerator {
      * @param weddingDate the desired wedding date
      */
     private LocalDate getRandomSpouseBirthDate(@NonNull Person person, @NonNull LocalDate weddingDate,
-                                               @NonNull FamilyParameters familyParameters) {
+                                               @NonNull RandomFamilyParameters familyParameters) {
         int personAge = person.getAgeInYears(weddingDate);
         BetweenDie die = new BetweenDie();
         int spouseAge;
@@ -322,7 +322,7 @@ public class FamilyGenerator {
      * @param family a family that is expected to include a husband and wife and wedding date
      * @param familyParameters the parameters for random family generation
      */
-    private void generateChildren(@NonNull Family family, @NonNull FamilyParameters familyParameters) {
+    private void generateChildren(@NonNull Family family, @NonNull RandomFamilyParameters familyParameters) {
         if (family.getHusband() == null || family.getWife() == null || family.getWeddingDate() == null
                 || family.getHusband().getDeathDate() == null || family.getWife().getDeathDate() == null) {
             return;

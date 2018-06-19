@@ -65,7 +65,7 @@ public class ParishGenerator {
      */
     public Parish generateParish(@NonNull ParishParameters parishParameters) {
         if (parishParameters.getFamilyParameters() == null) {
-            throw new IllegalArgumentException("FamilyParameters are required when creating a parish");
+            throw new IllegalArgumentException("RandomFamilyParameters are required when creating a parish");
         }
         if (parishParameters.getFamilyParameters().getReferenceDate() == null) {
             throw new IllegalArgumentException("Reference date is required when creating a parish");

@@ -9,7 +9,7 @@ import lombok.NonNull;
 import lombok.Setter;
 
 import com.meryt.demographics.domain.place.Parish;
-import com.meryt.demographics.request.FamilyParameters;
+import com.meryt.demographics.request.RandomFamilyParameters;
 
 @Getter
 @Setter
@@ -19,7 +19,7 @@ class ParishTemplate {
     private List<TownTemplate> towns = new ArrayList<>();
     private long expectedTotalPopulation;
     private long expectedRuralPopulation;
-    private FamilyParameters familyParameters;
+    private RandomFamilyParameters familyParameters;
 
     /**
      * Determines whether the town population on the given date is less than the expected population

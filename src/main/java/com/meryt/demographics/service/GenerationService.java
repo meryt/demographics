@@ -28,7 +28,7 @@ import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.generator.family.MatchMaker;
 import com.meryt.demographics.generator.random.BetweenDie;
 import com.meryt.demographics.generator.random.Die;
-import com.meryt.demographics.request.FamilyParameters;
+import com.meryt.demographics.request.RandomFamilyParameters;
 import com.meryt.demographics.request.GenerationPost;
 import com.meryt.demographics.request.InitialGenerationPost;
 import com.meryt.demographics.request.PersonFamilyPost;
@@ -70,7 +70,7 @@ public class GenerationService {
         if (lastNames == null) {
             lastNames = new ArrayList<>();
         }
-        FamilyParameters familyParameters = generationPost.getFamilyParameters();
+        RandomFamilyParameters familyParameters = generationPost.getFamilyParameters();
         int numFamilies = generationPost.getNumFamilies();
         List<Family> result = new ArrayList<>();
         for (int i = 0; i < numFamilies; i++) {
@@ -127,7 +127,7 @@ public class GenerationService {
         List<Family> results = new ArrayList<>();
         for (Person person : unfinishedPersons) {
 
-            FamilyParameters familyParameters = new FamilyParameters();
+            RandomFamilyParameters familyParameters = new RandomFamilyParameters();
             familyParameters.setMinHusbandAge(personFamilyPost.getMinHusbandAge());
             familyParameters.setMinWifeAge(personFamilyPost.getMinWifeAge());
             familyParameters.setReferenceDate(personFamilyPost.getUntilDate() == null

@@ -46,6 +46,10 @@ public class HouseholdService {
         return householdInhabitantRepository.save(householdInhabitantPeriod);
     }
 
+    public HouseholdLocationPeriod save(@NonNull HouseholdLocationPeriod householdLocationPeriod) {
+        return householdLocationRepository.save(householdLocationPeriod);
+    }
+
     /**
      * Finds a household by ID or returns null if none found
      */
@@ -150,15 +154,20 @@ public class HouseholdService {
 
         for (HouseholdInhabitantPeriod period : person.getHouseholds()) {
             if (period.rangeEquals(newPeriod)) {
-                endPersonResidence(period.getHousehold(), person, fromDate);
                 // There is an existing exact match for this new open-ended range. Just move the household.
+                // First remove them from the existing household.
+                period.getHousehold().getInhabitantPeriods().remove(period);
+                save(period.getHousehold());
+                // Then set the new household.
                 period.setHousehold(household);
+                household.getInhabitantPeriods().add(period);
                 period.setHouseholdHead(isHead);
+                save(household);
                 return;
             } else if (period.getFromDate().isBefore(fromDate) &&
                     (period.getToDate() == null || period.getToDate().isAfter(fromDate))) {
                 period.setToDate(fromDate);
-                endPersonResidence(period.getHousehold(), person, fromDate);
+                save(period.getHousehold());
             }
         }
 
@@ -170,6 +179,7 @@ public class HouseholdService {
         newPeriod.setPersonId(person.getId());
         newPeriod.setHouseholdHead(isHead);
         person.getHouseholds().add(newPeriod);
+        save(household);
     }
 
     /**
@@ -213,6 +223,7 @@ public class HouseholdService {
                 // If the periods are identical, just change the dwelling place.
                 period.setDwellingPlace(dwellingPlace);
                 householdLocationRepository.save(period);
+                save(household);
                 return;
             } else if (toDate == null && period.getFromDate().isAfter(fromDate)) {
                 // If this is an open-ended date range, we should delete any future locations for this household
