@@ -195,6 +195,8 @@ public class HouseholdGenerator {
             for (HouseholdInhabitantPeriod period : futureHouseholds) {
                 person.getHouseholds().remove(period);
                 householdService.delete(period);
+                period.getHousehold().getInhabitantPeriods().remove(period);
+                householdService.save(period.getHousehold());
             }
         }
 

@@ -141,7 +141,7 @@ public class Person {
     @OneToMany(mappedBy = "owner", cascade = { CascadeType.MERGE })
     private List<DwellingPlaceOwnerPeriod> ownedDwellingPlaces = new ArrayList<>();
 
-    @OneToMany(mappedBy = "person", cascade = { CascadeType.ALL })
+    @OneToMany(mappedBy = "person", cascade = { CascadeType.MERGE })
     private List<PersonOccupationPeriod> occupations = new ArrayList<>();
 
     @OneToMany(mappedBy = "person", cascade = { CascadeType.ALL })
@@ -254,6 +254,13 @@ public class Person {
             }
         }
         return false;
+    }
+
+    public boolean isMarried(@NonNull LocalDate onDate) {
+        return getFamilies().stream()
+                .anyMatch(f -> f.getWeddingDate() != null && f.getWeddingDate().isBefore(onDate) &&
+                        ((getGender() == Gender.MALE && f.getWife().isLiving(onDate)) ||
+                        (getGender() == Gender.FEMALE && f.getHusband().isLiving(onDate))));
     }
 
     /**
@@ -374,7 +381,7 @@ public class Person {
         }
     }
 
-    private Person getMother() {
+    public Person getMother() {
         if (getFamily() == null) {
             return null;
         } else {
@@ -638,6 +645,31 @@ public class Person {
                 .orElse(null);
     }
 
+    /**
+     * Sets the person's capital as of the given date. Closes off any existing capital period.
+     *
+     * @param capital the new amount of money he should have
+     * @param asOfDate the date as of which this amount should take effect
+     */
+    public void setCapital(double capital, @NonNull LocalDate asOfDate) {
+        PersonCapitalPeriod newPeriod = new PersonCapitalPeriod();
+        newPeriod.setCapital(capital);
+        newPeriod.setPerson(this);
+        newPeriod.setPersonId(getId());
+        newPeriod.setFromDate(asOfDate);
+        List<PersonCapitalPeriod> existingPeriods = getCapitalPeriods().stream()
+                .filter(p -> p.contains(asOfDate) || p.getFromDate().isAfter(asOfDate))
+                .sorted(Comparator.comparing(PersonCapitalPeriod::getFromDate))
+                .collect(Collectors.toList());
+        if (!existingPeriods.isEmpty()) {
+            existingPeriods.get(0).setToDate(asOfDate);
+            if (existingPeriods.size() > 1) {
+                newPeriod.setToDate(existingPeriods.get(1).getFromDate());
+            }
+        }
+        getCapitalPeriods().add(newPeriod);
+    }
+
     public Double getTotalWealth(@NonNull LocalDate onDate) {
         Double cashWealth = getCapital(onDate);
         List<DwellingPlace> realEstate = getOwnedDwellingPlaces(onDate);
@@ -645,6 +677,5 @@ public class Person {
                 .mapToDouble(d -> d.getValue() == null ? 0.0 : d.getValue())
                 .sum();
         return (cashWealth == null ? 0.0 : cashWealth) + realEstateValue;
-
     }
 }

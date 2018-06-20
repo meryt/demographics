@@ -96,7 +96,6 @@ public class CalendarService {
                         man.getAge(date)));
             }
 
-            // TODO we should consider how likely we want it to be for someone to "import" a bride from outside of the DB
             Family family = familyGenerator.attemptToFindSpouse(date, date, man, familyParameters);
             if (family != null) {
                 familyService.save(family);

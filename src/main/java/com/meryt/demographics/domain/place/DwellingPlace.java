@@ -136,7 +136,7 @@ public abstract class DwellingPlace {
      */
     @Nullable
     public String getLocationString() {
-        String name = getName() == null ? null : getName();
+        String name = getName();
         String location = getParent() == null ? null : getParent().getLocationString();
         if (name == null) {
             return location;

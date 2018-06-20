@@ -713,6 +713,11 @@ class ParishPopulator {
                     household.getFriendlyName(moveInDate)));
             return;
         }
+        if (currentLocation.getType() == DwellingPlaceType.DWELLING) {
+            // Should never happen; these are supposed to be homeless households
+            log.warn(String.format("Not moving household; they are already in a house"));
+            return;
+        }
 
         if (occupation != null) {
             if (occupation.isDomesticServant()) {

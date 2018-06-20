@@ -22,11 +22,14 @@ public class FamilyService {
 
     private final FamilyRepository familyRepository;
     private final HouseholdService householdService;
+    private final PersonService personService;
 
     FamilyService(@Autowired FamilyRepository familyRepository,
-                  @Autowired HouseholdService householdService) {
+                  @Autowired HouseholdService householdService,
+                  @Autowired PersonService personService) {
         this.familyRepository = familyRepository;
         this.householdService = householdService;
+        this.personService = personService;
     }
 
     /**
@@ -88,10 +91,13 @@ public class FamilyService {
         family.setWife(wife);
         family.setWeddingDate(weddingDate);
 
+        family = save(family);
+
         Household husbandsHousehold = moveWifeAndStepchildrenToHusbandsHousehold(family);
         findResidenceForNewFamily(family, husbandsHousehold);
 
-        // TODO if woman was living with her parents, they should give her some money.
+        // If a first-time bride has living parents, they should give her some money.
+        applyMarriageSettlements(wife, weddingDate);
 
         return family;
     }
@@ -228,6 +234,74 @@ public class FamilyService {
             }
         }
         return residence;
+    }
+
+    private void applyMarriageSettlements(@NonNull Person wife, @NonNull LocalDate weddingDate) {
+        if (!wife.isFemale()) {
+            throw new IllegalArgumentException("Marriage settlements are only made to women.");
+        }
+        if (wife.getFamilies().size() > 1 || wife.getFamily() == null) {
+            // It's not her first marriage, or she has no parents. She gets nothing.
+            return;
+        }
+
+        Person father = wife.getFather();
+        Person mother = wife.getMother();
+
+        double settlement = transferSettlementFromParentToDaughter(father, wife, weddingDate);
+        settlement += transferSettlementFromParentToDaughter(mother, wife, weddingDate);
+        if (settlement <= 0.0) {
+            return;
+        }
+
+        Double brideCapital = wife.getCapital(weddingDate);
+        if (brideCapital == null) {
+            brideCapital = 0.0;
+        }
+        wife.setCapital(brideCapital + settlement, weddingDate);
+        personService.save(wife);
+    }
+
+    /**
+     * Caculates the marriage settlement from a particular parent, if any. Removes that much capital from their wealth
+     * and saves the parent. Does not affect the daughter's current wealth, but does return the amount that was
+     * transferred away from theparent.
+     *
+     * @param parent the parent (possibly null, in which case 0.0 is returned0
+     * @param daughter the daughter getting married. She gets no settlement if she has been married before.
+     * @param date the wedding date
+     * @return an amount of money that was transferred away from the parent, or 0.0
+     */
+    private double transferSettlementFromParentToDaughter(@Nullable Person parent,
+                                                          @NonNull Person daughter,
+                                                          @NonNull LocalDate date) {
+        if (parent == null || !parent.isLiving(date) || !daughter.isLiving(date)) {
+            return 0.0;
+        }
+        Double parentCapital = parent.getCapital(date);
+        if (parentCapital == null || parentCapital < 0) {
+            return 0.0;
+        }
+
+        // Filter out the married children from the living children as they already got theirs. Add back the new bride
+        // herself.
+        long numPeopleWithShares = parent.getLivingChildren(date).stream()
+                .filter(p -> p.getFamilies().size() >= 1)
+                .count() + 1;
+        if (parent.isMarried(date)) {
+            numPeopleWithShares += 1;
+        }
+
+        // Taking the living unmarried children, plus the parent and possibly the parent's spouse, the bride gets
+        // one half of her share of the parent's cash.
+        double bridesSettlement = parentCapital / (2 * numPeopleWithShares);
+
+        parent.setCapital(parentCapital - bridesSettlement, date);
+
+        personService.save(parent);
+        log.info(String.format("%d %s received a marriage settlement of %.2f from her parent %d %s",
+                daughter.getId(), daughter.getName(), bridesSettlement, parent.getId(), parent.getName()));
+        return bridesSettlement;
     }
 
 }

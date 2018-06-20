@@ -9,6 +9,7 @@ import java.time.LocalDate;
 
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.SocialClass;
+import com.meryt.demographics.generator.random.PercentDie;
 
 @NoArgsConstructor
 @Getter
@@ -94,6 +95,16 @@ public class RandomFamilyParameters {
     private Integer minSpouseSelection;
 
     /**
+     * Only used if allowExistingSpouse is true. There will be this percent chance that the random spouse will be
+     * randomly generated rather than selected from eligible candidates already in the database. This is combined with
+     * minSpouseSelection such that the actual chance is higher (that is, if minSpouseSelection is 8, and there are
+     * only 4 candidates, then 4 random spouses will fill the slots of minSpouseSelection, regardless of the
+     * chanceGeneratedSpouse. The chanceGeneratedSpouse will be used first to determine whether an existing spouse is
+     * used, and if so, the minSpouseSelection may introduce a random spouse anyway.
+     */
+    private Double chanceGeneratedSpouse;
+
+    /**
      * If true, will save the family after generating.
      */
     private boolean persist;
@@ -142,6 +153,7 @@ public class RandomFamilyParameters {
         referenceDate = other.referenceDate;
         spouse = other.spouse;
         spouseLastName = other.spouseLastName;
+        chanceGeneratedSpouse = other.chanceGeneratedSpouse;
     }
 
     public int getMinHusbandAgeOrDefault() {
@@ -184,6 +196,26 @@ public class RandomFamilyParameters {
         if (referenceDate == null) {
             throw new IllegalArgumentException("referenceDate is required");
         }
+    }
+
+    /**
+     * Based on the current settings, determine whether we should try to find an existing spouse. The result depends on
+     * the value of allowExistingSpouse and chanceGeneratedSpouse.
+     *
+     * Calling this method multiple times may result in different return values, as it checks a randomness component
+     * if chanceGeneratedSpouse is set and is consulted.
+     */
+    public boolean shouldAttemptToFindExistingSpouse() {
+        if (!allowExistingSpouse) {
+            return false;
+        }
+        if (chanceGeneratedSpouse == null) {
+            return true;
+        }
+        if (chanceGeneratedSpouse >= 1.0) {
+            return false;
+        }
+        return new PercentDie().roll() > chanceGeneratedSpouse;
     }
 
 }

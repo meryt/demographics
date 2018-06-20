@@ -202,8 +202,8 @@ public class FamilyGenerator {
                     if (minAge != null && potentialSpouse.getAgeInYears(currentDate) < minAge) {
                         return null;
                     }
-                } else if (familyParameters.isAllowExistingSpouse()) {
-                    // We're not given a spouse, but are allowed to chose an eligible one from the database
+                } else if (familyParameters.shouldAttemptToFindExistingSpouse()) {
+                    // We're not given a spouse, but are allowed to chose an eligible one from the database.
                     List<RelatedPerson> potentialSpouses = personService.findPotentialSpouses(person, currentDate,
                             false, familyParameters);
                     if (familyParameters.getMinSpouseSelection() != null &&
