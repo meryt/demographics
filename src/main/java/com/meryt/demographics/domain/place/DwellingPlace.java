@@ -6,6 +6,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -31,6 +32,7 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
 
+import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.response.DwellingPlacePointer;
@@ -274,6 +276,14 @@ public abstract class DwellingPlace {
                 .filter(p -> p.getFromDate().equals(period.getFromDate()) && p.getHouseholdId() == period.getHouseholdId())
                 .findFirst().ifPresent(oldPeriod -> householdPeriods.remove(oldPeriod));
         householdPeriods.add(period);
+    }
+
+    public Map<Occupation, List<Person>> getPeopleWithOccupations(@NonNull LocalDate onDate) {
+        return getAllHouseholds(onDate).stream()
+                .map(h -> h.getInhabitants(onDate))
+                .flatMap(Collection::stream)
+                .filter(p -> p.getOccupation(onDate) != null)
+                .collect(Collectors.groupingBy(p -> p.getOccupation(onDate)));
     }
 
 }

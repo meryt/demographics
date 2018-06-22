@@ -1,8 +1,10 @@
 package com.meryt.demographics.service;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -11,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.RelatedPerson;
@@ -19,6 +22,8 @@ import com.meryt.demographics.domain.place.HouseholdLocationPeriod;
 import com.meryt.demographics.generator.family.MatchMaker;
 import com.meryt.demographics.repository.PersonRepository;
 import com.meryt.demographics.request.RandomFamilyParameters;
+import com.meryt.demographics.response.calendar.CalendarDayEvent;
+import com.meryt.demographics.response.calendar.EmploymentEvent;
 import com.meryt.demographics.time.LocalDateComparator;
 
 @Slf4j
@@ -91,7 +96,17 @@ public class PersonService {
      * property to their heirs.
      * @param person the person who died
      */
-    void processDeath(@NonNull Person person) {
+    List<CalendarDayEvent> processDeath(@NonNull Person person) {
+        List<CalendarDayEvent> results = new ArrayList<>();
+        processDeadPersonsHousehold(person);
+        CalendarDayEvent occupationEvent = processDeadPersonsOccupation(person);
+        if (occupationEvent != null) {
+            results.add(occupationEvent);
+        }
+        return results;
+    }
+
+    private void processDeadPersonsHousehold(@NonNull Person person) {
         LocalDate date = person.getDeathDate();
         if (date == null) {
             throw new IllegalArgumentException(String.format("Unable to process death: %d %s has a null death date",
@@ -124,6 +139,29 @@ public class PersonService {
             log.info("Resetting household head");
             householdService.resetHeadAsOf(currentHousehold, date);
         }
+    }
+
+    @Nullable
+    private CalendarDayEvent processDeadPersonsOccupation(@NonNull Person person) {
+        LocalDate date = person.getDeathDate();
+        Occupation occupation = person.getOccupation(date.minusDays(1));
+        if (occupation == null) {
+            return null;
+        }
+
+        List<Person> possibleJobHeirs = person.getLivingChildren(date).stream()
+                .filter(p -> p.getGender() == person.getGender()
+                        && p.getAgeInYears(date) >= 16
+                        && p.getOccupation(date) == null
+                        && p.getHousehold(date) != null)
+                .sorted(Comparator.comparing(Person::getBirthDate))
+                .collect(Collectors.toList());
+        if (!possibleJobHeirs.isEmpty()) {
+            possibleJobHeirs.get(0).addOccupation(occupation, date);
+            return new EmploymentEvent(date, person, occupation);
+        }
+
+        return null;
     }
 
     /**

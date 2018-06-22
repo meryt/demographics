@@ -206,21 +206,21 @@ public class InheritanceService {
         if (heirs.isEmpty()) {
             log.info(String.format("Unable to find any living natural heirs for %d %s on %s. " +
                     "Will try to find a random neighbor.", person.getId(), person.getName(), onDate));
-        }
 
-        DwellingPlace dwelling = person.getResidence(onDate.minusDays(1));
-        if (dwelling != null) {
-            List<Person> dwellingResidents = dwelling.getAllResidents(onDate);
-            if (!dwellingResidents.isEmpty()) {
-                Collections.shuffle(dwellingResidents);
-                heirs.add(dwellingResidents.get(0));
-            } else {
-                DwellingPlace parentDwelling = dwelling.getParent();
-                if (parentDwelling != null) {
-                    dwellingResidents = parentDwelling.getAllResidents(onDate);
-                    if (!dwellingResidents.isEmpty()) {
-                        Collections.shuffle(dwellingResidents);
-                        heirs.add(dwellingResidents.get(0));
+            DwellingPlace dwelling = person.getResidence(onDate.minusDays(1));
+            if (dwelling != null) {
+                List<Person> dwellingResidents = dwelling.getAllResidents(onDate);
+                if (!dwellingResidents.isEmpty()) {
+                    Collections.shuffle(dwellingResidents);
+                    heirs.add(dwellingResidents.get(0));
+                } else {
+                    DwellingPlace parentDwelling = dwelling.getParent();
+                    if (parentDwelling != null) {
+                        dwellingResidents = parentDwelling.getAllResidents(onDate);
+                        if (!dwellingResidents.isEmpty()) {
+                            Collections.shuffle(dwellingResidents);
+                            heirs.add(dwellingResidents.get(0));
+                        }
                     }
                 }
             }
@@ -285,9 +285,9 @@ public class InheritanceService {
         return false;
     }
 
-    void distributeCashToHeirs(@NonNull Person person, @NonNull LocalDate onDate) {
+    private void distributeCashToHeirs(@NonNull Person person, @NonNull LocalDate onDate) {
 
-        PersonCapitalPeriod period = person.getCapitalPeriod(onDate);
+        PersonCapitalPeriod period = person.getCapitalPeriod(onDate.minusDays(1));
         if (period == null) {
             return;
         }
@@ -312,8 +312,8 @@ public class InheritanceService {
         }
     }
 
-    void distributeRealEstateToHeirs(@NonNull Person person, @NonNull LocalDate onDate) {
-        List<DwellingPlace> realEstate = person.getOwnedDwellingPlaces(onDate);
+    private void distributeRealEstateToHeirs(@NonNull Person person, @NonNull LocalDate onDate) {
+        List<DwellingPlace> realEstate = person.getOwnedDwellingPlaces(onDate.minusDays(1));
         if (realEstate.isEmpty()) {
             return;
         }
@@ -361,7 +361,7 @@ public class InheritanceService {
         int i = 0;
         for (DwellingPlace estateOrFarm : unentailedEstates) {
             List<DwellingPlace> places = estateOrFarm.getDwellingPlaces().stream()
-                    .filter(dp -> dp.getOwners(onDate).contains(person))
+                    .filter(dp -> dp.getOwners(onDate.minusDays(1)).contains(person))
                     .collect(Collectors.toList());
             unentailedHouses.removeAll(places);
             Person heir;

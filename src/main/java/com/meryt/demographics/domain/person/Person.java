@@ -685,7 +685,9 @@ public class Person {
     }
 
     public void addCapital(double capital, @NonNull LocalDate onDate) {
-        setCapital(getCapital(onDate) + capital, onDate);
+        Double currentCapital = getCapital(onDate);
+
+        setCapital((currentCapital == null ? 0 : currentCapital) + capital, onDate);
     }
 
     public Double getTotalWealth(@NonNull LocalDate onDate) {

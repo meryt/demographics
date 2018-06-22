@@ -43,4 +43,9 @@ public class Occupation {
      * than 1.
      */
     private double supportFactor;
+
+    @Override
+    public String toString() {
+        return String.format("%d %s", id, name);
+    }
 }

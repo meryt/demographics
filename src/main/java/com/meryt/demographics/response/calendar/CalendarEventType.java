@@ -5,5 +5,6 @@ public enum CalendarEventType {
     DEATH,
     MARRIAGE,
     CONCEPTION,
-    MISCARRIAGE;
+    MISCARRIAGE,
+    EMPLOYMENT
 }

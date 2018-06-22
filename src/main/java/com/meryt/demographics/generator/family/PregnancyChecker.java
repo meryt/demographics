@@ -154,7 +154,7 @@ public class PregnancyChecker {
                     child.isMale() ? "" : "fe",
                     child.getName(),
                     family.getHusband().getName()));
-            results.add(new BirthEvent(birthDate, child, family.getWife(), family.getHusband()));
+            results.add(new BirthEvent(birthDate, child, family.getHusband(), family.getWife()));
         }
         return results;
     }

@@ -49,11 +49,7 @@ public class DwellingPlaceResponse extends DwellingPlaceSummaryResponse {
                 }
             }
 
-            Map<Occupation, List<Person>> peopleWithOccupations = dwellingPlace.getAllHouseholds(onDate).stream()
-                    .map(h -> h.getInhabitants(onDate))
-                    .flatMap(Collection::stream)
-                    .filter(p -> p.getOccupation(onDate) != null)
-                    .collect(Collectors.groupingBy(p -> p.getOccupation(onDate)));
+            Map<Occupation, List<Person>> peopleWithOccupations = dwellingPlace.getPeopleWithOccupations(onDate);
             if (!peopleWithOccupations.isEmpty()) {
                 occupations = new TreeMap<>();
                 for (Map.Entry<Occupation, List<Person>> entry : peopleWithOccupations.entrySet()) {

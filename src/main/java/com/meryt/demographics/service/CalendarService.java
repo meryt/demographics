@@ -23,6 +23,7 @@ import com.meryt.demographics.request.RandomFamilyParameters;
 import com.meryt.demographics.response.calendar.CalendarDayEvent;
 import com.meryt.demographics.response.calendar.CalendarEventType;
 import com.meryt.demographics.response.calendar.DeathEvent;
+import com.meryt.demographics.response.calendar.EmploymentEvent;
 import com.meryt.demographics.response.calendar.MarriageEvent;
 
 @Slf4j
@@ -36,6 +37,7 @@ public class CalendarService {
     private final FamilyService familyService;
     private final InheritanceService inheritanceService;
     private final AncestryService ancestryService;
+    private final OccupationService occupationService;
 
     public CalendarService(@Autowired @NonNull CheckDateRepository checkDateRepository,
                            @Autowired @NonNull PersonService personService,
@@ -43,7 +45,8 @@ public class CalendarService {
                            @Autowired @NonNull FertilityService fertilityService,
                            @Autowired @NonNull FamilyService familyService,
                            @Autowired @NonNull InheritanceService inheritanceService,
-                           @Autowired @NonNull AncestryService ancestryService) {
+                           @Autowired @NonNull AncestryService ancestryService,
+                           @Autowired @NonNull OccupationService occupationService) {
         this.checkDateRepository = checkDateRepository;
         this.personService = personService;
         this.familyGenerator = familyGenerator;
@@ -51,6 +54,7 @@ public class CalendarService {
         this.familyService = familyService;
         this.inheritanceService = inheritanceService;
         this.ancestryService = ancestryService;
+        this.occupationService = occupationService;
     }
 
     @Nullable
@@ -115,6 +119,13 @@ public class CalendarService {
                 fertilityService.cycleToDate(family.getWife(), date.minusDays(1));
                 family.getWife().getMaternity().setHavingRelations(true);
                 personService.save(family.getWife());
+
+                Occupation occupation = occupationService.findAvailableOccupationForPerson(man, date);
+                if (occupation != null) {
+                    man.addOccupation(occupation, date);
+                    personService.save(man);
+                    todaysResults.add(new EmploymentEvent(date, man, occupation));
+                }
             }
         }
         if (!todaysResults.isEmpty()) {
@@ -153,9 +164,10 @@ public class CalendarService {
         List<CalendarDayEvent> daysResults = new ArrayList<>();
         for (Person person : peopleDyingToday) {
             log.info(String.format("%s died", person.getName()));
-            personService.processDeath(person);
+            List<CalendarDayEvent> events = personService.processDeath(person);
             inheritanceService.processDeath(person);
             daysResults.add(new DeathEvent(date, person));
+            daysResults.addAll(events);
         }
         if (!daysResults.isEmpty()) {
             results.put(date, daysResults);
