@@ -18,7 +18,10 @@ import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.generator.family.FamilyGenerator;
+import com.meryt.demographics.generator.random.BetweenDie;
+import com.meryt.demographics.generator.random.PercentDie;
 import com.meryt.demographics.repository.CheckDateRepository;
+import com.meryt.demographics.request.AdvanceToDatePost;
 import com.meryt.demographics.request.RandomFamilyParameters;
 import com.meryt.demographics.response.calendar.CalendarDayEvent;
 import com.meryt.demographics.response.calendar.CalendarEventType;
@@ -38,6 +41,7 @@ public class CalendarService {
     private final InheritanceService inheritanceService;
     private final AncestryService ancestryService;
     private final OccupationService occupationService;
+    private final WealthService wealthService;
 
     public CalendarService(@Autowired @NonNull CheckDateRepository checkDateRepository,
                            @Autowired @NonNull PersonService personService,
@@ -46,7 +50,8 @@ public class CalendarService {
                            @Autowired @NonNull FamilyService familyService,
                            @Autowired @NonNull InheritanceService inheritanceService,
                            @Autowired @NonNull AncestryService ancestryService,
-                           @Autowired @NonNull OccupationService occupationService) {
+                           @Autowired @NonNull OccupationService occupationService,
+                           @Autowired @NonNull WealthService wealthService) {
         this.checkDateRepository = checkDateRepository;
         this.personService = personService;
         this.familyGenerator = familyGenerator;
@@ -55,6 +60,7 @@ public class CalendarService {
         this.inheritanceService = inheritanceService;
         this.ancestryService = ancestryService;
         this.occupationService = occupationService;
+        this.wealthService = wealthService;
     }
 
     @Nullable
@@ -73,11 +79,13 @@ public class CalendarService {
      * @return a list of things that happened on this day
      */
     public Map<LocalDate, List<CalendarDayEvent>> advanceToDay(@NonNull LocalDate toDate,
-                                                               @NonNull RandomFamilyParameters familyParameters) {
+                                                               @NonNull AdvanceToDatePost nextDatePost) {
         LocalDate currentDate = getCurrentDate();
         if (currentDate == null) {
             throw new IllegalStateException("Current date is null");
         }
+
+        RandomFamilyParameters familyParameters = nextDatePost.getFamilyParameters();
 
         Map<LocalDate, List<CalendarDayEvent>> results = new TreeMap<>();
         for (LocalDate date = currentDate.plusDays(1); !date.isAfter(toDate); date = date.plusDays(1)) {
@@ -90,6 +98,14 @@ public class CalendarService {
 
             Map<LocalDate, List<CalendarDayEvent>> deathEvents = processDeathsOnDay(date);
             results = mergeMaps(results, deathEvents);
+
+            if (date.getMonthValue() == nextDatePost.getFirstMonthOfYearOrDefault()
+                    && date.getDayOfMonth() == nextDatePost.getFirstDayOfYearOrDefault()) {
+                double goodYearFactor = (new BetweenDie()).roll(-20, 20) * 0.01;
+                log.info(String.format("%d was a %s year with a factor of %s", date.getYear() - 1,
+                        goodYearFactor > 0 ? "good" : "bad", goodYearFactor));
+                wealthService.distributeCapital(date, goodYearFactor);
+            }
         }
 
         setCurrentDate(toDate);

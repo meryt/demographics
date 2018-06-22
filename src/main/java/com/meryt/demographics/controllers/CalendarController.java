@@ -50,7 +50,7 @@ public class CalendarController {
             toDate = nextDatePost.getDate();
         }
 
-        return calendarService.advanceToDay(toDate, nextDatePost.getFamilyParameters());
+        return calendarService.advanceToDay(toDate, nextDatePost);
     }
 
 }

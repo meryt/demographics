@@ -98,7 +98,7 @@ public class WealthGenerator {
         }
     }
 
-    private static Pair<Integer, Integer> getYearlyIncomeValueRange(@NonNull SocialClass socialClass) {
+    public static Pair<Integer, Integer> getYearlyIncomeValueRange(@NonNull SocialClass socialClass) {
         switch (socialClass) {
             case PAUPER:
                 return Pair.of(1, 5);

@@ -148,7 +148,7 @@ public class Person {
     @OrderBy("from_date")
     private List<PersonTitlePeriod> titles = new ArrayList<>();
 
-    @OneToMany(mappedBy = "person", cascade = { CascadeType.ALL })
+    @OneToMany(mappedBy = "person", cascade = { CascadeType.MERGE })
     @OrderBy("from_date")
     private List<PersonCapitalPeriod> capitalPeriods = new ArrayList<>();
 
@@ -671,6 +671,7 @@ public class Person {
         newPeriod.setPerson(this);
         newPeriod.setPersonId(getId());
         newPeriod.setFromDate(asOfDate);
+        newPeriod.setToDate(getDeathDate());
         List<PersonCapitalPeriod> existingPeriods = getCapitalPeriods().stream()
                 .filter(p -> p.contains(asOfDate) || p.getFromDate().isAfter(asOfDate))
                 .sorted(Comparator.comparing(PersonCapitalPeriod::getFromDate))
