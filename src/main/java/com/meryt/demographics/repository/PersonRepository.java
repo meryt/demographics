@@ -18,6 +18,8 @@ public interface PersonRepository extends PagingAndSortingRepository<Person, Lon
 
     List<Person> findByFounderTrueOrderByBirthDate();
 
+    List<Person> findByDeathDate(LocalDate deathDate);
+
     @Query("SELECT p FROM Person p " +
             "WHERE p.gender = :gender " +
             "AND (p.motheredFamilies IS EMPTY OR (SIZE(p.motheredFamilies) = 1)) " +

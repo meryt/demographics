@@ -129,6 +129,12 @@ public abstract class DwellingPlace {
                 .collect(Collectors.toList());
     }
 
+    public List<Person> getAllResidents(@NonNull LocalDate onDate) {
+        return getAllHouseholds(onDate).stream()
+                .flatMap(h -> h.getInhabitants(onDate).stream())
+                .collect(Collectors.toList());
+    }
+
     /**
      * Recursively get the friendly location name of this dwelling place by taking its name (if any) and appending the
      * result of its parent.
@@ -261,6 +267,13 @@ public abstract class DwellingPlace {
         newPeriod.setToDate(toDate);
         person.getOwnedDwellingPlaces().add(newPeriod);
         getOwnerPeriods().add(newPeriod);
+    }
+
+    public void mergeHouseholdPeriod(@NonNull HouseholdLocationPeriod period) {
+        getHouseholdPeriods().stream()
+                .filter(p -> p.getFromDate().equals(period.getFromDate()) && p.getHouseholdId() == period.getHouseholdId())
+                .findFirst().ifPresent(oldPeriod -> householdPeriods.remove(oldPeriod));
+        householdPeriods.add(period);
     }
 
 }

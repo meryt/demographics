@@ -7,28 +7,34 @@ import java.util.List;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import lombok.NonNull;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.RelatedPerson;
+import com.meryt.demographics.domain.place.Household;
+import com.meryt.demographics.domain.place.HouseholdLocationPeriod;
 import com.meryt.demographics.generator.family.MatchMaker;
 import com.meryt.demographics.repository.PersonRepository;
 import com.meryt.demographics.request.RandomFamilyParameters;
 import com.meryt.demographics.time.LocalDateComparator;
 
+@Slf4j
 @Service
 public class PersonService {
 
     private final PersonRepository personRepository;
-
     private final AncestryService ancestryService;
+    private final HouseholdService householdService;
 
     public PersonService(@Autowired @NonNull PersonRepository personRepository,
-                         @Autowired @NonNull AncestryService ancestryService) {
+                         @Autowired @NonNull AncestryService ancestryService,
+                         @Autowired @NonNull HouseholdService householdService) {
         this.personRepository = personRepository;
         this.ancestryService = ancestryService;
+        this.householdService = householdService;
     }
 
     public Person save(@NonNull Person person) {
@@ -60,6 +66,11 @@ public class PersonService {
     }
 
     @NonNull
+    List<Person> findByDeathDate(@NonNull LocalDate deathDate) {
+        return personRepository.findByDeathDate(deathDate);
+    }
+
+    @NonNull
     List<Person> findUnmarriedMen(@NonNull LocalDate checkDate,
                                   int minHusbandAge,
                                   int maxHusbandAge,
@@ -72,6 +83,46 @@ public class PersonService {
                     .collect(Collectors.toList());
         } else {
             return results;
+        }
+    }
+
+    /**
+     * Perform some clean-up work upon a person's death, such as removing them from a household and distributing their
+     * property to their heirs.
+     * @param person the person who died
+     */
+    void processDeath(@NonNull Person person) {
+        LocalDate date = person.getDeathDate();
+        if (date == null) {
+            throw new IllegalArgumentException(String.format("Unable to process death: %d %s has a null death date",
+                    person.getId(), person.getName()));
+        }
+        Household currentHousehold = person.getHousehold(date);
+        if (currentHousehold != null) {
+            householdService.endPersonResidence(currentHousehold, person, date);
+        } else {
+            // If the household is null (as it should be if their residence there ended upon their death) we should
+            // still get their household so we can see whether is empty now. So get the household from 1 day ago.
+            currentHousehold = person.getHousehold(date.minusDays(1));
+        }
+        if (currentHousehold == null) {
+            return;
+        }
+
+        if (currentHousehold.getInhabitants(date).isEmpty()) {
+            log.info("The former household is now empty. Removing from its location.");
+            HouseholdLocationPeriod period = currentHousehold.getHouseholdLocationPeriod(date);
+            if (period != null) {
+                period.setToDate(date);
+                householdService.save(period);
+                log.info("Removed household from " + period.getDwellingPlace().getLocationString());
+                if (period.getDwellingPlace().getHouseholds(date).isEmpty()) {
+                    log.info("This dwelling place is now empty.");
+                }
+            }
+        } else if (currentHousehold.getHead(date) == null) {
+            log.info("Resetting household head");
+            householdService.resetHeadAsOf(currentHousehold, date);
         }
     }
 

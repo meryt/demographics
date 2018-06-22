@@ -11,6 +11,7 @@ import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.request.ParishParameters;
 import com.meryt.demographics.response.DwellingPlaceResponse;
 import com.meryt.demographics.service.AncestryService;
+import com.meryt.demographics.service.CalendarService;
 import com.meryt.demographics.service.DwellingPlaceService;
 import com.meryt.demographics.service.FamilyService;
 import com.meryt.demographics.service.HouseholdService;
@@ -27,6 +28,7 @@ public class ParishController {
     private final PersonService personService;
     private final HouseholdService householdService;
     private final AncestryService ancestryService;
+    private final CalendarService calendarService;
 
     public ParishController(@Autowired OccupationService occupationService,
                             @Autowired DwellingPlaceService dwellingPlaceService,
@@ -34,7 +36,8 @@ public class ParishController {
                             @Autowired FamilyService familyService,
                             @Autowired PersonService personService,
                             @Autowired HouseholdService householdService,
-                            @Autowired AncestryService ancestryService) {
+                            @Autowired AncestryService ancestryService,
+                            @Autowired CalendarService calendarService) {
         this.occupationService = occupationService;
         this.dwellingPlaceService = dwellingPlaceService;
         this.familyGenerator = familyGenerator;
@@ -42,6 +45,7 @@ public class ParishController {
         this.personService = personService;
         this.householdService = householdService;
         this.ancestryService = ancestryService;
+        this.calendarService = calendarService;
     }
 
     @RequestMapping("/api/parishes/random")
@@ -49,6 +53,7 @@ public class ParishController {
         ParishGenerator generator = new ParishGenerator(occupationService, familyGenerator, familyService,
                 personService, householdService, dwellingPlaceService, ancestryService);
         Parish parish = generator.generateParish(parishParameters);
+        calendarService.setCurrentDate(parishParameters.getFamilyParameters().getReferenceDate());
         if (parishParameters.isPersist()) {
             return new DwellingPlaceResponse(dwellingPlaceService.save(parish),
                     parishParameters.getFamilyParameters().getReferenceDate());

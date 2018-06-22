@@ -43,7 +43,7 @@ public class PersonResponse {
 
     private final List<String> traits;
 
-    PersonResponse(@NonNull Person person) {
+    public PersonResponse(@NonNull Person person) {
         id = person.getId();
         firstName = person.getFirstName();
         middleName = person.getMiddleNames();

@@ -453,7 +453,7 @@ class ParishPopulator {
         estate.setEntailed(isEntailed);
         dwellingPlace.addDwellingPlace(estate);
         maybePersist(dwellingPlace);
-        estate.addOwner(headOfHousehold, moveInDate, null);
+        estate.addOwner(headOfHousehold, moveInDate, headOfHousehold.getDeathDate());
         Dwelling manorHouse = new Dwelling();
         manorHouse.setName(estate.getName());
         manorHouse.setValue(WealthGenerator.getRandomHouseValue(headOfHousehold.getSocialClass()));
@@ -461,7 +461,7 @@ class ParishPopulator {
         estate.addDwellingPlace(manorHouse);
         manorHouse = (Dwelling) maybePersist(manorHouse);
         estate = (Estate) maybePersist(estate);
-        manorHouse.addOwner(headOfHousehold, moveInDate, null);
+        manorHouse.addOwner(headOfHousehold, moveInDate, headOfHousehold.getDeathDate());
         log.info(String.format("Generated estate '%s' for household of %s, %s", estate.getName(),
                 headOfHousehold.getName(), headOfHousehold.getSocialClass().getFriendlyName()));
         householdService.addToDwellingPlace(household, manorHouse, moveInDate, null);
@@ -485,10 +485,10 @@ class ParishPopulator {
         }
         maybePersist(house);
         dwellingPlace.addDwellingPlace(house);
-        householdService.addToDwellingPlace(household, house, moveInDate, null);
         maybePersist(dwellingPlace);
+        householdService.addToDwellingPlace(household, house, moveInDate, null);
         if (head != null) {
-            house.addOwner(head, moveInDate, null);
+            house.addOwner(head, moveInDate, head.getDeathDate());
         }
         log.info(String.format("Moved %s into new house in %s", household.getFriendlyName(moveInDate),
                 (dwellingPlace.getName() == null ? "a " + dwellingPlace.getType() : dwellingPlace.getName())));
@@ -502,7 +502,7 @@ class ParishPopulator {
         farm.setName(headOfHousehold.getLastName() + " Farm");
         farm.setValue(WealthGenerator.getRandomLandValue(headOfHousehold.getSocialClass()));
         maybePersist(farm);
-        farm.addOwner(headOfHousehold, moveInDate, null);
+        farm.addOwner(headOfHousehold, moveInDate, headOfHousehold.getDeathDate());
         dwellingPlace.addDwellingPlace(farm);
         maybePersist(dwellingPlace);
         Dwelling farmHouse = new Dwelling();
@@ -510,7 +510,7 @@ class ParishPopulator {
         farm.addDwellingPlace(farmHouse);
         maybePersist(farmHouse);
         maybePersist(farm);
-        farmHouse.addOwner(headOfHousehold, moveInDate, null);
+        farmHouse.addOwner(headOfHousehold, moveInDate, headOfHousehold.getDeathDate());
         householdService.addToDwellingPlace(household, farmHouse, moveInDate, null);
         maybePersist(household);
         log.info(String.format("Created %s in %s", farm.getName(), dwellingPlace.getFriendlyName()));
@@ -528,7 +528,7 @@ class ParishPopulator {
         house.setValue(WealthGenerator.getRandomHouseValue(headOfHousehold.getSocialClass()));
         maybePersist(house);
         householdService.addToDwellingPlace(household, house, moveInDate, null);
-        house.addOwner(headOfHousehold, moveInDate, null);
+        house.addOwner(headOfHousehold, moveInDate, headOfHousehold.getDeathDate());
 
         if (farmsInPlace.isEmpty()) {
             dwellingPlace.addDwellingPlace(house);
@@ -697,6 +697,8 @@ class ParishPopulator {
                         household.getFriendlyName(onDate)));
                 return;
             }
+            log.info(String.format("Reset household head of household %s to %d %s", household.getId(),
+                    head.getId(), head.getName()));
         }
         Occupation occupation = head.getOccupation(onDate);
 

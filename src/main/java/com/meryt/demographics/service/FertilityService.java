@@ -1,6 +1,8 @@
 package com.meryt.demographics.service;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import lombok.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,10 +11,12 @@ import org.springframework.stereotype.Service;
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.fertility.Maternity;
+import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.generator.family.PregnancyChecker;
 import com.meryt.demographics.generator.person.FertilityGenerator;
 import com.meryt.demographics.generator.person.PersonGenerator;
 import com.meryt.demographics.repository.MaternityRepository;
+import com.meryt.demographics.response.calendar.CalendarDayEvent;
 
 @Service
 public class FertilityService {
@@ -21,18 +25,21 @@ public class FertilityService {
     private final PersonService personService;
     private final PersonGenerator personGenerator;
     private final MaternityRepository maternityRepository;
+    private final HouseholdService householdService;
 
     public FertilityService(@Autowired @NonNull FamilyService familyService,
                             @Autowired @NonNull PersonService personService,
                             @Autowired @NonNull PersonGenerator personGenerator,
-                            @Autowired @NonNull MaternityRepository maternityRepository) {
+                            @Autowired @NonNull MaternityRepository maternityRepository,
+                            @Autowired @NonNull HouseholdService householdService) {
         this.familyService = familyService;
         this.personService = personService;
         this.personGenerator = personGenerator;
         this.maternityRepository = maternityRepository;
+        this.householdService = householdService;
     }
 
-    public Maternity cycleToDate(@NonNull Person woman, @NonNull LocalDate toDate) {
+    public List<CalendarDayEvent> cycleToDate(@NonNull Person woman, @NonNull LocalDate toDate) {
         if (!woman.isFemale()) {
             throw new IllegalArgumentException("cycleToDate can only operate on women");
         }
@@ -41,13 +48,14 @@ public class FertilityService {
             woman = personService.save(woman);
         }
 
+        List<CalendarDayEvent> results = new ArrayList<>();
         final Maternity maternity = (Maternity) woman.getFertility();
 
         if (maternity.getLastCheckDate() == null) {
             maternity.setLastCheckDate(maternity.getLastCycleDate());
         }
         if (toDate.isBefore(maternity.getLastCheckDate())) {
-            return maternity;
+            return results;
         }
 
         Family family;
@@ -70,12 +78,16 @@ public class FertilityService {
         }
 
         PregnancyChecker pregnancyChecker = new PregnancyChecker(personGenerator, family, true);
-        pregnancyChecker.checkDateRange(maternity.getLastCheckDate(), toDate);
+        results.addAll(pregnancyChecker.checkDateRange(maternity.getLastCheckDate(), toDate));
         // Save the woman which saves the maternity record
         maternity.setPerson(woman);
         for (Person child : family.getChildren()) {
             if (child.getId() == 0) {
-                personService.save(child);
+                Household motherHousehold = woman.getHousehold(child.getBirthDate());
+                child = personService.save(child);
+                if (motherHousehold != null && child.isLiving(child.getBirthDate().plusDays(1))) {
+                    householdService.addPersonToHousehold(child, motherHousehold, child.getBirthDate(), false);
+                }
             }
         }
         if (maternity.getNumBirths() != currentNumBirths) {
@@ -83,7 +95,7 @@ public class FertilityService {
         }
         woman.setMaternity(maternityRepository.save(maternity));
         personService.save(woman);
-        return woman.getMaternity();
+        return results;
     }
 
     private Maternity generateMaternity(@NonNull Person woman) {

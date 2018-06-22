@@ -21,6 +21,8 @@ import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.repository.CheckDateRepository;
 import com.meryt.demographics.request.RandomFamilyParameters;
 import com.meryt.demographics.response.calendar.CalendarDayEvent;
+import com.meryt.demographics.response.calendar.CalendarEventType;
+import com.meryt.demographics.response.calendar.DeathEvent;
 import com.meryt.demographics.response.calendar.MarriageEvent;
 
 @Slf4j
@@ -30,19 +32,25 @@ public class CalendarService {
     private final CheckDateRepository checkDateRepository;
     private final PersonService personService;
     private final FamilyGenerator familyGenerator;
-    private final HouseholdService householdService;
+    private final FertilityService fertilityService;
     private final FamilyService familyService;
+    private final InheritanceService inheritanceService;
+    private final AncestryService ancestryService;
 
     public CalendarService(@Autowired @NonNull CheckDateRepository checkDateRepository,
                            @Autowired @NonNull PersonService personService,
                            @Autowired @NonNull FamilyGenerator familyGenerator,
-                           @Autowired @NonNull HouseholdService householdService,
-                           @Autowired @NonNull FamilyService familyService) {
+                           @Autowired @NonNull FertilityService fertilityService,
+                           @Autowired @NonNull FamilyService familyService,
+                           @Autowired @NonNull InheritanceService inheritanceService,
+                           @Autowired @NonNull AncestryService ancestryService) {
         this.checkDateRepository = checkDateRepository;
         this.personService = personService;
         this.familyGenerator = familyGenerator;
-        this.householdService = householdService;
+        this.fertilityService = fertilityService;
         this.familyService = familyService;
+        this.inheritanceService = inheritanceService;
+        this.ancestryService = ancestryService;
     }
 
     @Nullable
@@ -69,13 +77,18 @@ public class CalendarService {
 
         Map<LocalDate, List<CalendarDayEvent>> results = new TreeMap<>();
         for (LocalDate date = currentDate.plusDays(1); !date.isAfter(toDate); date = date.plusDays(1)) {
+            log.info(String.format("Checking for events on %s", date));
             Map<LocalDate, List<CalendarDayEvent>> marriageEvents = generateMarriagesToDate(date, familyParameters);
             results = mergeMaps(results, marriageEvents);
-            /*
-            Map<LocalDate, List<CalendarDayEvent>> maternityEvents = advanceMaternitiesToDay(date, familyParameters);
+
+            Map<LocalDate, List<CalendarDayEvent>> maternityEvents = advanceMaternitiesToDay(date);
             results = mergeMaps(results, maternityEvents);
-            */
+
+            Map<LocalDate, List<CalendarDayEvent>> deathEvents = processDeathsOnDay(date);
+            results = mergeMaps(results, deathEvents);
         }
+
+        setCurrentDate(toDate);
 
         return results;
     }
@@ -87,21 +100,21 @@ public class CalendarService {
         Map<LocalDate, List<CalendarDayEvent>> results = new TreeMap<>();
         List<CalendarDayEvent> todaysResults = new ArrayList<>();
 
-        for (Person man : unmarriedPeople) {
-            if (!man.getFamilies().isEmpty()) {
-                log.info(String.format("%d %s is %s and his last wife died on %s", man.getId(), man.getName(),
-                        man.getAge(date), man.getFamilies().get(man.getFamilies().size() - 1).getWife().getDeathDate()));
-            } else {
-                log.info(String.format("%d %s is %s and has never been married", man.getId(), man.getName(),
-                        man.getAge(date)));
-            }
+        log.info(unmarriedPeople.size() + " unmarried men may be looking for a spouse.");
 
+        for (Person man : unmarriedPeople) {
             Family family = familyGenerator.attemptToFindSpouse(date, date, man, familyParameters);
             if (family != null) {
                 familyService.save(family);
                 todaysResults.add(new MarriageEvent(date, family));
                 logMarriage(family, date);
-                family = familyService.createAndSaveMarriage(family.getHusband(), family.getWife(), family.getWeddingDate());
+                family = familyService.setupMarriage(family, family.getWeddingDate());
+                family.getWife().getMaternity().setHavingRelations(false);
+                // If the woman is randomly generated her last check date is in the past. Bring her up to yesterday so
+                // that in th next step when we advance maternities, she will start with her wedding night.
+                fertilityService.cycleToDate(family.getWife(), date.minusDays(1));
+                family.getWife().getMaternity().setHavingRelations(true);
+                personService.save(family.getWife());
             }
         }
         if (!todaysResults.isEmpty()) {
@@ -111,11 +124,44 @@ public class CalendarService {
         return results;
     }
 
-    private Map<LocalDate, List<CalendarDayEvent>> advanceMaternitiesToDay(@NonNull LocalDate date,
-                                                                           @NonNull RandomFamilyParameters familyParameters) {
+    private Map<LocalDate, List<CalendarDayEvent>> advanceMaternitiesToDay(@NonNull LocalDate date) {
         List<Person> women = personService.findWomenWithPendingMaternities(date);
         log.info(women.size() + " women need to be checked");
-        return new TreeMap<>();
+        Map<LocalDate, List<CalendarDayEvent>> results = new TreeMap<>();
+        boolean shouldRebuildAncestry = false;
+        for (Person woman : women) {
+            List<CalendarDayEvent> daysResults = fertilityService.cycleToDate(woman, date);
+            for (CalendarDayEvent result : daysResults) {
+                if (!results.containsKey(result.getDate())) {
+                    results.put(result.getDate(), new ArrayList<>());
+                }
+                results.get(result.getDate()).add(result);
+                if (result.getType() == CalendarEventType.BIRTH) {
+                    shouldRebuildAncestry = true;
+                }
+            }
+        }
+        if (shouldRebuildAncestry) {
+            ancestryService.updateAncestryTable();
+        }
+        return results;
+    }
+
+    private Map<LocalDate, List<CalendarDayEvent>> processDeathsOnDay(@NonNull LocalDate date) {
+        List<Person> peopleDyingToday = personService.findByDeathDate(date);
+        Map<LocalDate, List<CalendarDayEvent>> results = new TreeMap<>();
+        List<CalendarDayEvent> daysResults = new ArrayList<>();
+        for (Person person : peopleDyingToday) {
+            log.info(String.format("%s died", person.getName()));
+            personService.processDeath(person);
+            inheritanceService.processDeath(person);
+            daysResults.add(new DeathEvent(date, person));
+        }
+        if (!daysResults.isEmpty()) {
+            results.put(date, daysResults);
+        }
+
+        return results;
     }
 
     private Map<LocalDate, List<CalendarDayEvent>> mergeMaps(Map<LocalDate, List<CalendarDayEvent>> map1,

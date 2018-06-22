@@ -98,7 +98,7 @@ public class TitleService {
             log.info(String.format("Looking for heir to %s, %s, died %s", currentHolder.getName(), title.getName(),
                     currentHolder.getDeathDate()));
             List<Person> nextHolders = inheritanceService.findPotentialHeirsForPerson(currentHolder,
-                    inheritanceDate, title.getInheritance());
+                    inheritanceDate, title.getInheritance(), true);
             log.info(nextHolders.size() + " possible heir(s) found as of " + inheritanceDate);
             if (nextHolders.size() == 1) {
                 // Stop once we have gone far back enough to find a single heir
@@ -136,7 +136,8 @@ public class TitleService {
 
             Person nextPotentialHeir = remainingHeirs.remove(0);
             currentDate = nextPotentialHeir.getDeathDate().plusDays(1);
-            remainingHeirs = inheritanceService.findPotentialHeirsForPerson(forPerson, currentDate, title.getInheritance());
+            remainingHeirs = inheritanceService.findPotentialHeirsForPerson(forPerson, currentDate,
+                    title.getInheritance(), true);
         } while (!remainingHeirs.isEmpty());
 
         // If we got here we ran out of heirs

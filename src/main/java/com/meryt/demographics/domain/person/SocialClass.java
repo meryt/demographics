@@ -78,6 +78,18 @@ public enum SocialClass {
         }
     }
 
+    /**
+     * Returns the next higher class, or the highest if it's already the lowest
+     */
+    @NonNull
+    public SocialClass plusOne() {
+        if (this == MONARCH) {
+            return MONARCH;
+        } else {
+            return fromRank(this.getRank() + 1);
+        }
+    }
+
     @NonNull
     public String getFriendlyName() {
         return name().toLowerCase().replace("_", " ");

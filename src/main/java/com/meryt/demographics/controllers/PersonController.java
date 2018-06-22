@@ -128,7 +128,7 @@ public class PersonController {
             if (!person.isFemale()) {
                 throw new BadRequestException("cycleToDate applies only to women");
             }
-            return fertilityService.cycleToDate(person, cycleToDate);
+            fertilityService.cycleToDate(person, cycleToDate);
         }
         return person.getFertility();
     }
@@ -334,7 +334,7 @@ public class PersonController {
                 throw new BadRequestException("Invalid value for inheritance: " + e.getMessage());
             }
         }
-        List<Person> heirs = inheritanceService.findPotentialHeirsForPerson(person, date, inheritanceStyle);
+        List<Person> heirs = inheritanceService.findPotentialHeirsForPerson(person, date, inheritanceStyle, true);
         return heirs.stream()
                 .map(p -> new RelatedPersonResponse(p, ancestryService.calculateRelationship(p, person, false)))
                 .collect(Collectors.toList());
@@ -359,7 +359,7 @@ public class PersonController {
                 throw new BadRequestException("Invalid value for inheritance: " + e.getMessage());
             }
         }
-        Pair<Person, LocalDate> heir = inheritanceService.findHeirForPerson(person, date, inheritanceStyle);
+        Pair<Person, LocalDate> heir = inheritanceService.findHeirForPerson(person, date, inheritanceStyle, true);
         if (heir == null) {
             return null;
         }

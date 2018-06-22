@@ -8,6 +8,7 @@ DELETE FROM household_inhabitants;
 DELETE FROM households;
 DELETE FROM persons;
 DELETE FROM titles;
+DELETE FROM check_date;
 
 ALTER SEQUENCE families_id_seq RESTART;
 ALTER SEQUENCE dwelling_places_id_seq RESTART;

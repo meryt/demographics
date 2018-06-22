@@ -60,6 +60,9 @@ public class FamilyService {
      */
     public Family createAndSaveFamily(@Nullable Person husband, @Nullable Person wife, @Nullable LocalDate weddingDate) {
         if (weddingDate != null && husband != null && wife != null) {
+            checkPersonAliveAndUnmarriedOnWeddingDate(husband, weddingDate);
+            checkPersonAliveAndUnmarriedOnWeddingDate(wife, weddingDate);
+
             return createAndSaveMarriage(husband, wife, weddingDate);
         }
         if (husband == null && wife == null) {
@@ -70,6 +73,10 @@ public class FamilyService {
         family.setHusband(husband);
         family.setWife(wife);
         family.setWeddingDate(weddingDate);
+        if (wife != null) {
+            wife.getMaternity().setFather(husband);
+            personService.save(wife);
+        }
         return save(family);
     }
 
@@ -82,22 +89,24 @@ public class FamilyService {
      * @param weddingDate a wedding date
      * @return the new family
      */
-    Family createAndSaveMarriage(@NonNull Person husband, @NonNull Person wife, @Nullable LocalDate weddingDate) {
-        checkPersonAliveAndUnmarriedOnWeddingDate(husband, weddingDate);
-        checkPersonAliveAndUnmarriedOnWeddingDate(wife, weddingDate);
-
+    Family createAndSaveMarriage(@NonNull Person husband, @NonNull Person wife, @NonNull LocalDate weddingDate) {
         Family family = new Family();
         family.setHusband(husband);
         family.setWife(wife);
         family.setWeddingDate(weddingDate);
-
+        wife.getMaternity().setFather(husband);
+        personService.save(wife);
         family = save(family);
+        return setupMarriage(family, weddingDate);
+    }
+
+    Family setupMarriage(@NonNull Family family, @NonNull LocalDate weddingDate) {
 
         Household husbandsHousehold = moveWifeAndStepchildrenToHusbandsHousehold(family);
         findResidenceForNewFamily(family, husbandsHousehold);
 
         // If a first-time bride has living parents, they should give her some money.
-        applyMarriageSettlements(wife, weddingDate);
+        applyMarriageSettlements(family.getWife(), weddingDate);
 
         return family;
     }
@@ -113,7 +122,7 @@ public class FamilyService {
                     weddingDate));
         }
         if (person.isMarriedNowOrAfter(weddingDate)) {
-            throw new IllegalArgumentException(String.format("%s could was already married on or after %s",
+            throw new IllegalArgumentException(String.format("%s was already married on or after %s",
                     person.getName(), weddingDate));
         }
     }

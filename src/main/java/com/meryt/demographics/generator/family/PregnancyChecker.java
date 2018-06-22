@@ -1,7 +1,10 @@
 package com.meryt.demographics.generator.family;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
+import javax.annotation.Nullable;
+
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.fertility.Maternity;
@@ -9,6 +12,12 @@ import com.meryt.demographics.domain.person.fertility.Paternity;
 import com.meryt.demographics.generator.person.PersonGenerator;
 import com.meryt.demographics.generator.random.Die;
 import com.meryt.demographics.generator.random.PercentDie;
+import com.meryt.demographics.response.calendar.BirthEvent;
+import com.meryt.demographics.response.calendar.CalendarDayEvent;
+import com.meryt.demographics.response.calendar.ConceptionEvent;
+import com.meryt.demographics.response.calendar.DeathEvent;
+import com.meryt.demographics.response.calendar.MiscarriageEvent;
+
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.math3.distribution.NormalDistribution;
@@ -51,35 +60,43 @@ public class PregnancyChecker {
     /**
      * Loop over dates so long as the mother is living and check for births etc.
      */
-    public void checkDateRange(@NonNull LocalDate startDate,
-                               @NonNull LocalDate endDate) {
+    public List<CalendarDayEvent> checkDateRange(@NonNull LocalDate startDate,
+                                                 @NonNull LocalDate endDate) {
 
         LocalDate currentDay = startDate;
         LocalDate endBeforeDate = endDate.plusDays(1);
 
+        List<CalendarDayEvent> results = new ArrayList<>();
         while (currentDay.isBefore(endBeforeDate) && mother.isLiving(currentDay)) {
-            checkDay(currentDay);
+            results.addAll(checkDay(currentDay));
             currentDay = currentDay.plusDays(1);
         }
+        return results;
     }
 
-    private void checkDay(@NonNull LocalDate day) {
+    private List<CalendarDayEvent> checkDay(@NonNull LocalDate day) {
+        List<CalendarDayEvent> results = new ArrayList<>();
         if (maternity.isPregnant(day)) {
             if (day.isEqual(maternity.getDueDate())) {
-                giveBirth(day);
+                results.addAll(giveBirth(day));
             } else if (maternity.getMiscarriageDate() != null && day.isEqual(maternity.getMiscarriageDate())) {
-                miscarry(day);
+                results.add(miscarry(day));
             }
         } else {
-            attemptConception(day);
+            CalendarDayEvent result = attemptConception(day);
+            if (result != null) {
+                results.add(result);
+            }
         }
 
         // Advances the last-check-date etc.
         maternity.checkDay(day);
+        return results;
     }
 
-    private void giveBirth(@NonNull LocalDate day) {
-        createChildren(day, maternity.isCarryingIdenticalTwins(), maternity.isCarryingFraternalTwins());
+    private List<CalendarDayEvent> giveBirth(@NonNull LocalDate day) {
+        List<CalendarDayEvent> results = new ArrayList<>(createChildren(day, maternity.isCarryingIdenticalTwins(),
+                maternity.isCarryingFraternalTwins()));
 
         int numChildren = 1;
         if (maternity.isCarryingIdenticalTwins()) {
@@ -97,13 +114,15 @@ public class PregnancyChecker {
 
         if (allowMaternalDeath && new PercentDie().roll() < CHILDBIRTH_MATERNAL_DEATH_PROBABILITY) {
             family.getWife().setDeathDate(day);
+            results.add(new DeathEvent(day, family.getWife()));
             log.info(String.format("%s died in childbirth on %s", family.getWife().getName(), day));
         }
 
         maternity.clearPregnancyFields();
+        return results;
     }
 
-    private void miscarry(@NonNull LocalDate day) {
+    private CalendarDayEvent miscarry(@NonNull LocalDate day) {
         log.info(String.format("%s miscarried on %s", family.getWife().getName(), day));
 
         maternity.setNumMiscarriages(maternity.getNumMiscarriages() + 1);
@@ -117,11 +136,13 @@ public class PregnancyChecker {
         }
 
         maternity.clearPregnancyFields();
+        return new MiscarriageEvent(day, family.getWife());
     }
 
-    private void createChildren(@NonNull LocalDate birthDate,
+    private List<CalendarDayEvent> createChildren(@NonNull LocalDate birthDate,
                                 boolean includeIdenticalTwin,
                                 boolean includeFraternalTwin) {
+        List<CalendarDayEvent> results = new ArrayList<>();
         List<Person> children = personGenerator.generateChildrenForParents(family, birthDate,
                 includeIdenticalTwin, includeFraternalTwin);
         maternity.setRandomBreastfeedingTillFromChildren(children);
@@ -133,27 +154,31 @@ public class PregnancyChecker {
                     child.isMale() ? "" : "fe",
                     child.getName(),
                     family.getHusband().getName()));
+            results.add(new BirthEvent(birthDate, child, family.getWife(), family.getHusband()));
         }
+        return results;
     }
 
-    private void attemptConception(@NonNull LocalDate day) {
+    @Nullable
+    private CalendarDayEvent attemptConception(@NonNull LocalDate day) {
         if (maternity.getFather() == null) {
             maternity.setFather(father);
         }
         if (maternity.getFrequencyFactor() <= 0 || !maternity.isHavingRelations() || father == null ||
             father.getFertility() == null || !father.isLiving(day.minusDays(3))) {
-            return;
+            return null;
         }
 
         double percentChance = maternity.getConceptionProbability(mother.getBirthDate(), day);
         percentChance *= ((Paternity) father.getFertility()).getAdjustedFertilityFactor(father.getAgeInDays(day));
 
         if (new PercentDie().roll() < percentChance) {
-            conceive(father, day);
+            return conceive(father, day);
         }
+        return null;
     }
 
-    private void conceive(@NonNull Person father, @NonNull LocalDate day) {
+    private CalendarDayEvent conceive(@NonNull Person father, @NonNull LocalDate day) {
         maternity.setConceptionDate(day);
         maternity.setFather(father);
         maternity.setDueDate(maternity.getConceptionDate().plusDays(getRandomGestation()));
@@ -174,6 +199,7 @@ public class PregnancyChecker {
                 day,
                 maternity.getDueDate(),
                 father.getName()));
+        return new ConceptionEvent(day, mother, father, maternity.getDueDate());
     }
 
     private int getRandomGestation() {

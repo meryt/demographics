@@ -216,13 +216,14 @@ public class HouseholdService {
             if (period.getFromDate().isBefore(fromDate) &&
                     (period.getToDate() == null || period.getToDate().isAfter(fromDate))) {
                 period.setToDate(fromDate);
-                householdLocationRepository.save(period);
+                //householdLocationRepository.save(period);
+                save(household);
             }  else if (period.getFromDate().equals(fromDate) && (
                     (period.getToDate() == null && toDate == null)
                             || (period.getToDate().equals(toDate)))) {
                 // If the periods are identical, just change the dwelling place.
                 period.setDwellingPlace(dwellingPlace);
-                householdLocationRepository.save(period);
+                //householdLocationRepository.save(period);
                 save(household);
                 return;
             } else if (toDate == null && period.getFromDate().isAfter(fromDate)) {

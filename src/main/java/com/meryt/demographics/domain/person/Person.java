@@ -439,6 +439,16 @@ public class Person {
         return spouses;
     }
 
+    public Person getSpouse(@NonNull LocalDate onDate) {
+        return getFamilies().stream()
+                .filter(f -> f.getWeddingDate() != null &&
+                        (f.getWeddingDate().isEqual(onDate) || f.getWeddingDate().isBefore(onDate)))
+                .sorted(Comparator.comparing(Family::getWeddingDate))
+                .map(f -> isMale() ? f.getWife() : f.getHusband())
+                .filter(p -> p.isLiving(onDate))
+                .findFirst().orElse(null);
+    }
+
     /**
      * Returns all children living on the date. Does not include children not yet born.
      */
@@ -638,9 +648,13 @@ public class Person {
      * having any on that date.
      */
     public Double getCapital(@NonNull LocalDate onDate) {
+        PersonCapitalPeriod period = getCapitalPeriod(onDate);
+        return period == null ? null : period.getCapital();
+    }
+
+    public PersonCapitalPeriod getCapitalPeriod(@NonNull LocalDate onDate) {
         return getCapitalPeriods().stream()
                 .filter(o -> o.contains(onDate))
-                .map(PersonCapitalPeriod::getCapital)
                 .findFirst()
                 .orElse(null);
     }
@@ -668,6 +682,10 @@ public class Person {
             }
         }
         getCapitalPeriods().add(newPeriod);
+    }
+
+    public void addCapital(double capital, @NonNull LocalDate onDate) {
+        setCapital(getCapital(onDate) + capital, onDate);
     }
 
     public Double getTotalWealth(@NonNull LocalDate onDate) {
