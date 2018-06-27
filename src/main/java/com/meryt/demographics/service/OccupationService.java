@@ -6,7 +6,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
 import javax.annotation.Nullable;
 import lombok.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,7 +16,6 @@ import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.PersonOccupationPeriod;
 import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.DwellingPlaceType;
-import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.Parish;
 import com.meryt.demographics.domain.place.Town;
 import com.meryt.demographics.generator.random.PercentDie;
@@ -60,13 +58,13 @@ public class OccupationService {
     }
 
     @Nullable
-    public Occupation findAvailableOccupationForPerson(@NonNull Person person, @NonNull LocalDate onDate) {
-        Household household = person.getHousehold(onDate);
-        if (!person.isLiving(onDate) || person.getOccupation(onDate) != null || household == null
-                || household.getDwellingPlace(onDate) == null) {
+    Occupation findAvailableOccupationForPerson(@NonNull Person person,
+                                                @NonNull DwellingPlace householdDwellingPlace,
+                                                @NonNull LocalDate onDate) {
+        if (!person.isLiving(onDate) || person.getOccupation(onDate) != null) {
             return null;
         }
-        DwellingPlace householdDwellingPlace = household.getDwellingPlace(onDate);
+
         while (householdDwellingPlace != null && householdDwellingPlace.getType() != DwellingPlaceType.TOWN
                 && householdDwellingPlace.getType() != DwellingPlaceType.PARISH) {
             householdDwellingPlace = householdDwellingPlace.getParent();
@@ -75,7 +73,9 @@ public class OccupationService {
             return null;
         }
 
-        long townPopulation = householdDwellingPlace.getPopulation(onDate);
+        long population = (householdDwellingPlace instanceof Parish)
+                ? ((Parish) householdDwellingPlace).getRuralPopulation(onDate)
+                : householdDwellingPlace.getPopulation(onDate);
         List<Occupation> occupationsForGender = person.isMale()
                 ? occupationRepository.findByAllowMaleIsTrue()
                 : occupationRepository.findByAllowFemaleIsTrue();
@@ -105,7 +105,7 @@ public class OccupationService {
         for (Occupation occupation : occupationsForSocialClass) {
             List<Person> peopleWithOccupation = existingOccupationsInTown.get(occupation);
             int peopleWithThisOccupation = (peopleWithOccupation == null) ? 0 : peopleWithOccupation.size();
-            double totalOfType = occupation.getSupportFactor() * townPopulation;
+            double totalOfType = occupation.getSupportFactor() * population;
             int wholeNumberSupportedByTown = (int) Math.floor(totalOfType);
             if (wholeNumberSupportedByTown > peopleWithThisOccupation) {
                 return occupation;
@@ -120,7 +120,7 @@ public class OccupationService {
         return null;
     }
 
-    public Iterable<Occupation> findAll() {
+    private Iterable<Occupation> findAll() {
         return occupationRepository.findAll();
     }
 }

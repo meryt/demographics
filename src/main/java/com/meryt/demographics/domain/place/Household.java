@@ -20,6 +20,7 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
 
+import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.person.Person;
 
 @Getter
@@ -107,6 +108,19 @@ public class Household {
                 .filter(p -> p.contains(onDate))
                 .map(HouseholdLocationPeriod::getDwellingPlace)
                 .findFirst().orElse(null);
+    }
+
+    /**
+     * Determines whether the household lives in a house on the date. If the household does not live anywhere, also
+     * returns false.
+     *
+     * @param onDate the date to check
+     * @return true if the household has a dwelling place on the date which is of type DWELLING; false if they do not
+     * have a dwelling place at all or if it is not a house
+     */
+    public boolean dwellsInHouse(@NonNull LocalDate onDate) {
+        DwellingPlace place = getDwellingPlace(onDate);
+        return place != null && place.isHouse();
     }
 
     public void addInhabitantPeriod(@NonNull HouseholdInhabitantPeriod newPeriod) {

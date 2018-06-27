@@ -6,5 +6,8 @@ public enum CalendarEventType {
     MARRIAGE,
     CONCEPTION,
     MISCARRIAGE,
-    EMPLOYMENT
+    EMPLOYMENT,
+    NEW_HOUSE,
+    PROPERTY_TRANSFER,
+    IMMIGRATION
 }

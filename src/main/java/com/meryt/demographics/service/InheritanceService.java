@@ -403,7 +403,7 @@ public class InheritanceService {
                 }
                 heir = heirs.get(i++);
             }
-            log.info(String.format("%d %s inherits %s %s on %s", heir.getId(), heir.getName(),
+            log.info(String.format("%d %s inherits %s in %s on %s", heir.getId(), heir.getName(),
                     house.getType().getFriendlyName(),
                     house.getLocationString(), onDate));
             house.addOwner(heir, onDate, heir.getDeathDate());

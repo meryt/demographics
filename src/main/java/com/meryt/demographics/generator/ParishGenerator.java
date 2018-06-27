@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Map;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.place.DwellingPlace;
@@ -16,48 +18,46 @@ import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.generator.family.HouseholdGenerator;
 import com.meryt.demographics.generator.random.Die;
 import com.meryt.demographics.request.ParishParameters;
-import com.meryt.demographics.service.AncestryService;
 import com.meryt.demographics.service.DwellingPlaceService;
 import com.meryt.demographics.service.FamilyService;
+import com.meryt.demographics.service.HouseholdDwellingPlaceService;
 import com.meryt.demographics.service.HouseholdService;
 import com.meryt.demographics.service.OccupationService;
 import com.meryt.demographics.service.PersonService;
 
 import static com.meryt.demographics.domain.place.DwellingPlace.ACRES_PER_SQUARE_MILE;
 
+@Service
 @Slf4j
 public class ParishGenerator {
 
     private final Die d4 = new Die(4);
 
     private final OccupationService occupationService;
-
     private final FamilyGenerator familyGenerator;
-
     private final FamilyService familyService;
-
     private final PersonService personService;
-
     private final HouseholdService householdService;
-
     private final DwellingPlaceService dwellingPlaceService;
+    private final HouseholdGenerator householdGenerator;
+    private final HouseholdDwellingPlaceService householdDwellingPlaceService;
 
-    private final AncestryService ancestryService;
-
-    public ParishGenerator(@NonNull OccupationService occupationService,
-                           @NonNull FamilyGenerator familyGenerator,
-                           @NonNull FamilyService familyService,
-                           @NonNull PersonService personService,
-                           @NonNull HouseholdService householdService,
-                           @NonNull DwellingPlaceService dwellingPlaceService,
-                           @NonNull AncestryService ancestryService) {
+    public ParishGenerator(@Autowired @NonNull OccupationService occupationService,
+                           @Autowired @NonNull FamilyGenerator familyGenerator,
+                           @Autowired @NonNull FamilyService familyService,
+                           @Autowired @NonNull PersonService personService,
+                           @Autowired @NonNull HouseholdService householdService,
+                           @Autowired @NonNull DwellingPlaceService dwellingPlaceService,
+                           @Autowired @NonNull HouseholdDwellingPlaceService householdDwellingPlaceService,
+                           @Autowired @NonNull HouseholdGenerator householdGenerator) {
         this.occupationService = occupationService;
         this.familyGenerator = familyGenerator;
         this.householdService = householdService;
         this.familyService = familyService;
         this.personService = personService;
         this.dwellingPlaceService = dwellingPlaceService;
-        this.ancestryService = ancestryService;
+        this.householdDwellingPlaceService = householdDwellingPlaceService;
+        this.householdGenerator = householdGenerator;
     }
 
     /**
@@ -161,13 +161,13 @@ public class ParishGenerator {
         template.setExpectedRuralPopulation(remainingPopulation);
         template.setFamilyParameters(parishParameters.getFamilyParameters());
 
-        ParishPopulator populator = new ParishPopulator(parishParameters,
-                new HouseholdGenerator(familyGenerator, personService, familyService, householdService, ancestryService),
+        ParishPopulator populator = new ParishPopulator(parishParameters, householdGenerator,
                 familyGenerator,
                 familyService,
                 householdService,
                 dwellingPlaceService,
-                personService);
+                personService,
+                householdDwellingPlaceService);
         populator.populateParish(template);
 
         return parish;
@@ -240,7 +240,7 @@ public class ParishGenerator {
     /**
      * Checks to see whether there is enough remaining population to add another town
      *
-     * @param parishParameters which includes the calcuated total population
+     * @param parishParameters which includes the calculated total population
      * @param currentTownPopulation current population across all towns
      * @param previousTownPopulation the population of the last generated town
      * @return boolean if there is enough population left to allocate it to another town

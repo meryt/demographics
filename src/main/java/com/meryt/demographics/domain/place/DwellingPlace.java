@@ -95,6 +95,26 @@ public abstract class DwellingPlace {
         return name == null ? getType().getFriendlyName() + " " + id : name;
     }
 
+    public boolean isHouse() {
+        return getType() == DwellingPlaceType.DWELLING;
+    }
+
+    public boolean isEstate() {
+        return getType() == DwellingPlaceType.ESTATE;
+    }
+
+    public boolean isFarm() {
+        return getType() == DwellingPlaceType.FARM;
+    }
+
+    public boolean isEstateOrFarm() {
+        return isEstate() || isFarm();
+    }
+
+    public double getNullSafeValue() {
+        return value == null ? 0.0 : value;
+    }
+
     /**
      * Gets the population of all households directly in this dwelling place as well as the population of all dwelling
      * places contained in this dwelling place

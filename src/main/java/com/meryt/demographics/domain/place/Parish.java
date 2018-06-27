@@ -19,6 +19,17 @@ public class Parish extends DwellingPlace {
         setType(DwellingPlaceType.PARISH);
     }
 
+    /**
+     * Gets the population of the parish that does not live in any town.
+     */
+    public long getRuralPopulation(@NonNull LocalDate onDate) {
+        long recurisvePopWithoutTowns = getDwellingPlaces().stream()
+                .filter(dp -> dp.getType() != DwellingPlaceType.TOWN)
+                .mapToLong(d -> d.getPopulation(onDate))
+                .sum();
+        return recurisvePopWithoutTowns + getDirectPopulation(onDate);
+    }
+
     public Double getSettledSquareMiles(@NonNull LocalDate onDate) {
         if (getSquareMiles() == null) {
             return null;

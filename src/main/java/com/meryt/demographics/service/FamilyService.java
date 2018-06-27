@@ -89,7 +89,7 @@ public class FamilyService {
      * @param weddingDate a wedding date
      * @return the new family
      */
-    Family createAndSaveMarriage(@NonNull Person husband, @NonNull Person wife, @NonNull LocalDate weddingDate) {
+    private Family createAndSaveMarriage(@NonNull Person husband, @NonNull Person wife, @NonNull LocalDate weddingDate) {
         Family family = new Family();
         family.setHusband(husband);
         family.setWife(wife);

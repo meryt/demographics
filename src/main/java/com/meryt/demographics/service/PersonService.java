@@ -16,9 +16,11 @@ import org.springframework.stereotype.Service;
 import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.domain.person.PersonCapitalPeriod;
 import com.meryt.demographics.domain.person.RelatedPerson;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.HouseholdLocationPeriod;
+import com.meryt.demographics.generator.WealthGenerator;
 import com.meryt.demographics.generator.family.MatchMaker;
 import com.meryt.demographics.repository.PersonRepository;
 import com.meryt.demographics.request.RandomFamilyParameters;
@@ -33,6 +35,7 @@ public class PersonService {
     private final PersonRepository personRepository;
     private final AncestryService ancestryService;
     private final HouseholdService householdService;
+
 
     public PersonService(@Autowired @NonNull PersonRepository personRepository,
                          @Autowired @NonNull AncestryService ancestryService,
@@ -251,4 +254,16 @@ public class PersonService {
         return husband == null || !husband.isLiving(onDate);
     }
 
+    public void generateStartingCapitalForFounder(@NonNull Person founder, @NonNull LocalDate onDate) {
+        double startingWealth = WealthGenerator.getRandomStartingCapital(founder.getSocialClass(),
+                !founder.getOccupations().isEmpty());
+        PersonCapitalPeriod period = new PersonCapitalPeriod();
+        period.setPerson(founder);
+        period.setPersonId(founder.getId());
+        period.setFromDate(onDate);
+        period.setToDate(founder.getDeathDate());
+        period.setCapital(startingWealth);
+        founder.getCapitalPeriods().add(period);
+        save(founder);
+    }
 }

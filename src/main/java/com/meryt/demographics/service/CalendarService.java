@@ -3,6 +3,7 @@ package com.meryt.demographics.service;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -16,7 +17,12 @@ import org.springframework.stereotype.Service;
 import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.domain.place.Dwelling;
 import com.meryt.demographics.domain.place.DwellingPlace;
+import com.meryt.demographics.domain.place.DwellingPlaceType;
+import com.meryt.demographics.domain.place.Farm;
+import com.meryt.demographics.domain.place.Household;
+import com.meryt.demographics.domain.place.Parish;
 import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.generator.random.BetweenDie;
 import com.meryt.demographics.generator.random.PercentDie;
@@ -28,6 +34,7 @@ import com.meryt.demographics.response.calendar.CalendarEventType;
 import com.meryt.demographics.response.calendar.DeathEvent;
 import com.meryt.demographics.response.calendar.EmploymentEvent;
 import com.meryt.demographics.response.calendar.MarriageEvent;
+import com.meryt.demographics.response.calendar.NewHouseEvent;
 
 @Slf4j
 @Service
@@ -42,6 +49,9 @@ public class CalendarService {
     private final AncestryService ancestryService;
     private final OccupationService occupationService;
     private final WealthService wealthService;
+    private final DwellingPlaceService dwellingPlaceService;
+    private final ImmigrationService immigrationService;
+    private final HouseholdDwellingPlaceService householdDwellingPlaceService;
 
     public CalendarService(@Autowired @NonNull CheckDateRepository checkDateRepository,
                            @Autowired @NonNull PersonService personService,
@@ -51,7 +61,10 @@ public class CalendarService {
                            @Autowired @NonNull InheritanceService inheritanceService,
                            @Autowired @NonNull AncestryService ancestryService,
                            @Autowired @NonNull OccupationService occupationService,
-                           @Autowired @NonNull WealthService wealthService) {
+                           @Autowired @NonNull WealthService wealthService,
+                           @Autowired @NonNull DwellingPlaceService dwellingPlaceService,
+                           @Autowired @NonNull ImmigrationService immigrationService,
+                           @Autowired @NonNull HouseholdDwellingPlaceService householdDwellingPlaceService) {
         this.checkDateRepository = checkDateRepository;
         this.personService = personService;
         this.familyGenerator = familyGenerator;
@@ -61,6 +74,9 @@ public class CalendarService {
         this.ancestryService = ancestryService;
         this.occupationService = occupationService;
         this.wealthService = wealthService;
+        this.dwellingPlaceService = dwellingPlaceService;
+        this.immigrationService = immigrationService;
+        this.householdDwellingPlaceService = householdDwellingPlaceService;
     }
 
     @Nullable
@@ -99,6 +115,9 @@ public class CalendarService {
             Map<LocalDate, List<CalendarDayEvent>> deathEvents = processDeathsOnDay(date);
             results = mergeMaps(results, deathEvents);
 
+            Map<LocalDate, List<CalendarDayEvent>> immigrantEvents = processImmigrants(date, nextDatePost);
+            results = mergeMaps(results, immigrantEvents);
+
             if (date.getMonthValue() == nextDatePost.getFirstMonthOfYearOrDefault()
                     && date.getDayOfMonth() == nextDatePost.getFirstDayOfYearOrDefault()) {
                 double goodYearFactor = (new BetweenDie()).roll(-20, 20) * 0.01;
@@ -118,7 +137,7 @@ public class CalendarService {
         List<Person> unmarriedPeople = personService.findUnmarriedMen(date, familyParameters.getMinHusbandAgeOrDefault(),
                 familyParameters.getMaxHusbandAgeOrDefault(), true);
         Map<LocalDate, List<CalendarDayEvent>> results = new TreeMap<>();
-        List<CalendarDayEvent> todaysResults = new ArrayList<>();
+        List<CalendarDayEvent> dayResults = new ArrayList<>();
 
         log.info(unmarriedPeople.size() + " unmarried men may be looking for a spouse.");
 
@@ -126,7 +145,7 @@ public class CalendarService {
             Family family = familyGenerator.attemptToFindSpouse(date, date, man, familyParameters);
             if (family != null) {
                 familyService.save(family);
-                todaysResults.add(new MarriageEvent(date, family));
+                dayResults.add(new MarriageEvent(date, family));
                 logMarriage(family, date);
                 family = familyService.setupMarriage(family, family.getWeddingDate());
                 family.getWife().getMaternity().setHavingRelations(false);
@@ -136,16 +155,36 @@ public class CalendarService {
                 family.getWife().getMaternity().setHavingRelations(true);
                 personService.save(family.getWife());
 
-                Occupation occupation = occupationService.findAvailableOccupationForPerson(man, date);
-                if (occupation != null) {
-                    man.addOccupation(occupation, date);
-                    personService.save(man);
-                    todaysResults.add(new EmploymentEvent(date, man, occupation));
+                Household household = man.getHousehold(date);
+                if (household != null) {
+                    DwellingPlace householdLocation = household.getDwellingPlace(date);
+                    if (householdLocation != null) {
+                        Occupation occupation = occupationService.findAvailableOccupationForPerson(man,
+                                householdLocation, date);
+                        if (occupation != null) {
+                            man.addOccupation(occupation, date);
+                            personService.save(man);
+                            dayResults.add(new EmploymentEvent(date, man, occupation));
+
+                            if (occupation.isFarmOwner()) {
+                                DwellingPlace dwellingPlace = man.getResidence(date);
+                                if (dwellingPlace != null && dwellingPlace.isHouse()
+                                        && !dwellingPlace.getParent().isFarm()) {
+                                    Farm farm = householdDwellingPlaceService.convertRuralHouseToFarm(
+                                            (Dwelling) dwellingPlace, date);
+                                    if (farm != null) {
+                                        dayResults.add(new NewHouseEvent(date, farm));
+                                    }
+                                }
+                            }
+
+                        }
+                    }
                 }
             }
         }
-        if (!todaysResults.isEmpty()) {
-            results.put(date, todaysResults);
+        if (!dayResults.isEmpty()) {
+            results.put(date, dayResults);
         }
 
         return results;
@@ -192,6 +231,39 @@ public class CalendarService {
         return results;
     }
 
+    /**
+     * Based on the percent chance of immigrant arrival, checks each parish for a new immigrant household on this date.
+     * If one is indicated, generates the household, family, residence, and possibly occupation.
+     *
+     * @param date the date to check for an arrival (for each parish)
+     * @param nextDatePost the request parameters, used to determine the percent chance as well as to configure the
+     *                     family generation using the RandomFamilyParameters.
+     * @return a map of events generated (possibly empty)
+     */
+    private Map<LocalDate, List<CalendarDayEvent>> processImmigrants(@NonNull LocalDate date,
+                                                                     @NonNull AdvanceToDatePost nextDatePost) {
+        Map<LocalDate, List<CalendarDayEvent>> results = new HashMap<>();
+        List<CalendarDayEvent> dayResults = new ArrayList<>();
+        if (nextDatePost.getChanceNewFamilyPerYear() == null) {
+            return results;
+        }
+
+        for (DwellingPlace parish :  dwellingPlaceService.loadByType(DwellingPlaceType.PARISH)) {
+            double chance = nextDatePost.getChanceNewFamilyPerYear() / 365.0;
+            if (new PercentDie().roll() < chance) {
+                dayResults.addAll(immigrationService.processImmigrantArrival((Parish) parish,
+                        nextDatePost.getFamilyParameters(), date));
+            }
+        }
+
+        if (!dayResults.isEmpty()) {
+            results.put(date, dayResults);
+        }
+
+        return results;
+    }
+
+
     private Map<LocalDate, List<CalendarDayEvent>> mergeMaps(Map<LocalDate, List<CalendarDayEvent>> map1,
                                                              Map<LocalDate, List<CalendarDayEvent>> map2) {
         Map<LocalDate, List<CalendarDayEvent>> map3 = new TreeMap<>(map1);
@@ -220,8 +292,8 @@ public class CalendarService {
         DwellingPlace wifeResidence = wife.getResidence(date);
         String wifeLocation = wifeResidence == null ? "elsewhere" : wifeResidence.getLocationString();
 
-        log.info(String.format("%d %s, age %d, %s of %s married %d %s, age %d, %s of %s",
+        log.info(String.format("%d %s, age %d, %s of %s, married %d %s, age %d, %s of %s, on %s",
                 husband.getId(), husband.getName(), husband.getAgeInYears(date), husbandOccupationName, husbandLocation,
-                wife.getId(), wife.getName(), wife.getAgeInYears(date), wifeOccupationName, wifeLocation));
+                wife.getId(), wife.getName(), wife.getAgeInYears(date), wifeOccupationName, wifeLocation, date));
     }
 }

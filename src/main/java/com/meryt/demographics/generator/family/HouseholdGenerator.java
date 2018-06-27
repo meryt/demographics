@@ -7,6 +7,8 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
@@ -23,6 +25,7 @@ import com.meryt.demographics.service.PersonService;
  * there is a head of the household.
  */
 @Slf4j
+@Service
 public class HouseholdGenerator {
 
     private final FamilyGenerator familyGenerator;
@@ -31,11 +34,11 @@ public class HouseholdGenerator {
     private final HouseholdService householdService;
     private final AncestryService ancestryService;
 
-    public HouseholdGenerator(@NonNull FamilyGenerator familyGenerator,
-                              @NonNull PersonService personService,
-                              @NonNull FamilyService familyService,
-                              @NonNull HouseholdService householdService,
-                              @NonNull AncestryService ancestryService) {
+    public HouseholdGenerator(@Autowired @NonNull FamilyGenerator familyGenerator,
+                              @Autowired @NonNull PersonService personService,
+                              @Autowired @NonNull FamilyService familyService,
+                              @Autowired @NonNull HouseholdService householdService,
+                              @Autowired @NonNull AncestryService ancestryService) {
         this.familyGenerator = familyGenerator;
         this.personService = personService;
         this.familyService = familyService;

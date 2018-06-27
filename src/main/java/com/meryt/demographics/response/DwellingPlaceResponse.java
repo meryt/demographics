@@ -28,6 +28,8 @@ public class DwellingPlaceResponse extends DwellingPlaceSummaryResponse {
 
     private Map<String, List<PersonReference>> occupations;
 
+    private List<HouseholdResponse> households;
+
     public DwellingPlaceResponse(@NonNull DwellingPlace dwellingPlace, @Nullable LocalDate onDate) {
         super(dwellingPlace, onDate);
 
@@ -64,6 +66,10 @@ public class DwellingPlaceResponse extends DwellingPlaceSummaryResponse {
             owners = owningPersons.isEmpty()
                     ? null
                     : owningPersons.stream().map(p -> new PersonReference(p, onDate)).collect(Collectors.toList());
+
+            households = dwellingPlace.getHouseholds(onDate).stream()
+                    .map(h -> new HouseholdResponse(h, onDate))
+                    .collect(Collectors.toList());
         }
     }
 }

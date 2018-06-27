@@ -305,6 +305,14 @@ public class Person {
     }
 
     /**
+     * Helper method to allow sorting of people by their rank
+     * @return the rank of the social class, or 0 if social class is null
+     */
+    public int getSocialClassRank() {
+        return socialClass == null ? 0 : socialClass.getRank();
+    }
+
+    /**
      * Format the height as feet'inches"
      * @return a formatted string, or null if height is null or impossibly small
      */

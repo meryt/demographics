@@ -11,7 +11,7 @@ public class WealthGenerator {
     private static final BetweenDie BETWEEN_DIE = new BetweenDie();
 
     public static double getRandomStartingCapital(@NonNull SocialClass socialClass, boolean isEmployed) {
-        Pair<Integer, Integer> range = getYearlyIncomeValueRange(socialClass);
+        Pair<Integer, Integer> range = getStartingCapitalValueRange(socialClass);
         if (socialClass.getRank() <= SocialClass.YEOMAN_OR_MERCHANT.getRank() || isEmployed) {
             // Assume income is from labor. Take 1-5 years of income as total savings.
             return BETWEEN_DIE.roll(1, 5) * (BETWEEN_DIE.roll(range.getFirst(), range.getSecond()));
@@ -98,7 +98,7 @@ public class WealthGenerator {
         }
     }
 
-    public static Pair<Integer, Integer> getYearlyIncomeValueRange(@NonNull SocialClass socialClass) {
+    private static Pair<Integer, Integer> getStartingCapitalValueRange(@NonNull SocialClass socialClass) {
         switch (socialClass) {
             case PAUPER:
                 return Pair.of(1, 5);
@@ -126,6 +126,33 @@ public class WealthGenerator {
                 return Pair.of(100_000, 500_000);
             case MONARCH:
                 return Pair.of(200_000, 1_000_000);
+            default:
+                throw new IllegalArgumentException("No value range defined for social class " + socialClass.name());
+        }
+    }
+
+    public static Pair<Integer, Integer> getYearlyIncomeValueRange(@NonNull SocialClass socialClass) {
+        switch (socialClass) {
+            case PAUPER:
+                return Pair.of(1, 5);
+            case LABORER:
+                return Pair.of(5, 15);
+            case LANDOWNER_OR_CRAFTSMAN:
+                return Pair.of(10, 50);
+            case YEOMAN_OR_MERCHANT:
+                return Pair.of(50, 200);
+            case GENTLEMAN:
+                return Pair.of(200, 500);
+            case BARONET:
+                return Pair.of(500, 2_000);
+            case BARON:
+            case VISCOUNT:
+            case EARL:
+            case MARQUESS:
+            case DUKE:
+            case PRINCE:
+            case MONARCH:
+                return Pair.of(2_000, 5_000);
             default:
                 throw new IllegalArgumentException("No value range defined for social class " + socialClass.name());
         }

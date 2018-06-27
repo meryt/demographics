@@ -18,6 +18,11 @@ public class AdvanceToDatePost {
     private RandomFamilyParameters familyParameters;
     private Integer firstMonthOfYear;
     private Integer firstDayOfYear;
+    /**
+     * Percent chance, per year, that a new family will arrive in a parish. The check will be performed per day,
+     * with this value divided by 365 to determine whether a new family moves into the parish.
+     */
+    private Double chanceNewFamilyPerYear;
 
     public void validate() {
         if (date == null && advanceDays == null) {

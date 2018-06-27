@@ -12,13 +12,11 @@ import org.springframework.stereotype.Service;
 
 import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.person.Person;
-import com.meryt.demographics.domain.person.PersonCapitalPeriod;
 import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.DwellingPlaceType;
 import com.meryt.demographics.generator.WealthGenerator;
 import com.meryt.demographics.generator.random.BetweenDie;
-import com.meryt.demographics.repository.PersonCapitalRepository;
 
 @Slf4j
 @Service
@@ -26,17 +24,14 @@ public class WealthService {
 
     private final DwellingPlaceService dwellingPlaceService;
     private final PersonService personService;
-    private final PersonCapitalRepository personCapitalRepository;
 
     public WealthService(@NonNull @Autowired DwellingPlaceService dwellingPlaceService,
-                         @NonNull @Autowired PersonService personService,
-                         @NonNull @Autowired PersonCapitalRepository personCapitalRepository) {
+                         @NonNull @Autowired PersonService personService) {
         this.dwellingPlaceService = dwellingPlaceService;
         this.personService = personService;
-        this.personCapitalRepository = personCapitalRepository;
     }
 
-    public void distributeCapital(@NonNull LocalDate onDate, double goodYearFactor) {
+    void distributeCapital(@NonNull LocalDate onDate, double goodYearFactor) {
         List<DwellingPlace> estatesAndFarms = dwellingPlaceService.loadByType(DwellingPlaceType.ESTATE);
         estatesAndFarms.addAll(dwellingPlaceService.loadByType(DwellingPlaceType.FARM));
 
@@ -74,9 +69,9 @@ public class WealthService {
         int maxReturn = estate.getType() == DwellingPlaceType.FARM ? 10 : 5;
 
         double value = estate.getValue();
-        double individualFactor = (new BetweenDie()).roll(minReturn, maxReturn) * 0.01;
+        double individualFactor = (new BetweenDie()).roll(minReturn * 100, maxReturn * 100) * 0.0001;
         double baseRent = value * individualFactor;
-        double adjustedRent = baseRent * (1.0 + goodYearFactor);
+        double adjustedRent = adjustForGoodOrBadYear(baseRent, goodYearFactor);
 
         double individualRent = adjustedRent / owners.size();
         for (Person owner : owners) {
@@ -93,7 +88,7 @@ public class WealthService {
                                  double goodYearFactor) {
         Pair<Integer, Integer> range = WealthGenerator.getYearlyIncomeValueRange(person.getSocialClass());
         int value = new BetweenDie().roll(range.getFirst(), range.getSecond());
-        double adjustedWage = value * (1.0 + goodYearFactor);
+        double adjustedWage = adjustForGoodOrBadYear(value, goodYearFactor);
         person.addCapital(adjustedWage, onDate);
         log.info(String.format("%d %s received %.2f from his wages as a %s", person.getId(), person.getName(),
                 adjustedWage, occupation.getName()));
@@ -106,12 +101,39 @@ public class WealthService {
             return;
         }
 
-        double rateOfReturn = new BetweenDie().roll(-2, 4) * 0.01;
+        double rateOfReturn = new BetweenDie().roll(-200, 400) * 0.0001;
         double interest = currentCapital * rateOfReturn;
         person.addCapital(interest, onDate);
         log.info(String.format("%d %s received %.2f from interest on capital", person.getId(), person.getName(),
                 interest));
         personService.save(person);
+    }
+
+    /**
+     * Given a wage or a rent and a "good year" factor indicating how good or bad the year was for business, return
+     * an adjusted wage or rent.
+     *
+     * If the wage or rent is negative but it is a good year (the good year factor is positive) the absolute value
+     * of the wage or rent will be reduced, so the person takes a smaller hit.  If it's negative and it's a bad year,
+     * the absolute value will be increased, making the hit even worse. The converse is true for a positive value.
+     *
+     * @param wageOrRent the base rage or rent received this year
+     * @param goodYearFactor the factor by which the wage/rent is increased (or decreased if this value is negative) to
+     *                       reflect how good or bad for business the year was.
+     * @return the adjusted wage or rent
+     */
+    private double adjustForGoodOrBadYear(double wageOrRent, double goodYearFactor) {
+        if (wageOrRent < 0 && goodYearFactor < 0) {
+            return wageOrRent * (1.0 - goodYearFactor);
+        } else if (wageOrRent < 0 && goodYearFactor >= 0) {
+            return wageOrRent * (1.0 - goodYearFactor);
+        } else if (wageOrRent >= 0 && goodYearFactor < 0) {
+            return wageOrRent * (1.0 + goodYearFactor);
+        } else if (wageOrRent >= 0 && goodYearFactor >= 0) {
+            return wageOrRent * (1.0 + goodYearFactor);
+        } else {
+            return wageOrRent * (1.0 + goodYearFactor);
+        }
     }
 
 }
