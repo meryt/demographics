@@ -31,11 +31,11 @@ public class PersonTitlePeriod implements DateRange {
     private long titleId;
 
     @JsonIgnore
-    @ManyToOne(cascade = { CascadeType.ALL })
+    @ManyToOne(cascade = { CascadeType.MERGE })
     @JoinColumn(name = "person_id", referencedColumnName = "id")
     private Person person;
 
-    @ManyToOne(cascade = { CascadeType.ALL })
+    @ManyToOne(cascade = { CascadeType.MERGE })
     @MapsId("title_id")
     @PrimaryKeyJoinColumn(name = "title_id", referencedColumnName = "id")
     private Title title;

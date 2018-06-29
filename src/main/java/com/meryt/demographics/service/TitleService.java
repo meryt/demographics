@@ -2,8 +2,6 @@ package com.meryt.demographics.service;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -20,6 +18,10 @@ import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.PersonTitlePeriod;
 import com.meryt.demographics.domain.title.Title;
 import com.meryt.demographics.repository.TitleRepository;
+import com.meryt.demographics.response.calendar.CalendarDayEvent;
+import com.meryt.demographics.response.calendar.TitleAbeyanceEvent;
+import com.meryt.demographics.response.calendar.TitleExtinctionEvent;
+import com.meryt.demographics.response.calendar.TitleInheritanceEvent;
 import com.meryt.demographics.time.LocalDateComparator;
 
 @Slf4j
@@ -28,14 +30,14 @@ public class TitleService {
 
     private final TitleRepository titleRepository;
     private final PersonService personService;
-    private final InheritanceService inheritanceService;
+    private final HeirService heirService;
 
     public TitleService(@Autowired @NonNull TitleRepository titleRepository,
                         @Autowired @NonNull PersonService personService,
-                        @Autowired @NonNull InheritanceService inheritanceService) {
+                        @Autowired @NonNull HeirService heirService) {
         this.titleRepository = titleRepository;
         this.personService = personService;
-        this.inheritanceService = inheritanceService;
+        this.heirService = heirService;
     }
 
     @Nullable
@@ -97,7 +99,7 @@ public class TitleService {
             }
             log.info(String.format("Looking for heir to %s, %s, died %s", currentHolder.getName(), title.getName(),
                     currentHolder.getDeathDate()));
-            List<Person> nextHolders = inheritanceService.findPotentialHeirsForPerson(currentHolder,
+            List<Person> nextHolders = heirService.findPotentialHeirsForPerson(currentHolder,
                     inheritanceDate, title.getInheritance(), true);
             log.info(nextHolders.size() + " possible heir(s) found as of " + inheritanceDate);
             if (nextHolders.size() == 1) {
@@ -136,7 +138,7 @@ public class TitleService {
 
             Person nextPotentialHeir = remainingHeirs.remove(0);
             currentDate = nextPotentialHeir.getDeathDate().plusDays(1);
-            remainingHeirs = inheritanceService.findPotentialHeirsForPerson(forPerson, currentDate,
+            remainingHeirs = heirService.findPotentialHeirsForPerson(forPerson, currentDate,
                     title.getInheritance(), true);
         } while (!remainingHeirs.isEmpty());
 
@@ -176,28 +178,110 @@ public class TitleService {
                 return null;
             }
 
-            // The person may not have been born when the current title-holder died (e.g. he inherited via
-            // his mother), so in that case he inherited at birth.
-            LocalDate dateObtained = LocalDateComparator.max(nextHolders.getFirst(), nextHolder.getBirthDate());
-            if (!nextHolder.isLiving(dateObtained)) {
-                log.info(String.format("Unable to add title for %s; %s was not living on %s", nextHolder.getName(),
-                        (nextHolder.isMale() ? "he" : "she"), dateObtained));
-                return null;
-            }
-            log.info(String.format("Adding title for %s starting %s", nextHolder, dateObtained));
-            nextHolder.addOrUpdateTitle(title, dateObtained, null);
-            if (Strings.isNullOrEmpty(nextHolder.getLastName())) {
-                String lastNameFromTitle = title.getName().replaceAll("^[^ ]+ ", "");
-                nextHolder.setLastName(lastNameFromTitle);
-            }
-            personService.save(nextHolder);
-            return nextHolder;
+            LocalDate dateObtained = addTitleToPerson(title, nextHolder, nextHolders.getFirst());
+            return dateObtained == null ? null : nextHolder;
         } else if (allHoldersHaveFinishedGeneration(title) && nextHolders.getSecond().isEmpty()) {
             log.info(String.format("The title of %s has gone extinct.", title.getName()));
             title.setExtinct(true);
             save(title);
         }
         return null;
+    }
+
+    private LocalDate addTitleToPerson(@NonNull Title title, @NonNull Person person, @NonNull LocalDate dateObtained) {
+        // The person may not have been born when the current title-holder died (e.g. he inherited via
+        // his mother), so in that case he inherited at birth.
+        dateObtained = LocalDateComparator.max(dateObtained, person.getBirthDate());
+        if (!person.isLiving(dateObtained)) {
+            log.info(String.format("Unable to add title for %s; %s was not living on %s", person.getName(),
+                    (person.isMale() ? "he" : "she"), dateObtained));
+            return null;
+        }
+        log.info(String.format("Adding title for %s starting %s", person, dateObtained));
+        title.setExtinct(false);
+        title.setNextAbeyanceCheckDate(null);
+        save(title);
+
+        person.addOrUpdateTitle(title, dateObtained, null);
+        if (Strings.isNullOrEmpty(person.getLastName())) {
+            String lastNameFromTitle = title.getName().replaceAll("^[^ ]+ ", "");
+            person.setLastName(lastNameFromTitle);
+        }
+        personService.save(person);
+        return dateObtained;
+    }
+
+    /**
+     * Find all titles such that the abeyance check date is non null and is before or equal to the given date
+     *
+     * @param date a date on which to check
+     * @return a list of titles, possibly empty
+     */
+    @NonNull
+    List<Title> findTitlesForAbeyanceCheck(@NonNull LocalDate date) {
+        return titleRepository.findAllByNextAbeyanceCheckDateIsLessThanEqual(date);
+    }
+
+    @NonNull
+    List<CalendarDayEvent> processDeadPersonsTitles(@NonNull Person person) {
+        LocalDate date = person.getDeathDate();
+        if (date == null) {
+            throw new IllegalArgumentException(String.format("%d %s has no death date", person.getId(), person.getName()));
+        }
+        List<CalendarDayEvent> results = new ArrayList<>();
+        for (PersonTitlePeriod period : person.getTitles(date.minusDays(1))) {
+            Title title = period.getTitle();
+            if (title.getTitleHolders().stream().anyMatch(p -> p.getFromDate().isAfter(date) || p.getFromDate().equals(date))) {
+                // The subsequent title holders have already been decided, so skip the title.
+                continue;
+            }
+            LocalDate heirMayBeBorn = null;
+            if (person.isMale() && person.getSpouse(date) != null && person.getSpouse(date).isPregnant(date) &&
+                    person.getSpouse(date).getMaternity().getMiscarriageDate() == null) {
+                heirMayBeBorn = person.getSpouse(date).getMaternity().getDueDate();
+            }
+            results.addAll(checkForSingleTitleHeir(title, date, heirMayBeBorn));
+        }
+        return results;
+    }
+
+    List<CalendarDayEvent> checkForSingleTitleHeir(@NonNull Title title,
+                                                   @NonNull LocalDate date,
+                                                   @Nullable LocalDate heirMayBeBornOn) {
+        Pair<LocalDate, List<Person>> heirs = getTitleHeirs(title);
+        Person latestHolder = getLatestHolder(title);
+        List<CalendarDayEvent> results = new ArrayList<>();
+        if (heirs == null) {
+            if (heirMayBeBornOn != null) {
+                title.setNextAbeyanceCheckDate(heirMayBeBornOn);
+                save(title);
+            } else {
+                title.setExtinct(true);
+                title.setNextAbeyanceCheckDate(null);
+                save(title);
+                results.add(new TitleExtinctionEvent(date, title));
+            }
+        } else if (heirs.getSecond().size() > 1) {
+            results.add(new TitleAbeyanceEvent(date, title, heirs.getSecond()));
+            LocalDate nextCheck = heirMayBeBornOn == null
+                    ? heirs.getFirst()
+                    : LocalDateComparator.min(heirMayBeBornOn, heirs.getFirst());
+            title.setNextAbeyanceCheckDate(nextCheck);
+            save(title);
+        } else {
+            Person heir = heirs.getSecond().get(0);
+            if (heirMayBeBornOn != null && (!heir.isMale() || (latestHolder != null && !latestHolder.getChildren().contains(heir)))) {
+                // If an heir may yet be born, and this heir is not a son of the dead person, we should wait till
+                // the potential heir is born.
+                title.setNextAbeyanceCheckDate(heirMayBeBornOn);
+                save(title);
+            } else {
+                LocalDate dateOfTitle = heirs.getFirst();
+                LocalDate dateObtained = addTitleToPerson(title, heir, dateOfTitle);
+                results.add(new TitleInheritanceEvent(dateObtained, title, heir));
+            }
+        }
+        return results;
     }
 
     /**

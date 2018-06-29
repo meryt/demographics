@@ -10,13 +10,13 @@ import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.SocialClass;
 
 @Getter
-class PersonSummaryResponse extends PersonReference {
+public class PersonSummaryResponse extends PersonReference {
 
     private SocialClass socialClass;
 
     private OccupationReference occupation;
 
-    PersonSummaryResponse(@NonNull Person person, @NonNull LocalDate onDate) {
+    public PersonSummaryResponse(@NonNull Person person, @NonNull LocalDate onDate) {
         super(person, onDate);
         socialClass = person.getSocialClass();
         Occupation personOcc = person.getOccupation(onDate);

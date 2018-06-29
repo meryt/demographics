@@ -70,7 +70,6 @@ dependencies {
     testCompileOnly("org.projectlombok:lombok:${lombokVersion}")
 }
 
-
 task webpack(type: NodeTask, dependsOn: 'npmInstall') {
     def osName = System.getProperty("os.name").toLowerCase();
     if (osName.contains("windows")) {

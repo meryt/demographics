@@ -23,6 +23,7 @@ import com.meryt.demographics.domain.place.DwellingPlaceType;
 import com.meryt.demographics.domain.place.Farm;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.Parish;
+import com.meryt.demographics.domain.title.Title;
 import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.generator.random.BetweenDie;
 import com.meryt.demographics.generator.random.PercentDie;
@@ -52,6 +53,7 @@ public class CalendarService {
     private final DwellingPlaceService dwellingPlaceService;
     private final ImmigrationService immigrationService;
     private final HouseholdDwellingPlaceService householdDwellingPlaceService;
+    private final TitleService titleService;
 
     public CalendarService(@Autowired @NonNull CheckDateRepository checkDateRepository,
                            @Autowired @NonNull PersonService personService,
@@ -64,7 +66,8 @@ public class CalendarService {
                            @Autowired @NonNull WealthService wealthService,
                            @Autowired @NonNull DwellingPlaceService dwellingPlaceService,
                            @Autowired @NonNull ImmigrationService immigrationService,
-                           @Autowired @NonNull HouseholdDwellingPlaceService householdDwellingPlaceService) {
+                           @Autowired @NonNull HouseholdDwellingPlaceService householdDwellingPlaceService,
+                           @Autowired @NonNull TitleService titleService) {
         this.checkDateRepository = checkDateRepository;
         this.personService = personService;
         this.familyGenerator = familyGenerator;
@@ -77,6 +80,7 @@ public class CalendarService {
         this.dwellingPlaceService = dwellingPlaceService;
         this.immigrationService = immigrationService;
         this.householdDwellingPlaceService = householdDwellingPlaceService;
+        this.titleService = titleService;
     }
 
     @Nullable
@@ -117,6 +121,9 @@ public class CalendarService {
 
             Map<LocalDate, List<CalendarDayEvent>> immigrantEvents = processImmigrants(date, nextDatePost);
             results = mergeMaps(results, immigrantEvents);
+
+            Map<LocalDate, List<CalendarDayEvent>> titleEvents = processTitlesInAbeyance(date);
+            results = mergeMaps(results, titleEvents);
 
             if (date.getMonthValue() == nextDatePost.getFirstMonthOfYearOrDefault()
                     && date.getDayOfMonth() == nextDatePost.getFirstDayOfYearOrDefault()) {
@@ -218,8 +225,10 @@ public class CalendarService {
         Map<LocalDate, List<CalendarDayEvent>> results = new TreeMap<>();
         List<CalendarDayEvent> daysResults = new ArrayList<>();
         for (Person person : peopleDyingToday) {
-            log.info(String.format("%s died", person.getName()));
+            log.info(String.format("%d %s died on %s, aged %d", person.getId(), person.getName(), date,
+                    person.getAgeInYears(date)));
             List<CalendarDayEvent> events = personService.processDeath(person);
+            daysResults.addAll(titleService.processDeadPersonsTitles(person));
             inheritanceService.processDeath(person);
             daysResults.add(new DeathEvent(date, person));
             daysResults.addAll(events);
@@ -263,6 +272,20 @@ public class CalendarService {
         return results;
     }
 
+
+    private Map<LocalDate, List<CalendarDayEvent>> processTitlesInAbeyance(@NonNull LocalDate onDate) {
+        List<Title> titles = titleService.findTitlesForAbeyanceCheck(onDate);
+        Map<LocalDate, List<CalendarDayEvent>> results = new HashMap<>();
+        List<CalendarDayEvent> dayResults = new ArrayList<>();
+
+        for (Title title : titles) {
+            dayResults.addAll(titleService.checkForSingleTitleHeir(title, onDate, null));
+        }
+        if (!dayResults.isEmpty()) {
+            results.put(onDate, dayResults);
+        }
+        return results;
+    }
 
     private Map<LocalDate, List<CalendarDayEvent>> mergeMaps(Map<LocalDate, List<CalendarDayEvent>> map1,
                                                              Map<LocalDate, List<CalendarDayEvent>> map2) {

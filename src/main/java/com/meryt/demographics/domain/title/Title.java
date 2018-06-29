@@ -1,5 +1,6 @@
 package com.meryt.demographics.domain.title;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import javax.persistence.CascadeType;
@@ -45,11 +46,13 @@ public class Title {
     @Enumerated(EnumType.STRING)
     private TitleInheritanceStyle inheritance;
 
-    @ManyToOne(cascade = { CascadeType.ALL })
+    @ManyToOne
     private Person inheritanceRoot;
 
     @OneToMany(mappedBy = "title", cascade = { CascadeType.ALL })
     @OrderBy("from_date")
     private List<PersonTitlePeriod> titleHolders = new ArrayList<>();
+
+    private LocalDate nextAbeyanceCheckDate;
 
 }

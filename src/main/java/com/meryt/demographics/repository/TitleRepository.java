@@ -1,6 +1,8 @@
 package com.meryt.demographics.repository;
 
+import java.time.LocalDate;
 import java.util.List;
+import lombok.NonNull;
 import org.springframework.data.repository.PagingAndSortingRepository;
 import org.springframework.stereotype.Repository;
 
@@ -10,4 +12,6 @@ import com.meryt.demographics.domain.title.Title;
 public interface TitleRepository extends PagingAndSortingRepository<Title, Long> {
 
     List<Title> findAllByOrderByNameAsc();
+
+    List<Title> findAllByNextAbeyanceCheckDateIsLessThanEqual(@NonNull LocalDate date);
 }

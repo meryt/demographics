@@ -229,6 +229,13 @@ public class Person {
         return !isMale();
     }
 
+    public boolean isPregnant(@NonNull LocalDate onDate) {
+        if (isMale() || !isLiving(onDate) || getFertility() == null) {
+            return false;
+        }
+        return getMaternity().isPregnant(onDate);
+    }
+
     public boolean isLiving(@NonNull LocalDate onDate) {
         return birthDate != null && !onDate.isBefore(birthDate) && (deathDate == null || !onDate.isAfter(deathDate));
     }

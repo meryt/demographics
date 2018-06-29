@@ -36,7 +36,6 @@ public class PersonService {
     private final AncestryService ancestryService;
     private final HouseholdService householdService;
 
-
     public PersonService(@Autowired @NonNull PersonRepository personRepository,
                          @Autowired @NonNull AncestryService ancestryService,
                          @Autowired @NonNull HouseholdService householdService) {
@@ -101,6 +100,8 @@ public class PersonService {
      */
     List<CalendarDayEvent> processDeath(@NonNull Person person) {
         List<CalendarDayEvent> results = new ArrayList<>();
+        person.setFinishedGeneration(true);
+        person = save(person);
         processDeadPersonsHousehold(person);
         CalendarDayEvent occupationEvent = processDeadPersonsOccupation(person);
         if (occupationEvent != null) {
@@ -166,6 +167,7 @@ public class PersonService {
 
         return null;
     }
+
 
     /**
      * Find potential spouses for a person based on family parameters.

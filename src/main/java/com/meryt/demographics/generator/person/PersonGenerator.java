@@ -314,7 +314,7 @@ public class PersonGenerator {
      *
      * @return a number between 0 and 1
      */
-    double randomDomesticity() {
+    static double randomDomesticity() {
         return DOMESTICITY_BETA.sample();
     }
 

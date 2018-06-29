@@ -31,11 +31,11 @@ import com.meryt.demographics.domain.title.TitleInheritanceStyle;
 import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.generator.family.MatchMaker;
 import com.meryt.demographics.generator.person.PersonGenerator;
-import com.meryt.demographics.request.RandomFamilyParameters;
 import com.meryt.demographics.request.PersonFamilyPost;
 import com.meryt.demographics.request.PersonFertilityPost;
 import com.meryt.demographics.request.PersonParameters;
 import com.meryt.demographics.request.PersonTitlePost;
+import com.meryt.demographics.request.RandomFamilyParameters;
 import com.meryt.demographics.response.PersonDescendantResponse;
 import com.meryt.demographics.response.PersonDetailResponse;
 import com.meryt.demographics.response.PersonFamilyResponse;
@@ -48,7 +48,7 @@ import com.meryt.demographics.rest.ResourceNotFoundException;
 import com.meryt.demographics.service.AncestryService;
 import com.meryt.demographics.service.FamilyService;
 import com.meryt.demographics.service.FertilityService;
-import com.meryt.demographics.service.InheritanceService;
+import com.meryt.demographics.service.HeirService;
 import com.meryt.demographics.service.PersonService;
 import com.meryt.demographics.service.TitleService;
 
@@ -72,7 +72,7 @@ public class PersonController {
 
     private final AncestryService ancestryService;
 
-    private final InheritanceService inheritanceService;
+    private final HeirService heirService;
 
     public PersonController(@Autowired PersonGenerator personGenerator,
                             @Autowired PersonService personService,
@@ -81,7 +81,7 @@ public class PersonController {
                             @Autowired FamilyService familyService,
                             @Autowired FertilityService fertilityService,
                             @Autowired AncestryService ancestryService,
-                            @Autowired InheritanceService inheritanceService) {
+                            @Autowired HeirService heirService) {
         this.personGenerator = personGenerator;
         this.personService = personService;
         this.titleService = titleService;
@@ -89,7 +89,7 @@ public class PersonController {
         this.familyService = familyService;
         this.fertilityService = fertilityService;
         this.ancestryService = ancestryService;
-        this.inheritanceService = inheritanceService;
+        this.heirService = heirService;
     }
 
     @RequestMapping("/api/persons/random")
@@ -334,7 +334,7 @@ public class PersonController {
                 throw new BadRequestException("Invalid value for inheritance: " + e.getMessage());
             }
         }
-        List<Person> heirs = inheritanceService.findPotentialHeirsForPerson(person, date, inheritanceStyle, true);
+        List<Person> heirs = heirService.findPotentialHeirsForPerson(person, date, inheritanceStyle, true);
         return heirs.stream()
                 .map(p -> new RelatedPersonResponse(p, ancestryService.calculateRelationship(p, person, false)))
                 .collect(Collectors.toList());
@@ -359,7 +359,7 @@ public class PersonController {
                 throw new BadRequestException("Invalid value for inheritance: " + e.getMessage());
             }
         }
-        Pair<Person, LocalDate> heir = inheritanceService.findHeirForPerson(person, date, inheritanceStyle, true);
+        Pair<Person, LocalDate> heir = heirService.findHeirForPerson(person, date, inheritanceStyle, true);
         if (heir == null) {
             return null;
         }

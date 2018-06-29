@@ -35,7 +35,6 @@ public class FamilyGenerator {
     private static final int MAX_MONTHS_PREMARITAL = 6;
 
     private final PersonGenerator personGenerator;
-
     private final PersonService personService;
 
     public FamilyGenerator(@Autowired PersonGenerator personGenerator,
