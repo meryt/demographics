@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.PersonTitlePeriod;
+import com.meryt.demographics.domain.title.Peerage;
 import com.meryt.demographics.domain.title.Title;
 import com.meryt.demographics.repository.TitleRepository;
 import com.meryt.demographics.response.calendar.CalendarDayEvent;
@@ -100,7 +101,7 @@ public class TitleService {
             log.info(String.format("Looking for heir to %s, %s, died %s", currentHolder.getName(), title.getName(),
                     currentHolder.getDeathDate()));
             List<Person> nextHolders = heirService.findPotentialHeirsForPerson(currentHolder,
-                    inheritanceDate, title.getInheritance(), true);
+                    inheritanceDate, title.getInheritance(), true, title.singleFemaleMayInherit());
             log.info(nextHolders.size() + " possible heir(s) found as of " + inheritanceDate);
             if (nextHolders.size() == 1) {
                 // Stop once we have gone far back enough to find a single heir
@@ -139,7 +140,7 @@ public class TitleService {
             Person nextPotentialHeir = remainingHeirs.remove(0);
             currentDate = nextPotentialHeir.getDeathDate().plusDays(1);
             remainingHeirs = heirService.findPotentialHeirsForPerson(forPerson, currentDate,
-                    title.getInheritance(), true);
+                    title.getInheritance(), true, title.singleFemaleMayInherit());
         } while (!remainingHeirs.isEmpty());
 
         // If we got here we ran out of heirs

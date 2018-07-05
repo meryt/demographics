@@ -36,22 +36,32 @@ public class HeirService {
     public List<Person> findPotentialHeirsForPerson(@NonNull Person person,
                                                     @NonNull LocalDate onDate,
                                                     @NonNull TitleInheritanceStyle inheritanceStyle,
-                                                    boolean mayLookInFuture) {
+                                                    boolean mayLookInFuture,
+                                                    boolean singleFemaleMayInherit) {
         List<Person> results = new ArrayList<>();
         List<Person> childrenByBirthDate = person.getChildren().stream()
                 .sorted(Comparator.comparing(Person::getBirthDate))
                 .filter(p -> mayLookInFuture || p.getBirthDate().isBefore(onDate) || p.getBirthDate().isEqual(onDate))
                 .collect(Collectors.toList());
+        List<Person> sonsByBirthDate = childrenByBirthDate.stream().filter(Person::isMale).collect(Collectors.toList());
+        List<Person> daughtersByBirthDate = childrenByBirthDate.stream()
+                .filter(Person::isFemale)
+                .collect(Collectors.toList());
+
+        if (singleFemaleMayInherit && !inheritanceStyle.isMalesOnly()) {
+            sonsByBirthDate.addAll(daughtersByBirthDate);
+        }
 
         // Loop through sons in order of birth
-        for (Person son : childrenByBirthDate.stream().filter(Person::isMale).collect(Collectors.toList())) {
+        for (Person son : sonsByBirthDate) {
             // A living son is immediately heir.
             if (son.isLiving(onDate) || (mayLookInFuture && son.getBirthDate().isAfter(onDate))) {
                 results.add(son);
                 return results;
             }
             // A dead son may himself have heirs. Find his heirs on the death date of his father.
-            List<Person> sonsHeirs = findPotentialHeirsForPerson(son, onDate, inheritanceStyle, mayLookInFuture);
+            List<Person> sonsHeirs = findPotentialHeirsForPerson(son, onDate, inheritanceStyle, mayLookInFuture,
+                    singleFemaleMayInherit);
             if (!sonsHeirs.isEmpty()) {
                 return sonsHeirs;
             } else if (mayLookInFuture && mayHaveOrBeHeir(son, onDate, inheritanceStyle.isMalesOnly())) {
@@ -63,13 +73,12 @@ public class HeirService {
         }
 
         // If this is a male-only inheritance, return immediately if no sons are alive or have living heirs.
-        if (inheritanceStyle.isMalesOnly()) {
+        // Or, if it's not males-only but single females may inherit, we have already checked daughters and their issue
+        // above, as well, so there is no need to examine daughters specifically.
+        if (inheritanceStyle.isMalesOnly() || singleFemaleMayInherit) {
             return results;
         }
 
-        List<Person> daughtersByBirthDate = childrenByBirthDate.stream()
-                .filter(Person::isFemale)
-                .collect(Collectors.toList());
 
         for (Person daughter : daughtersByBirthDate) {
             // A living daughter is a possible heir. But unlike sons, we don't return immediately, but continue looping
@@ -79,7 +88,7 @@ public class HeirService {
             } else {
                 // A dead daughter may herself have heirs.
                 List<Person> daughtersHeirs = findPotentialHeirsForPerson(daughter, onDate, inheritanceStyle,
-                        mayLookInFuture);
+                        mayLookInFuture, singleFemaleMayInherit);
                 if (daughtersHeirs.isEmpty() && (mayLookInFuture && !daughter.isFinishedGeneration())) {
                     // if she does not have heirs but is not finished generation, add her anyway
                     results.add(daughter);
@@ -96,8 +105,10 @@ public class HeirService {
     public Pair<Person, LocalDate> findHeirForPerson(@NonNull Person person,
                                                      @NonNull LocalDate onDate,
                                                      @NonNull TitleInheritanceStyle inheritanceStyle,
-                                                     boolean mayLookInFuture) {
-        List<Person> allHeirsOnDate = findPotentialHeirsForPerson(person, onDate, inheritanceStyle, mayLookInFuture)
+                                                     boolean mayLookInFuture,
+                                                     boolean singleFemaleMayInherit) {
+        List<Person> allHeirsOnDate = findPotentialHeirsForPerson(person, onDate, inheritanceStyle, mayLookInFuture,
+                singleFemaleMayInherit)
                 .stream()
                 .filter(p -> mayLookInFuture || (p.isLiving(onDate)))
                 .collect(Collectors.toList());
@@ -129,7 +140,8 @@ public class HeirService {
                 lastDeathDate = nextDeathDate;
             }
 
-            allHeirsOnDate = findPotentialHeirsForPerson(person, nextDeathDate.plusDays(1), inheritanceStyle, mayLookInFuture)
+            allHeirsOnDate = findPotentialHeirsForPerson(person, nextDeathDate.plusDays(1), inheritanceStyle,
+                    mayLookInFuture, singleFemaleMayInherit)
                     .stream()
                     .filter(p -> mayLookInFuture || (p.isLiving(onDate)))
                     .collect(Collectors.toList());
@@ -173,7 +185,7 @@ public class HeirService {
         }
 
         if (heirs.isEmpty()) {
-            heirs.addAll(findPotentialHeirsForPerson(person, onDate, TitleInheritanceStyle.HEIRS_GENERAL, false));
+            heirs.addAll(findPotentialHeirsForPerson(person, onDate, TitleInheritanceStyle.HEIRS_GENERAL, false, true));
         }
 
         if (heirs.isEmpty()) {
@@ -245,13 +257,13 @@ public class HeirService {
 
     Person findMaleHeirForEntailments(@NonNull Person person, @NonNull LocalDate onDate) {
         Person maleHeirForEntailments = findPotentialHeirsForPerson(person, onDate,
-                TitleInheritanceStyle.HEIRS_MALE_GENERAL, false).stream()
+                TitleInheritanceStyle.HEIRS_MALE_GENERAL, false, false).stream()
                 .filter(p -> p.isLiving(onDate))
                 .min(Comparator.comparing(Person::getBirthDate)).orElse(null);
         Person father;
         while (maleHeirForEntailments == null && (father = person.getFather()) != null) {
             maleHeirForEntailments = findPotentialHeirsForPerson(father, onDate.plusDays(1),
-                    TitleInheritanceStyle.HEIRS_MALE_GENERAL, false).stream()
+                    TitleInheritanceStyle.HEIRS_MALE_GENERAL, false, false).stream()
                     .filter(p -> p.isLiving(onDate))
                     .min(Comparator.comparing(Person::getBirthDate)).orElse(null);
         }

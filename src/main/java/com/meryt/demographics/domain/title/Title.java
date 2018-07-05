@@ -55,4 +55,8 @@ public class Title {
 
     private LocalDate nextAbeyanceCheckDate;
 
+    public boolean singleFemaleMayInherit() {
+        return !inheritance.isMalesOnly() && peerage == Peerage.SCOTLAND;
+    }
+
 }

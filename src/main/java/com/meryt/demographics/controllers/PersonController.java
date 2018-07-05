@@ -341,6 +341,15 @@ public class PersonController {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Gets potential heirs for person, assuming that if females may inherit, then all females will inherit equally
+     *
+     * @param personId the person for whom to find heirs
+     * @param onDate the date to use, if specified, or the person's death date if null
+     * @param inheritance the inheritance style, if specified, or HEIRS_GENERAL if null
+     * @return a list of 0 or more people who may inherit. There may be multiples if females may inherit but split
+     * the inheritance rights equally
+     */
     @RequestMapping(value = "/api/persons/{personId}/heirs", method = RequestMethod.GET)
     public List<RelatedPersonResponse> getPersonPotentialHeirs(@PathVariable long personId,
                                                                @RequestParam(value = "onDate", required = false)
@@ -360,7 +369,7 @@ public class PersonController {
                 throw new BadRequestException("Invalid value for inheritance: " + e.getMessage());
             }
         }
-        List<Person> heirs = heirService.findPotentialHeirsForPerson(person, date, inheritanceStyle, true);
+        List<Person> heirs = heirService.findPotentialHeirsForPerson(person, date, inheritanceStyle, true, false);
         return heirs.stream()
                 .map(p -> new RelatedPersonResponse(p, ancestryService.calculateRelationship(p, person, false)))
                 .collect(Collectors.toList());
@@ -385,7 +394,8 @@ public class PersonController {
                 throw new BadRequestException("Invalid value for inheritance: " + e.getMessage());
             }
         }
-        Pair<Person, LocalDate> heir = heirService.findHeirForPerson(person, date, inheritanceStyle, true);
+        Pair<Person, LocalDate> heir = heirService.findHeirForPerson(person, date, inheritanceStyle, true,
+                false);
         if (heir == null) {
             return null;
         }

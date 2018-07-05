@@ -71,6 +71,10 @@ public class GenerationService {
             lastNames = new ArrayList<>();
         }
         RandomFamilyParameters familyParameters = generationPost.getFamilyParameters();
+        // Persisting during family generation causes hibernate to lose visibility of newly created persons when
+        // doing updateTitles and writing the output file. (The data is written to the DB but not visible to the
+        // Hibernate session here. That causes titles to be incorrectly inherited or marked extinct.)
+        familyParameters.setPersist(false);
         int numFamilies = generationPost.getNumFamilies();
         List<Family> result = new ArrayList<>();
         for (int i = 0; i < numFamilies; i++) {
@@ -86,9 +90,7 @@ public class GenerationService {
                 continue;
             }
             family.getHusband().setFounder(true);
-            if (familyParameters.isPersist()) {
-                family = familyService.save(family);
-            }
+            family = familyService.save(family);
             if (family.getHusband().getSocialClass().getRank() >= SocialClass.BARONET.getRank()) {
                 addRandomTitleToFounder(family.getHusband());
             }
@@ -159,7 +161,6 @@ public class GenerationService {
             }
         }
 
-
         updateTitles();
 
         if (generationPost.getOutputToFile() != null) {
@@ -177,6 +178,13 @@ public class GenerationService {
      */
     private void addRandomTitleToFounder(@NonNull Person founder) {
         Title title = new Title();
+        title.setSocialClass(founder.getSocialClass());
+        if (new Die(10).roll() <= 3) {
+            title.setPeerage(Peerage.SCOTLAND);
+        } else {
+            title.setPeerage(Peerage.ENGLAND);
+        }
+
         title.setInheritanceRoot(founder);
         String namePrefix = "Lord ";
         switch (founder.getSocialClass()) {
@@ -184,18 +192,19 @@ public class GenerationService {
             case MARQUESS:
             case EARL:
             case VISCOUNT:
-            case BARON:
                 namePrefix = StringUtils.capitalize(founder.getSocialClass().getFriendlyName()) + " ";
+                break;
+            case BARON:
+                if (title.getPeerage() == Peerage.SCOTLAND) {
+                    // Scots "Barons" are called Lords of Parliament
+                    namePrefix = "Lord ";
+                } else {
+                    namePrefix = StringUtils.capitalize(founder.getSocialClass().getFriendlyName()) + " ";
+                }
                 break;
         }
         title.setName(namePrefix + founder.getLastName());
 
-        title.setSocialClass(founder.getSocialClass());
-        if (new Die(10).roll() <= 2) {
-            title.setPeerage(Peerage.SCOTLAND);
-        } else {
-            title.setPeerage(Peerage.ENGLAND);
-        }
         int roll = new Die(4).roll();
         if (roll == 1) {
             title.setInheritance(TitleInheritanceStyle.HEIRS_GENERAL);

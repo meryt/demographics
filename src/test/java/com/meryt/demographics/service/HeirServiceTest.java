@@ -88,7 +88,8 @@ public class HeirServiceTest {
 
     @Test
     public void personWithNoFamilyHasNoHeir() {
-        List<Person> heirs = service.findPotentialHeirsForPerson(man, man.getDeathDate(), title.getInheritance(), true);
+        List<Person> heirs = service.findPotentialHeirsForPerson(man, man.getDeathDate(), title.getInheritance(), true,
+                false);
         assertTrue(heirs.isEmpty());
     }
 
@@ -96,7 +97,8 @@ public class HeirServiceTest {
     public void personWithASonHasAnHeir() {
         addChildToPerson(man, son);
 
-        List<Person> heirs = service.findPotentialHeirsForPerson(man, man.getDeathDate(), title.getInheritance(), true);
+        List<Person> heirs = service.findPotentialHeirsForPerson(man, man.getDeathDate(), title.getInheritance(), true,
+                false);
         assertEquals(1, heirs.size());
         assertEquals(son, heirs.get(0));
     }
@@ -106,7 +108,8 @@ public class HeirServiceTest {
         addChildToPerson(man, son2);
         addChildToPerson(man, son);
 
-        List<Person> heirs = service.findPotentialHeirsForPerson(man, man.getDeathDate(), title.getInheritance(), true);
+        List<Person> heirs = service.findPotentialHeirsForPerson(man, man.getDeathDate(), title.getInheritance(), true,
+                false);
 
         assertEquals(1, heirs.size());
         assertEquals(son, heirs.get(0));
@@ -121,7 +124,8 @@ public class HeirServiceTest {
         son.setFinishedGeneration(false);
         son.setDeathDate(man.getDeathDate().minusYears(1));
 
-        List<Person> heirs = service.findPotentialHeirsForPerson(man, man.getDeathDate(), title.getInheritance(), true);
+        List<Person> heirs = service.findPotentialHeirsForPerson(man, man.getDeathDate(), title.getInheritance(), true,
+                false);
         assertEquals(1, heirs.size());
         assertEquals(son, heirs.get(0));
     }
@@ -130,7 +134,8 @@ public class HeirServiceTest {
     public void youngerSonOverDaughter() {
         addChildToPerson(man, son2);
         addChildToPerson(man, daughter);
-        List<Person> heirs = service.findPotentialHeirsForPerson(man, man.getDeathDate(), title.getInheritance(), true);
+        List<Person> heirs = service.findPotentialHeirsForPerson(man, man.getDeathDate(), title.getInheritance(), true,
+                false);
 
         assertEquals(1, heirs.size());
         assertEquals(son2, heirs.get(0));
@@ -139,7 +144,8 @@ public class HeirServiceTest {
     @Test
     public void daughterCannotInheritForHeirsMale() {
         addChildToPerson(man, daughter);
-        List<Person> heirs = service.findPotentialHeirsForPerson(man, man.getDeathDate(), title.getInheritance(), true);
+        List<Person> heirs = service.findPotentialHeirsForPerson(man, man.getDeathDate(), title.getInheritance(), true,
+                false);
         assertTrue(heirs.isEmpty());
     }
 
@@ -147,7 +153,8 @@ public class HeirServiceTest {
     public void singleDaughterCanInheritForHeirs() {
         title.setInheritance(TitleInheritanceStyle.HEIRS_OF_THE_BODY);
         addChildToPerson(man, daughter);
-        List<Person> heirs = service.findPotentialHeirsForPerson(man, man.getDeathDate(), title.getInheritance(), true);
+        List<Person> heirs = service.findPotentialHeirsForPerson(man, man.getDeathDate(), title.getInheritance(), true,
+                false);
 
         assertEquals(1, heirs.size());
         assertEquals(daughter, heirs.get(0));
@@ -158,9 +165,11 @@ public class HeirServiceTest {
         title.setInheritance(TitleInheritanceStyle.HEIRS_OF_THE_BODY);
         addChildToPerson(man, daughter);
         addChildToPerson(man, daughter2);
-        List<Person> heirs = service.findPotentialHeirsForPerson(man, man.getDeathDate(), title.getInheritance(), true);
+        List<Person> heirs = service.findPotentialHeirsForPerson(man, man.getDeathDate(), title.getInheritance(), true,
+                false);
         assertEquals(2, heirs.size());
-        Pair<Person, LocalDate> heir = service.findHeirForPerson(man, man.getDeathDate(), title.getInheritance(), true);
+        Pair<Person, LocalDate> heir = service.findHeirForPerson(man, man.getDeathDate(), title.getInheritance(), true,
+                false);
         assertNotNull(heir);
         assertEquals(daughter2, heir.getFirst());
         assertEquals(daughter.getDeathDate(), heir.getSecond());
@@ -173,7 +182,8 @@ public class HeirServiceTest {
         addChildToPerson(man, daughter2);
         addChildToPerson(daughter2, grandson1);
         grandson1.setDeathDate(grandson1.getBirthDate().plusYears(3));
-        Pair<Person, LocalDate> heir = service.findHeirForPerson(man, man.getDeathDate(), title.getInheritance(), true);
+        Pair<Person, LocalDate> heir = service.findHeirForPerson(man, man.getDeathDate(), title.getInheritance(), true,
+                false);
         assertNotNull(heir);
         assertEquals(daughter2, heir.getFirst());
         assertEquals(daughter.getDeathDate(), heir.getSecond());
