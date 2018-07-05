@@ -28,6 +28,7 @@ import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.generator.family.MatchMaker;
 import com.meryt.demographics.generator.random.BetweenDie;
 import com.meryt.demographics.generator.random.Die;
+import com.meryt.demographics.generator.random.PercentDie;
 import com.meryt.demographics.request.GenerationPost;
 import com.meryt.demographics.request.InitialGenerationPost;
 import com.meryt.demographics.request.PersonFamilyPost;
@@ -70,6 +71,10 @@ public class GenerationService {
         if (lastNames == null) {
             lastNames = new ArrayList<>();
         }
+        List<String> scottishLastNames = generationPost.getScottishLastNames();
+        if (scottishLastNames == null) {
+            scottishLastNames = lastNames;
+        }
         RandomFamilyParameters familyParameters = generationPost.getFamilyParameters();
         // Persisting during family generation causes hibernate to lose visibility of newly created persons when
         // doing updateTitles and writing the output file. (The data is written to the DB but not visible to the
@@ -78,7 +83,19 @@ public class GenerationService {
         int numFamilies = generationPost.getNumFamilies();
         List<Family> result = new ArrayList<>();
         for (int i = 0; i < numFamilies; i++) {
-            if (!lastNames.isEmpty()) {
+            Peerage peerage;
+            double percentScottish = generationPost.getPercentScottish() == null ? 0.3 : generationPost.getPercentScottish();
+            if (new PercentDie().roll() <= percentScottish) {
+                peerage = Peerage.SCOTLAND;
+            } else {
+                peerage = Peerage.ENGLAND;
+            }
+
+            if (peerage == Peerage.SCOTLAND && !scottishLastNames.isEmpty()) {
+                int index = new Die(scottishLastNames.size()).roll() - 1;
+                String lastName = scottishLastNames.remove(index);
+                familyParameters.setFounderLastName(lastName);
+            } else if (!lastNames.isEmpty()) {
                 int index = new Die(lastNames.size()).roll() - 1;
                 String lastName = lastNames.remove(index);
                 familyParameters.setFounderLastName(lastName);
@@ -92,7 +109,7 @@ public class GenerationService {
             family.getHusband().setFounder(true);
             family = familyService.save(family);
             if (family.getHusband().getSocialClass().getRank() >= SocialClass.BARONET.getRank()) {
-                addRandomTitleToFounder(family.getHusband());
+                addRandomTitleToFounder(family.getHusband(), peerage);
             }
 
             ancestryService.updateAncestryTable();
@@ -176,14 +193,10 @@ public class GenerationService {
      *
      * @param founder the person who gets a title (does not need to be male)
      */
-    private void addRandomTitleToFounder(@NonNull Person founder) {
+    private void addRandomTitleToFounder(@NonNull Person founder, @NonNull Peerage peerage) {
         Title title = new Title();
         title.setSocialClass(founder.getSocialClass());
-        if (new Die(10).roll() <= 3) {
-            title.setPeerage(Peerage.SCOTLAND);
-        } else {
-            title.setPeerage(Peerage.ENGLAND);
-        }
+        title.setPeerage(peerage);
 
         title.setInheritanceRoot(founder);
         String namePrefix = "Lord ";
