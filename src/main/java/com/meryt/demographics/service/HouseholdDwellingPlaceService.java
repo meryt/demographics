@@ -22,6 +22,7 @@ import com.meryt.demographics.domain.place.DwellingPlaceType;
 import com.meryt.demographics.domain.place.Estate;
 import com.meryt.demographics.domain.place.Farm;
 import com.meryt.demographics.domain.place.Household;
+import com.meryt.demographics.domain.place.HouseholdLocationPeriod;
 import com.meryt.demographics.generator.WealthGenerator;
 import com.meryt.demographics.generator.random.BetweenDie;
 import com.meryt.demographics.generator.random.Die;
@@ -74,9 +75,61 @@ public class HouseholdDwellingPlaceService {
             return moveRuralLaborerOntoEstateOrFarm(dwellingPlace, headOfHousehold, household,
                     moveInDate);
         } else {
-            householdService.addToDwellingPlace(household, dwellingPlace, moveInDate, null);
-            return dwellingPlace;
+            return addToDwellingPlace(household, dwellingPlace, moveInDate, null);
         }
+    }
+
+    DwellingPlace addToDwellingPlace(@NonNull Household household,
+                                     @NonNull DwellingPlace dwellingPlace,
+                                     @NonNull LocalDate fromDate,
+                                     LocalDate toDate) {
+        List<HouseholdLocationPeriod> periodsToDelete = new ArrayList<>();
+        for (HouseholdLocationPeriod period : household.getDwellingPlaces()) {
+            if (period.getFromDate().isBefore(fromDate) &&
+                    (period.getToDate() == null || period.getToDate().isAfter(fromDate))) {
+                period.setToDate(fromDate);
+                period = householdService.save(period);
+                household = householdService.save(household);
+                period.setDwellingPlace(dwellingPlaceService.save(period.getDwellingPlace()));
+            }  else if (period.getFromDate().equals(fromDate) && (
+                    (period.getToDate() == null && toDate == null)
+                            || (period.getToDate().equals(toDate)))) {
+                // If the periods are identical, just change the dwelling place.
+                DwellingPlace oldDwellingPlace = period.getDwellingPlace();
+                oldDwellingPlace.getHouseholdPeriods().remove(period);
+                dwellingPlaceService.save(oldDwellingPlace);
+                period.setDwellingPlace(dwellingPlace);
+                //householdLocationRepository.save(period);
+                householdService.save(household);
+                householdService.save(period);
+                return dwellingPlace;
+            } else if (toDate == null && period.getFromDate().isAfter(fromDate)) {
+                // If this is an open-ended date range, we should delete any future locations for this household
+                periodsToDelete.add(period);
+            }
+        }
+
+        for (HouseholdLocationPeriod periodToDelete : periodsToDelete) {
+            household.getDwellingPlaces().remove(periodToDelete);
+            DwellingPlace oldDwellingPlace = periodToDelete.getDwellingPlace();
+            oldDwellingPlace.getHouseholdPeriods().remove(periodToDelete);
+            householdService.delete(periodToDelete);
+            household = householdService.save(household);
+            dwellingPlaceService.save(oldDwellingPlace);
+        }
+
+        HouseholdLocationPeriod newPeriod = new HouseholdLocationPeriod();
+        newPeriod.setHouseholdId(household.getId());
+        newPeriod.setHousehold(household);
+        newPeriod.setDwellingPlace(dwellingPlace);
+        newPeriod.setFromDate(fromDate);
+        newPeriod.setToDate(toDate);
+        household.getDwellingPlaces().add(newPeriod);
+
+        newPeriod = householdService.save(newPeriod);
+
+        dwellingPlace.getHouseholdPeriods().add(newPeriod);
+        return dwellingPlaceService.save(dwellingPlace);
     }
 
     /**
@@ -166,10 +219,11 @@ public class HouseholdDwellingPlaceService {
         } else {
             house.setValue(WealthGenerator.getRandomHouseValue(SocialClass.LABORER));
         }
-        dwellingPlaceService.save(house);
+        house = (Dwelling) dwellingPlaceService.save(house);
         dwellingPlace.addDwellingPlace(house);
         dwellingPlaceService.save(dwellingPlace);
-        householdService.addToDwellingPlace(household, house, moveInDate, null);
+        house = (Dwelling) dwellingPlaceService.save(house);
+        house = (Dwelling) addToDwellingPlace(household, house, moveInDate, null);
         if (head != null) {
             house.addOwner(head, moveInDate, head.getDeathDate());
         }
@@ -197,6 +251,7 @@ public class HouseholdDwellingPlaceService {
         estate.setEntailed(isEntailed);
         dwellingPlace.addDwellingPlace(estate);
         dwellingPlaceService.save(dwellingPlace);
+        dwellingPlaceService.save(estate);
         estate.addOwner(headOfHousehold, moveInDate, headOfHousehold.getDeathDate());
         Dwelling manorHouse = new Dwelling();
         manorHouse.setName(estate.getName());
@@ -208,7 +263,7 @@ public class HouseholdDwellingPlaceService {
         manorHouse.addOwner(headOfHousehold, moveInDate, headOfHousehold.getDeathDate());
         log.info(String.format("Generated estate '%s' for household of %s, %s", estate.getName(),
                 headOfHousehold.getName(), headOfHousehold.getSocialClass().getFriendlyName()));
-        householdService.addToDwellingPlace(household, manorHouse, moveInDate, null);
+        manorHouse = (Dwelling) addToDwellingPlace(household, manorHouse, moveInDate, null);
         householdService.save(household);
         return manorHouse;
     }
@@ -248,7 +303,7 @@ public class HouseholdDwellingPlaceService {
             return moveFamilyIntoNewHouse(employeeHouseholdParentPlace, household, moveInDate);
         } else {
             // Otherwise add the household directly to the employer's house.
-            householdService.addToDwellingPlace(household, employerHouse, moveInDate, null);
+            employerHouse = addToDwellingPlace(household, employerHouse, moveInDate, null);
             log.info(String.format("%s moved into the house of their employer, %s",
                     household.getFriendlyName(moveInDate), employerHousehold.getFriendlyName(moveInDate)));
             return employerHouse;
@@ -301,8 +356,7 @@ public class HouseholdDwellingPlaceService {
             List<Person> houseOwner = house.getOwners(moveInDate);
             log.info(String.format("Moved pauper %s into house of %s", household.getFriendlyName(moveInDate),
                     houseOwner.isEmpty() ? "id " + house.getId() : houseOwner.get(0).getName()));
-            householdService.addToDwellingPlace(household, house, moveInDate, null);
-            return house;
+            return addToDwellingPlace(household, house, moveInDate, null);
         } else {
             // Create a house for the family and place it in the random dwelling place
             return moveFamilyIntoNewHouse(placesOfType.get(0), household, moveInDate);
@@ -376,7 +430,7 @@ public class HouseholdDwellingPlaceService {
         dwellingPlaceService.save(farmHouse);
         dwellingPlaceService.save(farm);
         farmHouse.addOwner(headOfHousehold, moveInDate, headOfHousehold.getDeathDate());
-        householdService.addToDwellingPlace(household, farmHouse, moveInDate, null);
+        farmHouse = (Dwelling) addToDwellingPlace(household, farmHouse, moveInDate, null);
         householdService.save(household);
         log.info(String.format("Created %s in %s", farm.getName(), dwellingPlace.getFriendlyName()));
         return farmHouse;
@@ -392,13 +446,14 @@ public class HouseholdDwellingPlaceService {
 
         Dwelling house = new Dwelling();
         house.setValue(WealthGenerator.getRandomHouseValue(headOfHousehold.getSocialClass()));
-        dwellingPlaceService.save(house);
-        householdService.addToDwellingPlace(household, house, moveInDate, null);
+        house = (Dwelling) dwellingPlaceService.save(house);
+        house = (Dwelling) addToDwellingPlace(household, house, moveInDate, null);
         house.addOwner(headOfHousehold, moveInDate, headOfHousehold.getDeathDate());
 
         if (farmsInPlace.isEmpty()) {
             dwellingPlace.addDwellingPlace(house);
             dwellingPlaceService.save(dwellingPlace);
+            house = (Dwelling) dwellingPlaceService.save(house);
             log.info(String.format("%s could not find a farm so moved into a new house in %s",
                     household.getFriendlyName(moveInDate), dwellingPlace.getFriendlyName()));
         } else {
@@ -406,6 +461,7 @@ public class HouseholdDwellingPlaceService {
             DwellingPlace farmOrEstate = farmsInPlace.get(0);
             farmOrEstate.addDwellingPlace(house);
             dwellingPlaceService.save(farmOrEstate);
+            house = (Dwelling) dwellingPlaceService.save(house);
             log.info(String.format("Moved %s into new house on %s", household.getFriendlyName(moveInDate),
                     farmOrEstate.getFriendlyName()));
         }

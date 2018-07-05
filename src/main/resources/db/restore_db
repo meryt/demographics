@@ -1,0 +1,6 @@
+#!/bin/bash
+
+psql < ./drop-db.sql || exit
+psql < ./create-db.sql || exit
+psql demographics < ~/Dropbox/demographics.pgdump
+

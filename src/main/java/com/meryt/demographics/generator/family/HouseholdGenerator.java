@@ -72,15 +72,19 @@ public class HouseholdGenerator {
                     : family.getHusband();
         }
         Household household;
-        if (!localParameters.isAllowExistingSpouse() || spouse == null
-                || (household = spouse.getHousehold(family.getWeddingDate())) == null) {
-            // A spouse with an existing household will re-use their household
+        if (!localParameters.isAllowExistingSpouse()
+                || spouse == null
+                || (household = spouse.getHousehold(family.getWeddingDate())) == null
+                || !spouse.equals(household.getHead(family.getWeddingDate()))) {
+            // A spouse who is head of an existing household will re-use their household
             household = new Household();
             household = householdService.save(household);
         }
 
         if (family != null) {
             familyService.save(family);
+            personService.save(family.getHusband());
+            personService.save(family.getWife());
             if (localParameters.isAllowExistingSpouse()) {
                 ancestryService.updateAncestryTable();
             }
@@ -88,12 +92,13 @@ public class HouseholdGenerator {
             householdService.save(household);
             familyService.save(family);
             if (localParameters.isAllowExistingSpouse()) {
-                householdService.addStepchildrenToHousehold(founder, family, household);
+                List<Person> movedChildren = householdService.addStepchildrenToHousehold(founder, family, household);
+                movedChildren.forEach(personService::save);
             }
 
         } else {
             personService.save(founder);
-            householdService.addPersonToHousehold(founder, household, founder.getBirthDate(), true);
+            founder = householdService.addPersonToHousehold(founder, household, founder.getBirthDate(), true);
             householdService.save(household);
             personService.save(founder);
         }
@@ -114,7 +119,9 @@ public class HouseholdGenerator {
                 householdService.save(household);
                 familyService.save(secondFamily);
                 if (localParameters.isAllowExistingSpouse()) {
-                    householdService.addStepchildrenToHousehold(founder, secondFamily, household);
+                    List<Person> movedChildren = householdService.addStepchildrenToHousehold(founder, secondFamily,
+                            household);
+                    movedChildren.forEach(personService::save);
                 }
             }
         }
@@ -122,11 +129,11 @@ public class HouseholdGenerator {
         List<String> inhabitants = household.getInhabitants(localParameters.getReferenceDate())
                 .stream()
                 .sorted(Comparator.comparing(Person::getBirthDate))
-                .map(p -> p.getName() + " (" + p.getAgeInYears(onDate) + ")")
+                .map(p -> p.getId() + " " + p.getName() + " (" + p.getAgeInYears(onDate) + ")")
                 .collect(Collectors.toList());
 
-        log.info(String.format("On %s the household contained %s", localParameters.getReferenceDate(),
-                String.join(", ", inhabitants)));
+        log.info(String.format("On %s household %d contained %s", localParameters.getReferenceDate(),
+                household.getId(), String.join(", ", inhabitants)));
 
         return householdService.save(household);
     }
@@ -166,7 +173,8 @@ public class HouseholdGenerator {
                 if (isHead) {
                     replaceHouseholdHead(household, child.getBirthDate());
                 }
-                householdService.addPersonToHousehold(child, household, child.getBirthDate(), isHead);
+                child = householdService.addPersonToHousehold(child, household, child.getBirthDate(), isHead);
+                personService.save(child);
             }
         }
     }
@@ -187,8 +195,9 @@ public class HouseholdGenerator {
                                     boolean isHead) {
         Household formerHousehold = person.getHousehold(moveInDate);
         if (formerHousehold != null) {
-            householdService.endPersonResidence(formerHousehold, person, moveInDate);
+            person = householdService.endPersonResidence(formerHousehold, person, moveInDate);
             householdService.save(formerHousehold);
+            person = personService.save(person);
         }
         // Remove any future households
         List<HouseholdInhabitantPeriod> futureHouseholds = person.getHouseholds().stream()
@@ -200,20 +209,29 @@ public class HouseholdGenerator {
                 householdService.delete(period);
                 period.getHousehold().getInhabitantPeriods().remove(period);
                 householdService.save(period.getHousehold());
+                person = personService.save(person);
             }
         }
 
         if (isHead && !person.equals(household.getHead(moveInDate))) {
             replaceHouseholdHead(household, moveInDate);
         }
-        householdService.addPersonToHousehold(person, household, moveInDate, isHead);
+        person = householdService.addPersonToHousehold(person, household, moveInDate, isHead);
+        personService.save(person);
     }
 
+    /**
+     * If the household has a head, this person's residence is reset so that they are henceforth no longer a head.
+     *
+     * @param household the household
+     * @param endOfHeadShip the date upon which a new head will become head
+     */
     private void replaceHouseholdHead(@NonNull Household household, @NonNull LocalDate endOfHeadShip) {
         Person currentHead = household.getHead(endOfHeadShip);
         if (currentHead != null) {
-            householdService.endPersonResidence(household, currentHead, endOfHeadShip);
-            householdService.addPersonToHousehold(currentHead, household, endOfHeadShip, false);
+            currentHead = householdService.endPersonResidence(household, currentHead, endOfHeadShip);
+            currentHead = householdService.addPersonToHousehold(currentHead, household, endOfHeadShip, false);
+            personService.save(currentHead);
         }
     }
 

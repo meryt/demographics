@@ -73,4 +73,5 @@ public interface PersonRepository extends PagingAndSortingRepository<Person, Lon
             "AND p.deathDate > p.maternity.lastCheckDate " +
             "ORDER BY p.birthDate")
     List<Person> findWomenWithPendingMaternities(@NonNull @Param("check_date") LocalDate checkDate);
+
 }

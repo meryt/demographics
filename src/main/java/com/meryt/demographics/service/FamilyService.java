@@ -23,13 +23,16 @@ public class FamilyService {
     private final FamilyRepository familyRepository;
     private final HouseholdService householdService;
     private final PersonService personService;
+    private final HouseholdDwellingPlaceService householdDwellingPlaceService;
 
     FamilyService(@Autowired FamilyRepository familyRepository,
                   @Autowired HouseholdService householdService,
-                  @Autowired PersonService personService) {
+                  @Autowired PersonService personService,
+                  @Autowired HouseholdDwellingPlaceService householdDwellingPlaceService) {
         this.familyRepository = familyRepository;
         this.householdService = householdService;
         this.personService = personService;
+        this.householdDwellingPlaceService = householdDwellingPlaceService;
     }
 
     /**
@@ -140,11 +143,13 @@ public class FamilyService {
         Household mansHousehold = man.getHousehold(date);
         if (mansHousehold == null) {
             mansHousehold = new Household();
-            householdService.addPersonToHousehold(man, mansHousehold, date, true);
+            man = householdService.addPersonToHousehold(man, mansHousehold, date, true);
+            personService.save(man);
         }
-        householdService.addPersonToHousehold(wife, mansHousehold, date, false);
+        wife = householdService.addPersonToHousehold(wife, mansHousehold, date, false);
+        personService.save(wife);
 
-        householdService.addStepchildrenToHousehold(man, family, mansHousehold);
+        householdService.addStepchildrenToHousehold(man, family, mansHousehold).forEach(personService::save);
         return mansHousehold;
     }
 
@@ -170,7 +175,7 @@ public class FamilyService {
 
         // If the husband is not living in the new residence move him there.
         if (!residence.equals(husbandsCurrentHouse)) {
-            householdService.addToDwellingPlace(mansHousehold, residence, date, null);
+            residence = householdDwellingPlaceService.addToDwellingPlace(mansHousehold, residence, date, null);
         }
 
         // If one of the couple moved out of a dwelling place, it might be empty now, or contain only minors, or require
@@ -201,7 +206,7 @@ public class FamilyService {
                                         .collect(Collectors.joining(",")));
                     }
                     // This household should move in with man
-                    householdService.addToDwellingPlace(household, residence, date, null);
+                    residence = householdDwellingPlaceService.addToDwellingPlace(household, residence, date, null);
                 }
             }
         }

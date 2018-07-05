@@ -111,7 +111,10 @@ class ParishPopulator {
         Household household = householdGenerator.generateHousehold(familyParameters);
         Person head = household.getHead(familyParameters.getReferenceDate());
 
-        moveHouseholdToTownOrParish(household, parishTemplate);
+        DwellingPlace currentDwellingPlace = household.getDwellingPlace(familyParameters.getReferenceDate());
+        if (currentDwellingPlace == null || !currentDwellingPlace.isHouse()) {
+            moveHouseholdToTownOrParish(household, parishTemplate);
+        }
 
         // Generate the capital after he has moved into a town. We need to know whether he has an employment or whether
         // he lives off his rents.
@@ -433,16 +436,22 @@ class ParishPopulator {
 
         // Ensure that if the head has died and the household records not been cleaned up, that we find a new head.
         // We don't move out a son if he is the head of his household.
-        if (household.getHead(onDate) == null) {
-            householdService.resetHeadAsOf(household, onDate);
-        }
-        // We don't want to move out a son who is the head of the household due to the death of his father
         Person head = household.getHead(onDate);
+        if (head == null) {
+            head = householdService.resetHeadAsOf(household, onDate);
+            if (head == null) {
+                return 0;
+            } else {
+                personService.save(head);
+            }
+        }
+        long headId = head.getId();
 
+        // We don't want to move out a son who is the head of the household due to the death of his father
         // Get all males who are at least 18 and are not head of household
         List<Person> adultSons = household.getInhabitants(onDate).stream()
                 .filter(Person::isMale)
-                .filter(p -> !p.equals(head))
+                .filter(p -> p.getId() != headId)
                 .filter(p -> p.getAgeInYears(onDate) >= 18)
                 .collect(Collectors.toList());
 

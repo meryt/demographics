@@ -85,8 +85,8 @@ public class FamilyGenerator {
         }
 
         if (familyParameters.isPersist()) {
-            personService.save(family.getHusband());
-            personService.save(family.getWife());
+            family.setHusband(personService.save(family.getHusband()));
+            family.setWife(personService.save(family.getWife()));
         }
         generateChildren(family, familyParameters);
 
@@ -176,6 +176,10 @@ public class FamilyGenerator {
                                        @NonNull Person person,
                                        @NonNull RandomFamilyParameters familyParameters) {
 
+        List<Person> previousSpouses = person.getSpouses();
+        LocalDate lastSpouseDeathDate = previousSpouses.isEmpty()
+                ? null
+                : previousSpouses.get(previousSpouses.size() - 1).getDeathDate();
         PercentDie die = new PercentDie();
         for (LocalDate currentDate = startDate;
                 currentDate.isBefore(endDate) || currentDate.equals(endDate);
@@ -183,7 +187,8 @@ public class FamilyGenerator {
             double percentPerDay = MatchMaker.getDesireToMarryProbability(
                     person,
                     currentDate,
-                    person.getSpouses().size(),
+                    previousSpouses.size(),
+                    lastSpouseDeathDate,
                     person.getLivingChildren(startDate).stream()
                             .filter(p -> p.isMale() && p.getDeathDate() != null)
                             .sorted(Comparator.comparing(Person::getDeathDate).reversed())

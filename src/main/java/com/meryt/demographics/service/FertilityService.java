@@ -87,6 +87,7 @@ public class FertilityService {
                 child = personService.save(child);
                 if (motherHousehold != null && child.isLiving(child.getBirthDate().plusDays(1))) {
                     householdService.addPersonToHousehold(child, motherHousehold, child.getBirthDate(), false);
+                    personService.save(child);
                 }
             }
         }

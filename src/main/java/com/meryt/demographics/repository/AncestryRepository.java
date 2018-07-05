@@ -1,14 +1,20 @@
 package com.meryt.demographics.repository;
 
 import javax.annotation.Nullable;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.Collections;
+import java.util.List;
 
+import lombok.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import com.meryt.demographics.domain.family.AncestryRecord;
 import com.meryt.demographics.domain.family.LeastCommonAncestorRelationship;
 
 @Repository
@@ -18,6 +24,30 @@ public class AncestryRepository  {
 
     public AncestryRepository(@Autowired NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
+    }
+
+    @NonNull
+    public List<AncestryRecord> getDescendants(long personId) {
+        String query = "SELECT ancestor_id, descendant_id, via, path, distance FROM ancestry " +
+                "WHERE ancestor_id = :ancestor " +
+                "AND ancestor_id != descendant_id " +
+                "ORDER BY distance, path";
+
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        params.addValue("ancestor", personId);
+        try {
+            return jdbcTemplate.query(query, params, (rs, rowNum) -> {
+                AncestryRecord rec = new AncestryRecord();
+                rec.setAncestorId(rs.getLong("ancestor_id"));
+                rec.setDescendantId(rs.getLong("descendant_id"));
+                rec.setVia(rs.getString("via"));
+                rec.setPath(rs.getString("path"));
+                rec.setDistance(rs.getInt("distance"));
+                return rec;
+            });
+        } catch (EmptyResultDataAccessException e) {
+            return null;
+        }
     }
 
     /**

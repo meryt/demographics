@@ -114,6 +114,14 @@ public class PersonController {
         return new PersonDetailResponse(person, date);
     }
 
+    @RequestMapping(value = "/api/persons/{personId}", method = RequestMethod.DELETE)
+    public PersonDetailResponse deletePerson(@PathVariable long personId) {
+        Person person = loadPerson(personId);
+        PersonDetailResponse response = new PersonDetailResponse(person);
+        personService.delete(person);
+        return response;
+    }
+
     @RequestMapping(value = "/api/persons/{personId}/fertility", method = RequestMethod.GET)
     public Fertility getPersonFertility(@PathVariable long personId) {
         Person person = loadPerson(personId);
@@ -133,6 +141,23 @@ public class PersonController {
         return person.getFertility();
     }
 
+    @RequestMapping(value = "/api/persons/{personId}/living-descendants", method = RequestMethod.GET)
+    public List<RelatedPersonResponse> getPersonDescendants(@PathVariable long personId,
+                                                            @RequestParam(value = "minAge", required = false)
+                                                                    Integer minAge,
+                                                            @RequestParam(value = "aliveOnDate")
+                                                                    String aliveOnDate) {
+        Person person = loadPerson(personId);
+        LocalDate aliveOnLocalDate = parseDate(aliveOnDate);
+
+        List<Person> people = personService.findDescendants(person, aliveOnLocalDate);
+        return people.stream()
+                .filter(p -> minAge == null || p.getAgeInYears(aliveOnLocalDate) >= minAge)
+                .map(p -> new RelatedPersonResponse(p, ancestryService.calculateRelationship(p, person),
+                        aliveOnLocalDate))
+                .collect(Collectors.toList());
+    }
+
     @RequestMapping(value = "/api/persons/{personId}/descendants", method = RequestMethod.GET)
     public PersonDescendantResponse getPersonDescendants(@PathVariable long personId,
                                                          @RequestParam(value = "numGenerations", required = false)
@@ -143,6 +168,7 @@ public class PersonController {
                                                             String bornBefore) {
         Person person = loadPerson(personId);
         LocalDate bornBeforeDate = parseDate(bornBefore);
+
         return new PersonDescendantResponse(person, minAge, bornBeforeDate, 0,
                 numGenerations == null ? 3 : numGenerations);
     }

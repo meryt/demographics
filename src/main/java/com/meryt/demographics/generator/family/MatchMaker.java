@@ -5,7 +5,6 @@ import java.time.Period;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collector;
 import javax.annotation.Nullable;
 import lombok.NonNull;
 import org.apache.commons.math3.distribution.BetaDistribution;
@@ -15,6 +14,7 @@ import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.domain.person.Trait;
 import com.meryt.demographics.generator.random.PercentDie;
+import com.meryt.demographics.time.LocalDateComparator;
 
 public class MatchMaker {
 
@@ -67,7 +67,13 @@ public class MatchMaker {
     static double getDesireToMarryProbability(@NonNull Person person,
                                               @NonNull LocalDate onDate,
                                               @Nullable Integer numPreviousSpouses,
+                                              @Nullable LocalDate lastSpouseDeathDate,
                                               @Nullable LocalDate lastLivingSonDeathDate) {
+        if (person.isFemale() && lastSpouseDeathDate != null && lastSpouseDeathDate.isBefore(onDate)
+                && LocalDateComparator.daysBetween(lastSpouseDeathDate, onDate) < 9*30) {
+            // A widow won't remarry till she is sure she is not pregnant
+            return 0.0;
+        }
         LocalDate birthDate = person.getBirthDate();
         if (birthDate == null) {
             throw new NullPointerException("Cannot calculate without person birth date");
@@ -81,7 +87,7 @@ public class MatchMaker {
         double dailyAgeAdjustedDesirePercent = ageAdjustedDesirePercent * person.getDomesticity() * BASE_PER_DAY_MARRY_DESIRE_PERCENT;
         // Previous marriages reduce desire to marry again for women, and likewise for men assuming they have at
         // least one living a son. A man without sons is not affected by previous marriages.
-        if (numPreviousSpouses != null &&
+        if (numPreviousSpouses != null && numPreviousSpouses > 0 &&
                 (person.isFemale() ||
                     (lastLivingSonDeathDate != null && onDate.isBefore(lastLivingSonDeathDate)))) {
             dailyAgeAdjustedDesirePercent /= numPreviousSpouses;

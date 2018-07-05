@@ -1,5 +1,6 @@
 package com.meryt.demographics.response;
 
+import java.time.LocalDate;
 import javax.annotation.Nullable;
 
 import lombok.Getter;
@@ -13,6 +14,14 @@ public class RelatedPersonResponse extends PersonReference {
 
     private boolean finishedGeneration;
     private final Relationship relationship;
+
+    public RelatedPersonResponse(@NonNull Person relatedPerson,
+                                 @Nullable Relationship relationship,
+                                 @Nullable LocalDate onDate) {
+        super(relatedPerson, onDate);
+        this.finishedGeneration = relatedPerson.isFinishedGeneration();
+        this.relationship = relationship;
+    }
 
     public RelatedPersonResponse(@NonNull Person relatedPerson, @Nullable Relationship relationship) {
         super(relatedPerson);

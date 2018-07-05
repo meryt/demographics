@@ -1,0 +1,6 @@
+#!/bin/bash
+
+mv ~/Dropbox/demographics.pgdump ~/Dropbox/demographics.pgdump.bak
+
+pg_dump demographics > ~/Dropbox/demographics.pgdump
+

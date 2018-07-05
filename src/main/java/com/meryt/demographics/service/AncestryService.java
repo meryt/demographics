@@ -2,6 +2,7 @@ package com.meryt.demographics.service;
 
 import javax.annotation.Nullable;
 
+import java.util.List;
 import java.util.Optional;
 
 import lombok.NonNull;
@@ -10,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.util.StringUtils;
 
+import com.meryt.demographics.domain.family.AncestryRecord;
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.family.LeastCommonAncestorRelationship;
 import com.meryt.demographics.domain.family.Relationship;
@@ -34,6 +36,12 @@ public class AncestryService {
         ancestryRepository.updateAncestryTable();
         log.info("Ancestry table regeneration complete");
     }
+
+    @NonNull
+    public List<AncestryRecord> getDescendants(long personId) {
+        return ancestryRepository.getDescendants(personId);
+    }
+
 
     /**
      * Calculate the relationship between two people. Considers marital and in-law relationships.
@@ -86,7 +94,7 @@ public class AncestryService {
      * @return the relationship, or null if they are not related in any way
      */
     @Nullable
-    Relationship calculateRelationship(@NonNull Person person1, @NonNull Person person2) {
+    public Relationship calculateRelationship(@NonNull Person person1, @NonNull Person person2) {
         return calculateRelationship(person1, person2, false);
     }
 

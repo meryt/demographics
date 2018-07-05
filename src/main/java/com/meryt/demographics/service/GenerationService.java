@@ -28,10 +28,10 @@ import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.generator.family.MatchMaker;
 import com.meryt.demographics.generator.random.BetweenDie;
 import com.meryt.demographics.generator.random.Die;
-import com.meryt.demographics.request.RandomFamilyParameters;
 import com.meryt.demographics.request.GenerationPost;
 import com.meryt.demographics.request.InitialGenerationPost;
 import com.meryt.demographics.request.PersonFamilyPost;
+import com.meryt.demographics.request.RandomFamilyParameters;
 
 /**
  * Service used for processing entire generations of randomly generated people
@@ -133,7 +133,10 @@ public class GenerationService {
             familyParameters.setReferenceDate(personFamilyPost.getUntilDate() == null
                     ? person.getDeathDate()
                     : personFamilyPost.getUntilDate());
-            familyParameters.setPersist(personFamilyPost.isPersist());
+            // Persisting during family generation causes hibernate to lose visibility of newly created persons when
+            // doing updateTitles and writing the output file. (The data is written to the DB but not visible to the
+            // Hibernate session here. That causes titles to be incorrectly inherited or marked extinct.)
+            familyParameters.setPersist(false);
             familyParameters.setAllowExistingSpouse(personFamilyPost.isAllowExistingSpouse());
             familyParameters.setMinSpouseSelection(personFamilyPost.getMinSpouseSelection());
 
@@ -156,6 +159,7 @@ public class GenerationService {
             }
         }
 
+
         updateTitles();
 
         if (generationPost.getOutputToFile() != null) {
@@ -169,7 +173,7 @@ public class GenerationService {
      * Generates a title for the person, using his last name as the title name. The peerage and inheritance style
      * are random.
      *
-     * @param founder
+     * @param founder the person who gets a title (does not need to be male)
      */
     private void addRandomTitleToFounder(@NonNull Person founder) {
         Title title = new Title();

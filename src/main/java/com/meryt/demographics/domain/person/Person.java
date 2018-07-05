@@ -135,7 +135,7 @@ public class Person {
     /**
      * A list of the households the person has been a part of, over time
      */
-    @OneToMany(mappedBy = "person")
+    @OneToMany(mappedBy = "person", cascade = { CascadeType.MERGE })
     private List<HouseholdInhabitantPeriod> households = new ArrayList<>();
 
     @OneToMany(mappedBy = "owner", cascade = { CascadeType.MERGE })
@@ -451,6 +451,7 @@ public class Person {
                 spouses.add(fam.getHusband());
             }
         }
+        spouses.sort(Comparator.comparing(Person::getDeathDate));
         return spouses;
     }
 
@@ -474,11 +475,11 @@ public class Person {
     }
 
     private List<Family> getFatheredFamilies() {
-        return Collections.unmodifiableList(fatheredFamilies);
+        return fatheredFamilies;
     }
 
     private List<Family> getMotheredFamilies() {
-        return Collections.unmodifiableList(motheredFamilies);
+        return motheredFamilies;
     }
 
     public void setMaternity(Maternity maternity) {
@@ -488,6 +489,7 @@ public class Person {
         this.maternity = maternity;
         if (maternity != null) {
             this.maternity.setPerson(this);
+            this.maternity.setPersonId(getId());
         }
     }
 
@@ -498,6 +500,7 @@ public class Person {
         this.paternity = paternity;
         if (paternity != null) {
             this.paternity.setPerson(this);
+            this.paternity.setPersonId(getId());
         }
     }
 

@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
-import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.HouseholdInhabitantPeriod;
 import com.meryt.demographics.domain.place.HouseholdLocationPeriod;
@@ -62,6 +61,10 @@ public class HouseholdService {
         householdInhabitantRepository.delete(householdInhabitantPeriod);
     }
 
+    public void delete(@NonNull HouseholdLocationPeriod householdLocationPeriod) {
+        householdLocationRepository.delete(householdLocationPeriod);
+    }
+
     /**
      * Finds all households that are not in any location.
      *
@@ -95,13 +98,14 @@ public class HouseholdService {
      * @param household the household whose head needs to be reset
      * @param onDate the date the previous head died or left
      */
-    public void resetHeadAsOf(@NonNull Household household, @NonNull LocalDate onDate) {
+    @Nullable
+    public Person resetHeadAsOf(@NonNull Household household, @NonNull LocalDate onDate) {
         List<Person> inhabitantsByAge = household.getInhabitants(onDate).stream()
                 .filter(p -> p.getBirthDate() != null && p.getAgeInYears(onDate) >= MIN_HEAD_OF_HOUSEHOLD_AGE)
                 .sorted(Comparator.comparing(Person::getGender).thenComparing(Person::getBirthDate))
                 .collect(Collectors.toList());
         if (inhabitantsByAge.isEmpty()) {
-            return;
+            return null;
         }
 
         if (household.getHead(onDate) != null) {
@@ -116,9 +120,10 @@ public class HouseholdService {
                 .orElse(null);
 
         Person newHead = inhabitantsByAge.get(0);
+        final long newHeadId = newHead.getId();
 
         HouseholdInhabitantPeriod newHeadsPeriod = household.getInhabitantPeriods().stream()
-                .filter(hip -> hip.getPerson().equals(newHead) && hip.contains(onDate))
+                .filter(hip -> hip.getPerson().getId() == newHeadId && hip.contains(onDate))
                 .findFirst().orElse(null);
 
         LocalDate startOfHeadship;
@@ -137,13 +142,14 @@ public class HouseholdService {
             }
         }
 
-        endPersonResidence(household, newHead, startOfHeadship);
+        newHead = endPersonResidence(household, newHead, startOfHeadship);
 
-        addPersonToHousehold(newHead, household, startOfHeadship, true);
+        newHead = addPersonToHousehold(newHead, household, startOfHeadship, true);
         save(household);
+        return newHead;
     }
 
-    public void addPersonToHousehold(@NonNull Person person,
+    public Person addPersonToHousehold(@NonNull Person person,
                                      @NonNull Household household,
                                      @NonNull LocalDate fromDate,
                                      boolean isHead) {
@@ -163,11 +169,13 @@ public class HouseholdService {
                 household.getInhabitantPeriods().add(period);
                 period.setHouseholdHead(isHead);
                 save(household);
-                return;
+                save(period);
+                return person;
             } else if (period.getFromDate().isBefore(fromDate) &&
                     (period.getToDate() == null || period.getToDate().isAfter(fromDate))) {
                 period.setToDate(fromDate);
                 save(period.getHousehold());
+                save(period);
             }
         }
 
@@ -180,6 +188,7 @@ public class HouseholdService {
         newPeriod.setHouseholdHead(isHead);
         person.getHouseholds().add(newPeriod);
         save(household);
+        return person;
     }
 
     /**
@@ -187,82 +196,51 @@ public class HouseholdService {
      * @param person   the person
      * @param asOfDate the date upon which the person moved to another household
      */
-    public void endPersonResidence(@NonNull Household household,
-                                   @NonNull Person person,
-                                   @NonNull LocalDate asOfDate) {
+    public Person endPersonResidence(@NonNull Household household,
+                                     @NonNull Person person,
+                                     @NonNull LocalDate asOfDate) {
+        List<HouseholdInhabitantPeriod> periodsToDelete = new ArrayList<>();
+
+        boolean anyModified = false;
         for (HouseholdInhabitantPeriod period : household.getInhabitantPeriods()) {
             if (period.getPersonId() == person.getId() && period.getFromDate().equals(asOfDate)) {
-                household.getInhabitantPeriods().remove(period);
-                person.getHouseholds().remove(period);
-                delete(period);
-                return;
-            }
-            if (period.getPersonId() == person.getId() &&
+                periodsToDelete.add(period);
+            } else if (period.getPersonId() == person.getId() &&
                     period.getFromDate().isBefore(asOfDate) &&
                     (period.getToDate() == null || period.getToDate().isAfter(asOfDate))) {
-
                 period.setToDate(asOfDate);
                 save(period);
-            }
-        }
-    }
-
-    public void addToDwellingPlace(@NonNull Household household,
-                                   @NonNull DwellingPlace dwellingPlace,
-                                   @NonNull LocalDate fromDate,
-                                   LocalDate toDate) {
-        List<HouseholdLocationPeriod> periodsToDelete = new ArrayList<>();
-        for (HouseholdLocationPeriod period : household.getDwellingPlaces()) {
-            if (period.getFromDate().isBefore(fromDate) &&
-                    (period.getToDate() == null || period.getToDate().isAfter(fromDate))) {
-                period.setToDate(fromDate);
-                //householdLocationRepository.save(period);
-                save(household);
-            }  else if (period.getFromDate().equals(fromDate) && (
-                    (period.getToDate() == null && toDate == null)
-                            || (period.getToDate().equals(toDate)))) {
-                // If the periods are identical, just change the dwelling place.
-                period.setDwellingPlace(dwellingPlace);
-                //householdLocationRepository.save(period);
-                save(household);
-                return;
-            } else if (toDate == null && period.getFromDate().isAfter(fromDate)) {
-                // If this is an open-ended date range, we should delete any future locations for this household
-                periodsToDelete.add(period);
+                anyModified = true;
             }
         }
 
-        for (HouseholdLocationPeriod periodToDelete : periodsToDelete) {
-            household.getDwellingPlaces().remove(periodToDelete);
-            dwellingPlace.getHouseholdPeriods().remove(periodToDelete);
-            householdLocationRepository.delete(periodToDelete);
+        if (anyModified) {
+            save(household);
         }
 
-        HouseholdLocationPeriod newPeriod = new HouseholdLocationPeriod();
-        newPeriod.setHouseholdId(household.getId());
-        newPeriod.setHousehold(household);
-        newPeriod.setDwellingPlace(dwellingPlace);
-        newPeriod.setFromDate(fromDate);
-        newPeriod.setToDate(toDate);
-        household.getDwellingPlaces().add(newPeriod);
+        for (HouseholdInhabitantPeriod period : periodsToDelete) {
+            household.getInhabitantPeriods().remove(period);
+            person.getHouseholds().remove(period);
+            delete(period);
+            save(household);
+        }
 
-        newPeriod = householdLocationRepository.save(newPeriod);
-
-        dwellingPlace.getHouseholdPeriods().add(newPeriod);
+        return person;
     }
 
-    public void addStepchildrenToHousehold(@NonNull Person stepParent,
+    public List<Person> addStepchildrenToHousehold(@NonNull Person stepParent,
                                            @NonNull Family stepParentsFamily,
                                            @NonNull Household stepParentsHousehold) {
+        List<Person> movedChildren = new ArrayList<>();
         Person spouse = stepParentsFamily.getHusband().equals(stepParent)
                 ? stepParentsFamily.getWife()
                 : stepParentsFamily.getHusband();
         if (spouse.getFamilies().size() == 1) {
-            return;
+            return movedChildren;
         }
         LocalDate moveInDate = stepParentsFamily.getWeddingDate();
         if (moveInDate == null) {
-            return;
+            return movedChildren;
         }
 
         for (Family otherFamily : spouse.getFamilies()) {
@@ -276,11 +254,12 @@ public class HouseholdService {
             for (Person stepchild : stepchildren) {
                 Household currentHousehold = stepchild.getHousehold(moveInDate);
                 if (currentHousehold != null) {
-                    endPersonResidence(currentHousehold, stepchild, moveInDate);
+                    stepchild = endPersonResidence(currentHousehold, stepchild, moveInDate);
                 }
-                addPersonToHousehold(stepchild, stepParentsHousehold, moveInDate, false);
+                movedChildren.add(addPersonToHousehold(stepchild, stepParentsHousehold, moveInDate, false));
             }
         }
+        return movedChildren;
     }
 
 }

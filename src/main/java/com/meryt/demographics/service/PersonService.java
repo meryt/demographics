@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.meryt.demographics.domain.Occupation;
+import com.meryt.demographics.domain.family.AncestryRecord;
 import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.PersonCapitalPeriod;
@@ -57,8 +58,17 @@ public class PersonService {
     }
 
     @NonNull
+    public Iterable<Person> loadAll(List<Long> ids) {
+        return personRepository.findAllById(ids);
+    }
+
+    @NonNull
     List<Person> loadFounders() {
         return personRepository.findByFounderTrueOrderByBirthDate();
+    }
+
+    public void delete(@NonNull Person person) {
+        personRepository.delete(person);
     }
 
     /**
@@ -90,6 +100,24 @@ public class PersonService {
                     .collect(Collectors.toList());
         } else {
             return results;
+        }
+    }
+
+    @NonNull
+    public List<Person> findDescendants(@NonNull Person person, @Nullable LocalDate aliveOnDate) {
+        List<AncestryRecord> desc = ancestryService.getDescendants(person.getId());
+        List<Long> descIds = desc.stream()
+                .map(AncestryRecord::getDescendantId)
+                .collect(Collectors.toList());
+        List<Person> descendants = new ArrayList<>();
+        loadAll(descIds).forEach(descendants::add);
+
+        if (aliveOnDate != null) {
+            return descendants.stream()
+                    .filter(p -> p.isLiving(aliveOnDate))
+                    .collect(Collectors.toList());
+        } else {
+            return descendants;
         }
     }
 
@@ -230,8 +258,8 @@ public class PersonService {
 
         return personRepository.findPotentialSpouses(spouseGender, searchDate, minBirthDate,
                 maxBirthDate, null).stream()
-                // Filter out women who were married more than once, or widows with children
-                .filter(p -> isWidowWithChildren(p, filterSearchDate))
+                // Filter out married people, women who were married more than once, and widows with children
+                .filter(p -> !p.isMarriedNowOrAfter(filterSearchDate) && !isWidowWithChildren(p, filterSearchDate))
                 // Convert to a data structure that includes the relationship
                 .map(spouse -> new RelatedPerson(spouse, ancestryService.calculateRelationship(spouse, person)))
                 // Filter out anyone too closely related
@@ -244,16 +272,18 @@ public class PersonService {
         return personRepository.findUnfinishedPersons(null);
     }
 
+    /**
+     * Returns true if the person is a woman who was married more than once, or who has living children, or has a
+     * husband still living. Otherwise false.
+     * @param person the person to check
+     * @param onDate the date on which to perform the check
+     * @return true if this is a widow with children, or woman married more than once, else false
+     */
     private static boolean isWidowWithChildren(@NonNull Person person, @NonNull LocalDate onDate) {
-        if (!person.isFemale() || person.getFamilies().size() != 1) {
-            // We want to filter out both
-            return false;
-        }
-        if (person.getLivingChildren(onDate).isEmpty()) {
-            return false;
-        }
-        Person husband = person.getFamilies().get(0).getHusband();
-        return husband == null || !husband.isLiving(onDate);
+        return (person.isFemale() &&
+                (person.getFamilies().size() >= 2
+                || !person.getLivingChildren(onDate).isEmpty()
+                || person.getSpouse(onDate) != null));
     }
 
     public void generateStartingCapitalForFounder(@NonNull Person founder, @NonNull LocalDate onDate) {

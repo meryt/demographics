@@ -125,7 +125,7 @@ public class ImmigrationService {
                 }
             }
             // Either build a house or move into an existing household depending on the social class
-            householdService.addToDwellingPlace(household, townOrParish, date, null);
+            householdDwellingPlaceService.addToDwellingPlace(household, townOrParish, date, null);
             DwellingPlace newHouse = householdDwellingPlaceService.moveHomelessHouseholdIntoHouse(household,
                     date, date);
             if (newHouse != null) {
@@ -137,7 +137,7 @@ public class ImmigrationService {
         } else {
             DwellingPlace house = buyableHouses.get(0);
             dwellingPlaceService.buyDwellingPlace(house, man, date);
-            householdService.addToDwellingPlace(household, house, date, null);
+            house = householdDwellingPlaceService.addToDwellingPlace(household, house, date, null);
             dayResults.add(new PropertyTransferEvent(date, house, house.getOwners(date.minusDays(1)),
                     house.getOwners(date)));
         }
