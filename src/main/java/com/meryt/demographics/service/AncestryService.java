@@ -1,10 +1,8 @@
 package com.meryt.demographics.service;
 
-import javax.annotation.Nullable;
-
 import java.util.List;
 import java.util.Optional;
-
+import javax.annotation.Nullable;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -141,13 +139,13 @@ public class AncestryService {
         // Check for parental and grandparental relationships
         if (relationship.getSubject1Distance() == 0) {
             String prefix = getGrandPrefix(relationship.getSubject2Distance());
-            String relationshipName = person1.isMale() ? prefix + "father" : prefix + "mother";
+            String relationshipName = person1.isMale() ? prefix + Relationship.FATHER : prefix + Relationship.MOTHER;
             return new Relationship(relationshipName, relationship.getSubject2Distance(), relationship.getSubject1Via(),
                     relationship.getSubject2Via());
         }
         if (relationship.getSubject2Distance() == 0) {
             String prefix = getGrandPrefix(relationship.getSubject1Distance());
-            String relationshipName = person1.isMale() ? prefix + "son" : prefix + "daughter";
+            String relationshipName = person1.isMale() ? prefix + Relationship.SON : prefix + Relationship.DAUGHTER;
             return new Relationship(relationshipName, relationship.getSubject1Distance(), relationship.getSubject1Via(),
                     relationship.getSubject2Via());
         }
@@ -198,7 +196,7 @@ public class AncestryService {
     private Relationship determineSiblingRelationship(@NonNull Person person1, @NonNull Person person2) {
         if (person1.isSibling(person2)) {
             if (person1.getFamily().getId() == person2.getFamily().getId()) {
-                String name = person1.isMale() ? "brother" : "sister";
+                String name = person1.isMale() ? Relationship.BROTHER : Relationship.SISTER;
                 return new Relationship(name, 2, null, null);
             } else {
                 String name = person1.isMale() ? "half-brother" : "half-sister";

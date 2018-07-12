@@ -21,6 +21,7 @@ import com.meryt.demographics.domain.place.HouseholdInhabitantPeriod;
 @Getter
 public class PersonDetailResponse extends PersonResponse {
 
+    private final String age;
     private final List<PersonTitleResponse> titles;
     private final List<PersonFamilyResponse> families;
     private final List<PersonOccupationResponse> occupations;
@@ -66,6 +67,8 @@ public class PersonDetailResponse extends PersonResponse {
         family = person.getFamily() == null ? null : new PersonParentsFamilyResponse(person.getFamily(), person);
 
         if (onDate != null) {
+            age = person.getAge(onDate);
+
             households = null;
             Household personHousehold = person.getHousehold(onDate);
             household = personHousehold == null ? null : new HouseholdResponse(personHousehold, onDate);
@@ -80,6 +83,7 @@ public class PersonDetailResponse extends PersonResponse {
             }
 
         } else {
+            age = null;
             household = null;
             households = new ArrayList<>();
             for (HouseholdInhabitantPeriod householdPeriod : person.getHouseholds()) {

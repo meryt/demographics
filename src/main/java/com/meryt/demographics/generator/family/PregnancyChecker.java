@@ -148,11 +148,13 @@ public class PregnancyChecker {
         maternity.setRandomBreastfeedingTillFromChildren(children);
 
         for (Person child : children) {
-            log.info(String.format("%s gave birth on %s to %smale child named %s, fathered by %s",
+            log.info(String.format("%d %s gave birth on %s to %smale child named %s, fathered by %d %s",
+                    family.getWife().getId(),
                     family.getWife().getName(),
                     birthDate,
                     child.isMale() ? "" : "fe",
                     child.getName(),
+                    family.getHusband().getId(),
                     family.getHusband().getName()));
             results.add(new BirthEvent(birthDate, child, family.getHusband(), family.getWife()));
         }

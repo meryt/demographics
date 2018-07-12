@@ -1,13 +1,10 @@
 package com.meryt.demographics.controllers;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
-import lombok.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.util.Pair;
 import org.springframework.http.HttpStatus;
@@ -46,6 +43,7 @@ import com.meryt.demographics.response.RelatedPersonResponse;
 import com.meryt.demographics.rest.BadRequestException;
 import com.meryt.demographics.rest.ResourceNotFoundException;
 import com.meryt.demographics.service.AncestryService;
+import com.meryt.demographics.service.ControllerHelperService;
 import com.meryt.demographics.service.FamilyService;
 import com.meryt.demographics.service.FertilityService;
 import com.meryt.demographics.service.HeirService;
@@ -74,6 +72,8 @@ public class PersonController {
 
     private final HeirService heirService;
 
+    private final ControllerHelperService controllerHelperService;
+
     public PersonController(@Autowired PersonGenerator personGenerator,
                             @Autowired PersonService personService,
                             @Autowired TitleService titleService,
@@ -81,7 +81,8 @@ public class PersonController {
                             @Autowired FamilyService familyService,
                             @Autowired FertilityService fertilityService,
                             @Autowired AncestryService ancestryService,
-                            @Autowired HeirService heirService) {
+                            @Autowired HeirService heirService,
+                            @Autowired ControllerHelperService controllerHelperService) {
         this.personGenerator = personGenerator;
         this.personService = personService;
         this.titleService = titleService;
@@ -90,6 +91,7 @@ public class PersonController {
         this.fertilityService = fertilityService;
         this.ancestryService = ancestryService;
         this.heirService = heirService;
+        this.controllerHelperService = controllerHelperService;
     }
 
     @RequestMapping("/api/persons/random")
@@ -106,17 +108,17 @@ public class PersonController {
     @RequestMapping(value = "/api/persons/{personId}", method = RequestMethod.GET)
     public PersonDetailResponse getPerson(@PathVariable long personId,
                                           @RequestParam(value = "onDate", required = false) String onDate) {
-        Person person = loadPerson(personId);
+        Person person = controllerHelperService.loadPerson(personId);
         LocalDate date = null;
         if (onDate != null) {
-            date = LocalDate.parse(onDate);
+            date = controllerHelperService.parseDate(onDate);
         }
         return new PersonDetailResponse(person, date);
     }
 
     @RequestMapping(value = "/api/persons/{personId}", method = RequestMethod.DELETE)
     public PersonDetailResponse deletePerson(@PathVariable long personId) {
-        Person person = loadPerson(personId);
+        Person person = controllerHelperService.loadPerson(personId);
         PersonDetailResponse response = new PersonDetailResponse(person);
         personService.delete(person);
         return response;
@@ -124,13 +126,13 @@ public class PersonController {
 
     @RequestMapping(value = "/api/persons/{personId}/fertility", method = RequestMethod.GET)
     public Fertility getPersonFertility(@PathVariable long personId) {
-        Person person = loadPerson(personId);
+        Person person = controllerHelperService.loadPerson(personId);
         return person.getFertility();
     }
 
     @RequestMapping(value = "/api/persons/{personId}/fertility", method = RequestMethod.POST)
     public Fertility postPersonFertility(@PathVariable long personId, @RequestBody PersonFertilityPost post) {
-        Person person = loadPerson(personId);
+        Person person = controllerHelperService.loadPerson(personId);
         LocalDate cycleToDate = post.getCycleToDateAsDate();
         if (cycleToDate != null) {
             if (!person.isFemale()) {
@@ -147,8 +149,8 @@ public class PersonController {
                                                                     Integer minAge,
                                                             @RequestParam(value = "aliveOnDate")
                                                                     String aliveOnDate) {
-        Person person = loadPerson(personId);
-        LocalDate aliveOnLocalDate = parseDate(aliveOnDate);
+        Person person = controllerHelperService.loadPerson(personId);
+        LocalDate aliveOnLocalDate = controllerHelperService.parseDate(aliveOnDate);
 
         List<Person> people = personService.findDescendants(person, aliveOnLocalDate);
         return people.stream()
@@ -166,8 +168,8 @@ public class PersonController {
                                                             Integer minAge,
                                                          @RequestParam(value = "bornBefore", required = false)
                                                             String bornBefore) {
-        Person person = loadPerson(personId);
-        LocalDate bornBeforeDate = parseDate(bornBefore);
+        Person person = controllerHelperService.loadPerson(personId);
+        LocalDate bornBeforeDate = controllerHelperService.parseDate(bornBefore);
 
         return new PersonDescendantResponse(person, minAge, bornBeforeDate, 0,
                 numGenerations == null ? 3 : numGenerations);
@@ -176,10 +178,10 @@ public class PersonController {
     @RequestMapping("/api/persons/{personId}/titles")
     public List<PersonTitleResponse> getPersonTitles(@PathVariable long personId,
                                                      @RequestParam(value = "onDate", required = false) String onDate) {
-        Person person = loadPerson(personId);
+        Person person = controllerHelperService.loadPerson(personId);
         LocalDate date = null;
         if (onDate != null) {
-            date = LocalDate.parse(onDate);
+            date = controllerHelperService.parseDate(onDate);
         }
         List<PersonTitlePeriod> titles;
         if (date != null) {
@@ -203,7 +205,7 @@ public class PersonController {
     public List<PersonTitleResponse> postPersonTitle(@PathVariable long personId,
                                                      @RequestBody PersonTitlePost personTitlePost) {
         personTitlePost.validate();
-        Person person = loadPerson(personId);
+        Person person = controllerHelperService.loadPerson(personId);
 
         final Title title = titleService.load(personTitlePost.getTitleId());
         if (title == null) {
@@ -219,7 +221,7 @@ public class PersonController {
 
     @RequestMapping("/api/persons/{personId}/families")
     public List<PersonFamilyResponse> getPersonFamilies(@PathVariable long personId) {
-        Person person = loadPerson(personId);
+        Person person = controllerHelperService.loadPerson(personId);
         List<PersonFamilyResponse> families = new ArrayList<>();
         for (Family family : person.getFamilies()) {
             families.add(new PersonFamilyResponse(person, family));
@@ -239,7 +241,7 @@ public class PersonController {
     public ResponseEntity<PersonFamilyResponse> postPersonFamily(@PathVariable long personId,
                                                                  @RequestBody PersonFamilyPost personFamilyPost) {
         personFamilyPost.validate();
-        Person person = loadPerson(personId);
+        Person person = controllerHelperService.loadPerson(personId);
 
         RandomFamilyParameters familyParameters = new RandomFamilyParameters();
         familyParameters.setMinHusbandAge(personFamilyPost.getMinHusbandAge());
@@ -250,7 +252,7 @@ public class PersonController {
         familyParameters.setPersist(personFamilyPost.isPersist());
         familyParameters.setSpouseLastName(personFamilyPost.getSpouseLastName());
         if (personFamilyPost.getSpouseId() != null) {
-            familyParameters.setSpouse(loadPerson(personFamilyPost.getSpouseId()));
+            familyParameters.setSpouse(controllerHelperService.loadPerson(personFamilyPost.getSpouseId()));
         }
         familyParameters.setAllowExistingSpouse(personFamilyPost.isAllowExistingSpouse());
         familyParameters.setMinSpouseSelection(personFamilyPost.getMinSpouseSelection());
@@ -275,7 +277,7 @@ public class PersonController {
 
     @RequestMapping(value = "/api/persons/{personId}", method = RequestMethod.PATCH)
     public PersonDetailResponse patchPerson(@PathVariable long personId, @RequestBody Map<String, Object> updates) {
-        Person person = loadPerson(personId);
+        Person person = controllerHelperService.loadPerson(personId);
         if (updates.containsKey(SOCIAL_CLASS)) {
             if (updates.get(SOCIAL_CLASS) == null) {
                 person.setSocialClass(null);
@@ -318,8 +320,8 @@ public class PersonController {
                                                                         Integer minWifeAge,
                                                            @RequestParam(value = "maxWifeAge", required = false)
                                                                          Integer maxWifeAge) {
-        final Person person = loadPerson(personId);
-        LocalDate date = parseDate(onDate);
+        final Person person = controllerHelperService.loadPerson(personId);
+        LocalDate date = controllerHelperService.parseDate(onDate);
         LocalDate searchDate = MatchMaker.getDateToStartMarriageSearch(person, minHusbandAge, minWifeAge);
         if (date != null && date.isAfter(searchDate)) {
             searchDate = date;
@@ -356,8 +358,8 @@ public class PersonController {
                                                                   String onDate,
                                                                @RequestParam(value = "inheritance", required = false)
                                                                   String inheritance) {
-        final Person person = loadPerson(personId);
-        LocalDate date = parseDate(onDate);
+        final Person person = controllerHelperService.loadPerson(personId);
+        LocalDate date = controllerHelperService.parseDate(onDate);
         if (date == null) {
             date = person.getDeathDate();
         }
@@ -381,8 +383,8 @@ public class PersonController {
                                                     String onDate,
                                             @RequestParam(value = "inheritance", required = false)
                                                     String inheritance) {
-        final Person person = loadPerson(personId);
-        LocalDate date = parseDate(onDate);
+        final Person person = controllerHelperService.loadPerson(personId);
+        LocalDate date = controllerHelperService.parseDate(onDate);
         if (date == null) {
             date = person.getDeathDate();
         }
@@ -401,31 +403,6 @@ public class PersonController {
         }
         return new PersonHeirResponse(heir.getFirst(), heir.getSecond(),
                 ancestryService.calculateRelationship(heir.getFirst(), person, false));
-    }
-
-    @NonNull
-    private Person loadPerson(Long personId) {
-        if (personId == null) {
-            throw new BadRequestException("person ID may not be null");
-        }
-
-        Person person = personService.load(personId);
-        if (person == null) {
-            throw new ResourceNotFoundException("No person found for ID " + personId);
-        }
-        return person;
-    }
-
-    @Nullable
-    private LocalDate parseDate(@Nullable String date) {
-        if (StringUtils.isEmpty(date)) {
-            return null;
-        }
-        try {
-            return LocalDate.parse(date);
-        } catch (DateTimeParseException e) {
-            throw new BadRequestException("Invalid date: " + e.getMessage());
-        }
     }
 
 }

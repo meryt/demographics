@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -304,6 +305,34 @@ public abstract class DwellingPlace {
                 .flatMap(Collection::stream)
                 .filter(p -> p.getOccupation(onDate) != null)
                 .collect(Collectors.groupingBy(p -> p.getOccupation(onDate)));
+    }
+
+    @NonNull
+    public List<Dwelling> getEmptyHouses(@NonNull LocalDate onDate) {
+        return getRecursiveDwellingPlaces(DwellingPlaceType.DWELLING).stream()
+                .filter(h -> h.getAllResidents(onDate).isEmpty())
+                .sorted(Comparator.comparing(DwellingPlace::getNullSafeValue).reversed())
+                .map(d -> (Dwelling) d)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get the parish this dwelling place is in.
+     *
+     * @return The parish it's in, if it is in a parish (recursively), or the current object if it is itself a parish,
+     * or null if it is not in a parish
+     */
+    @Nullable
+    public Parish getParish() {
+        if (this instanceof Parish) {
+            return (Parish) this;
+        }
+        DwellingPlace place = this;
+        do {
+            place = place.getParent();
+        } while (place != null && !(place instanceof Parish));
+
+        return (Parish) place;
     }
 
 }

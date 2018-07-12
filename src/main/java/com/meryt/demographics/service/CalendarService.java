@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,7 +26,6 @@ import com.meryt.demographics.domain.title.Title;
 import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.generator.random.BetweenDie;
 import com.meryt.demographics.generator.random.PercentDie;
-import com.meryt.demographics.repository.CheckDateRepository;
 import com.meryt.demographics.request.AdvanceToDatePost;
 import com.meryt.demographics.request.RandomFamilyParameters;
 import com.meryt.demographics.response.calendar.CalendarDayEvent;
@@ -41,7 +39,7 @@ import com.meryt.demographics.response.calendar.NewHouseEvent;
 @Service
 public class CalendarService {
 
-    private final CheckDateRepository checkDateRepository;
+    private final CheckDateService checkDateService;
     private final PersonService personService;
     private final FamilyGenerator familyGenerator;
     private final FertilityService fertilityService;
@@ -55,7 +53,7 @@ public class CalendarService {
     private final HouseholdDwellingPlaceService householdDwellingPlaceService;
     private final TitleService titleService;
 
-    public CalendarService(@Autowired @NonNull CheckDateRepository checkDateRepository,
+    public CalendarService(@Autowired @NonNull CheckDateService checkDateService,
                            @Autowired @NonNull PersonService personService,
                            @Autowired @NonNull FamilyGenerator familyGenerator,
                            @Autowired @NonNull FertilityService fertilityService,
@@ -68,7 +66,7 @@ public class CalendarService {
                            @Autowired @NonNull ImmigrationService immigrationService,
                            @Autowired @NonNull HouseholdDwellingPlaceService householdDwellingPlaceService,
                            @Autowired @NonNull TitleService titleService) {
-        this.checkDateRepository = checkDateRepository;
+        this.checkDateService = checkDateService;
         this.personService = personService;
         this.familyGenerator = familyGenerator;
         this.fertilityService = fertilityService;
@@ -83,15 +81,6 @@ public class CalendarService {
         this.titleService = titleService;
     }
 
-    @Nullable
-    public LocalDate getCurrentDate() {
-        return checkDateRepository.getCurrentDate();
-    }
-
-    public void setCurrentDate(@NonNull LocalDate date) {
-        checkDateRepository.setCurrentDate(date);
-    }
-
     /**
      * Perform checks on current date up to given date.
      *
@@ -100,7 +89,7 @@ public class CalendarService {
      */
     public Map<LocalDate, List<CalendarDayEvent>> advanceToDay(@NonNull LocalDate toDate,
                                                                @NonNull AdvanceToDatePost nextDatePost) {
-        LocalDate currentDate = getCurrentDate();
+        LocalDate currentDate = checkDateService.getCurrentDate();
         if (currentDate == null) {
             throw new IllegalStateException("Current date is null");
         }
@@ -132,9 +121,8 @@ public class CalendarService {
                         goodYearFactor > 0 ? "good" : "bad", goodYearFactor));
                 wealthService.distributeCapital(date, goodYearFactor);
             }
+            checkDateService.setCurrentDate(date);
         }
-
-        setCurrentDate(toDate);
 
         return results;
     }
@@ -229,7 +217,7 @@ public class CalendarService {
                     person.getAgeInYears(date)));
             List<CalendarDayEvent> events = personService.processDeath(person);
             daysResults.addAll(titleService.processDeadPersonsTitles(person));
-            inheritanceService.processDeath(person);
+            daysResults.addAll(inheritanceService.processDeath(person));
             daysResults.add(new DeathEvent(date, person));
             daysResults.addAll(events);
         }

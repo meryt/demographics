@@ -17,4 +17,9 @@ public class NewHouseEvent extends CalendarDayEvent {
         dwellingPlace = new DwellingPlaceResponse(house, date);
         setType(CalendarEventType.NEW_HOUSE);
     }
+
+    public String toLogMessage() {
+        return String.format("%s - %d created on %s", getType().name(), dwellingPlace.getId(), getDate());
+    }
+
 }

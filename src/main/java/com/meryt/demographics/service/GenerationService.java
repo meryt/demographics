@@ -141,41 +141,74 @@ public class GenerationService {
             throw new IllegalArgumentException("Cannot process generation unless persist is true");
         }
 
-        List<Person> unfinishedPersons = personService.loadUnfinishedPersons();
+        LocalDate untilDate = generationPost.getPersonFamilyPost().getUntilDate();
+        boolean onlyNonResidents = untilDate != null && generationPost.getOnlyNonResidents() != null
+                && generationPost.getOnlyNonResidents();
+        boolean shouldLoopUntilReferenceDate = untilDate != null;
+
+        List<Person> unfinishedPersons;
+        if (onlyNonResidents) {
+            // Only load people who have never been in a household
+            unfinishedPersons = personService.loadUnfinishedNonResidents();
+        } else {
+            unfinishedPersons = personService.loadUnfinishedPersons();
+        }
 
         List<Family> results = new ArrayList<>();
-        for (Person person : unfinishedPersons) {
+        for (int i = 0; i < unfinishedPersons.size(); i++) {
+            Person person = unfinishedPersons.get(i);
 
-            RandomFamilyParameters familyParameters = new RandomFamilyParameters();
-            familyParameters.setMinHusbandAge(personFamilyPost.getMinHusbandAge());
-            familyParameters.setMinWifeAge(personFamilyPost.getMinWifeAge());
-            familyParameters.setReferenceDate(personFamilyPost.getUntilDate() == null
-                    ? person.getDeathDate()
-                    : personFamilyPost.getUntilDate());
-            // Persisting during family generation causes hibernate to lose visibility of newly created persons when
-            // doing updateTitles and writing the output file. (The data is written to the DB but not visible to the
-            // Hibernate session here. That causes titles to be incorrectly inherited or marked extinct.)
-            familyParameters.setPersist(false);
-            familyParameters.setAllowExistingSpouse(personFamilyPost.isAllowExistingSpouse());
-            familyParameters.setMinSpouseSelection(personFamilyPost.getMinSpouseSelection());
+            // Loop in case he got married but his spouse died before the reference date
+            boolean personHadAFamilyInLastRound;
+            do {
+                RandomFamilyParameters familyParameters = new RandomFamilyParameters();
+                familyParameters.setMinHusbandAge(personFamilyPost.getMinHusbandAge());
+                familyParameters.setMinWifeAge(personFamilyPost.getMinWifeAge());
+                familyParameters.setReferenceDate(personFamilyPost.getUntilDate() == null
+                        ? person.getDeathDate()
+                        : personFamilyPost.getUntilDate());
+                // Persisting during family generation causes hibernate to lose visibility of newly created persons when
+                // doing updateTitles and writing the output file. (The data is written to the DB but not visible to the
+                // Hibernate session here. That causes titles to be incorrectly inherited or marked extinct.)
+                familyParameters.setPersist(false);
+                familyParameters.setAllowExistingSpouse(personFamilyPost.isAllowExistingSpouse());
+                familyParameters.setMinSpouseSelection(personFamilyPost.getMinSpouseSelection());
+                // Allows a woman pregnant at time of husband's death to give birth
+                familyParameters.setCycleToDeath(true);
 
-            Family family = null;
-            if (person.isMale() || (person.getFamilies().size() < 2 &&
-                    person.getLivingChildren(MatchMaker.getDateToStartMarriageSearch(person,
-                            familyParameters.getMinHusbandAgeOrDefault(),
-                            familyParameters.getMinWifeAgeOrDefault())).isEmpty())) {
-                // For women, only generate a new family if the person has been married no more than once and has no
-                // living children when she starts the search.
-                family = familyGenerator.generate(person, familyParameters);
-            }
-            if (family == null) {
-                person.setFinishedGeneration(true);
-                personService.save(person);
-            } else {
-                family = familyService.save(family);
-                results.add(family);
-                ancestryService.updateAncestryTable();
-            }
+                Family family = null;
+                if (person.isMale() || (person.getFamilies().size() < 2 &&
+                        person.getLivingChildren(MatchMaker.getDateToStartMarriageSearch(person,
+                                familyParameters.getMinHusbandAgeOrDefault(),
+                                familyParameters.getMinWifeAgeOrDefault())).isEmpty())) {
+                    // For women, only generate a new family if the person has been married no more than once and has no
+                    // living children when she starts the search.
+                    family = familyGenerator.generate(person, familyParameters);
+                }
+                if (family == null) {
+                    personHadAFamilyInLastRound = false;
+                    if (untilDate == null || person.getDeathDate().isBefore(untilDate) || person.isSurvivedByASpouse()) {
+                        person.setFinishedGeneration(true);
+                        personService.save(person);
+                    }
+                } else {
+                    personHadAFamilyInLastRound = true;
+                    if (shouldLoopUntilReferenceDate) {
+                        // Add any newly created people so they too can be caught up to the reference date
+                        if (family.getHusband().getId() == 0) {
+                            unfinishedPersons.add(family.getHusband());
+                        }
+                        if (family.getWife().getId() == 0) {
+                            unfinishedPersons.add(family.getWife());
+                        }
+                        unfinishedPersons.addAll(family.getChildren());
+                    }
+                    family = familyService.save(family);
+                    results.add(family);
+                    ancestryService.updateAncestryTable();
+                }
+            } while (shouldLoopUntilReferenceDate && !person.isFinishedGeneration() && personHadAFamilyInLastRound
+                    && !person.isMarriedNowOrAfter(untilDate));
         }
 
         updateTitles();

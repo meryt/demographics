@@ -17,4 +17,7 @@ public class CalendarDayEvent {
         this.date = date;
     }
 
+    public String toLogMessage() {
+        return String.format("%s - %s", type == null ? "null" : type.name(), date);
+    }
 }

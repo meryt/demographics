@@ -33,4 +33,10 @@ public class PropertyTransferEvent extends CalendarDayEvent {
                 map(p -> new PersonReference(p, date))
                 .collect(Collectors.toList());
     }
+
+    public String toLogMessage() {
+        return String.format("%s - %s %d sold on %s", getType().name(), dwellingPlace.getType(),
+                dwellingPlace.getId(), getDate());
+    }
+
 }

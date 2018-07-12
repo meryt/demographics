@@ -1,7 +1,9 @@
 package com.meryt.demographics.service;
 
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 import lombok.NonNull;
@@ -12,6 +14,7 @@ import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.DwellingPlaceOwnerPeriod;
 import com.meryt.demographics.domain.place.DwellingPlaceType;
+import com.meryt.demographics.domain.place.Parish;
 import com.meryt.demographics.repository.DwellingPlaceRepository;
 
 @Service

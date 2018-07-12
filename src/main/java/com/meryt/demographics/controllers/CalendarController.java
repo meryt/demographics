@@ -15,24 +15,28 @@ import com.meryt.demographics.response.calendar.CalendarDayEvent;
 import com.meryt.demographics.rest.BadRequestException;
 import com.meryt.demographics.rest.ConflictException;
 import com.meryt.demographics.service.CalendarService;
+import com.meryt.demographics.service.CheckDateService;
 
 @RestController
 public class CalendarController {
 
+    private final CheckDateService checkDateService;
     private final CalendarService calendarService;
 
-    public CalendarController(@Autowired @NonNull CalendarService calendarService) {
+    public CalendarController(@Autowired @NonNull CheckDateService checkDateService,
+                              @Autowired @NonNull CalendarService calendarService) {
+        this.checkDateService = checkDateService;
         this.calendarService = calendarService;
     }
 
     @RequestMapping(value = "/api/calendar/currentDate", method = RequestMethod.GET)
     public LocalDate getCurrentDate() {
-        return calendarService.getCurrentDate();
+        return checkDateService.getCurrentDate();
     }
 
     @RequestMapping(value = "/api/calendar/currentDate", method = RequestMethod.POST)
     public Map<LocalDate, List<CalendarDayEvent>> advanceToDate(@RequestBody AdvanceToDatePost nextDatePost) {
-        LocalDate currentDate = calendarService.getCurrentDate();
+        LocalDate currentDate = checkDateService.getCurrentDate();
 
         nextDatePost.validate();
 

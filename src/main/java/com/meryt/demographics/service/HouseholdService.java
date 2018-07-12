@@ -115,8 +115,8 @@ public class HouseholdService {
 
         HouseholdInhabitantPeriod lastHeadsPeriod = household.getInhabitantPeriods().stream()
                 .filter(HouseholdInhabitantPeriod::isHouseholdHead)
-                .filter(hip -> hip.getToDate() != null && hip.getToDate().isBefore(onDate))
-                .max(Comparator.comparing(HouseholdInhabitantPeriod::getToDate).reversed())
+                .filter(hip -> hip.getToDate() != null && (hip.getToDate().isBefore(onDate) || hip.getToDate().equals(onDate)))
+                .max(Comparator.comparing(HouseholdInhabitantPeriod::getToDate))
                 .orElse(null);
 
         Person newHead = inhabitantsByAge.get(0);
@@ -260,6 +260,46 @@ public class HouseholdService {
             }
         }
         return movedChildren;
+    }
+
+    /**
+     * Creates a household for the given person, making him or her the head.
+     *
+     * @param head the person who will be the head
+     * @param asOfDate the date from which the person will live in the household
+     * @param includeHomelessFamilyMembers if true, homeless
+     * @return
+     */
+    public Household createHouseholdForHead(@NonNull Person head,
+                                            @NonNull LocalDate asOfDate,
+                                            boolean includeHomelessFamilyMembers) {
+        Household household = new Household();
+        household = save(household);
+        addPersonToHousehold(head, household, asOfDate, true);
+
+        if (!includeHomelessFamilyMembers) {
+            return household;
+        }
+
+        Person spouse = head.getSpouse(asOfDate);
+        if (spouse != null) {
+            addPersonToHousehold(spouse, household, asOfDate, false);
+        }
+        for (Person child : head.getChildren()) {
+            // We want to add all living children who do not have families of their own
+            if (child.isLiving(asOfDate) && child.getFamilies().isEmpty()) {
+                addPersonToHousehold(child, household, asOfDate, false);
+            }
+        }
+        if (spouse != null && spouse.getFamilies().size() > 1) {
+            for (Person child : spouse.getChildren()) {
+                if (child.isLiving(asOfDate) && child.getFamilies().isEmpty()) {
+                    addPersonToHousehold(child, household, asOfDate, false);
+                }
+            }
+        }
+
+        return household;
     }
 
 }

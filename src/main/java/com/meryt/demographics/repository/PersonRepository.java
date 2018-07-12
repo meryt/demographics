@@ -60,6 +60,13 @@ public interface PersonRepository extends PagingAndSortingRepository<Person, Lon
             "ORDER BY p.birthDate")
     List<Person> findUnfinishedPersons(@Param("gender") @Nullable Gender gender);
 
+    @Query("SELECT p FROM Person p " +
+            "WHERE (:gender IS NULL OR p.gender = :gender) " +
+            "AND p.finishedGeneration = FALSE " +
+            "AND p.households IS EMPTY " +
+            "ORDER BY p.birthDate")
+    List<Person> findUnfinishedNonResidents(@Param("gender") @Nullable Gender gender);
+
     /**
      * Gets all women who are living on or before this date and whose last check day is on or before this date
      * @param checkDate the date the check should be done. Will find women whose last check day was well before this

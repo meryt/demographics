@@ -10,28 +10,28 @@ import com.meryt.demographics.domain.place.Parish;
 import com.meryt.demographics.generator.ParishGenerator;
 import com.meryt.demographics.request.ParishParameters;
 import com.meryt.demographics.response.DwellingPlaceResponse;
-import com.meryt.demographics.service.CalendarService;
+import com.meryt.demographics.service.CheckDateService;
 import com.meryt.demographics.service.DwellingPlaceService;
 
 @RestController
 public class ParishController {
 
     private final DwellingPlaceService dwellingPlaceService;
-    private final CalendarService calendarService;
+    private final CheckDateService checkDateService;
     private final ParishGenerator parishGenerator;
 
     public ParishController(@Autowired DwellingPlaceService dwellingPlaceService,
-                            @Autowired CalendarService calendarService,
+                            @Autowired CheckDateService checkDateService,
                             @Autowired @NonNull ParishGenerator parishGenerator) {
         this.dwellingPlaceService = dwellingPlaceService;
-        this.calendarService = calendarService;
+        this.checkDateService =  checkDateService;
         this.parishGenerator = parishGenerator;
     }
 
     @RequestMapping("/api/parishes/random")
     public DwellingPlaceResponse randomParish(@RequestBody ParishParameters parishParameters) {
         Parish parish = parishGenerator.generateParish(parishParameters);
-        calendarService.setCurrentDate(parishParameters.getFamilyParameters().getReferenceDate());
+        checkDateService.setCurrentDate(parishParameters.getFamilyParameters().getReferenceDate());
         if (parishParameters.isPersist()) {
             return new DwellingPlaceResponse(dwellingPlaceService.save(parish),
                     parishParameters.getFamilyParameters().getReferenceDate());

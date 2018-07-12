@@ -1,6 +1,7 @@
 package com.meryt.demographics.service;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -12,10 +13,14 @@ import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.family.Relationship;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.PersonCapitalPeriod;
+import com.meryt.demographics.domain.place.Dwelling;
 import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.DwellingPlaceType;
+import com.meryt.demographics.domain.place.Household;
+import com.meryt.demographics.domain.place.Parish;
 import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.request.RandomFamilyParameters;
+import com.meryt.demographics.response.calendar.CalendarDayEvent;
 
 @Slf4j
 @Service
@@ -26,25 +31,33 @@ public class InheritanceService {
     private final PersonService personService;
     private final AncestryService ancestryService;
     private final HeirService heirService;
+    private final HouseholdService householdService;
+    private final HouseholdDwellingPlaceService householdDwellingPlaceService;
 
     public InheritanceService(@NonNull FamilyGenerator familyGenerator,
                               @NonNull FamilyService familyService,
                               @NonNull PersonService personService,
                               @NonNull AncestryService ancestryService,
-                              @NonNull HeirService heirService) {
+                              @NonNull HeirService heirService,
+                              @NonNull HouseholdService householdService,
+                              @NonNull HouseholdDwellingPlaceService householdDwellingPlaceService) {
         this.familyGenerator = familyGenerator;
         this.familyService = familyService;
         this.personService = personService;
         this.ancestryService = ancestryService;
         this.heirService = heirService;
+        this.householdService = householdService;
+        this.householdDwellingPlaceService = householdDwellingPlaceService;
     }
 
 
 
-    void processDeath(@NonNull Person person) {
+    List<CalendarDayEvent> processDeath(@NonNull Person person) {
+        List<CalendarDayEvent> results = new ArrayList<>();
         LocalDate date = person.getDeathDate();
         distributeCashToHeirs(person, date);
-        distributeRealEstateToHeirs(person, date);
+        results.addAll(distributeRealEstateToHeirs(person, date));
+        return results;
     }
 
 
@@ -75,10 +88,11 @@ public class InheritanceService {
         }
     }
 
-    private void distributeRealEstateToHeirs(@NonNull Person person, @NonNull LocalDate onDate) {
+    private List<CalendarDayEvent> distributeRealEstateToHeirs(@NonNull Person person, @NonNull LocalDate onDate) {
+        List<CalendarDayEvent> results = new ArrayList<>();
         List<DwellingPlace> realEstate = person.getOwnedDwellingPlaces(onDate.minusDays(1));
         if (realEstate.isEmpty()) {
-            return;
+            return results;
         }
 
         boolean ownsEntailedProperty = realEstate.stream().anyMatch(DwellingPlace::isEntailed);
@@ -125,6 +139,7 @@ public class InheritanceService {
         for (DwellingPlace estateOrFarm : unentailedEstates) {
             List<DwellingPlace> places = estateOrFarm.getDwellingPlaces().stream()
                     .filter(dp -> dp.getOwners(onDate.minusDays(1)).contains(person))
+                    .sorted(Comparator.comparing(DwellingPlace::getValue).reversed())
                     .collect(Collectors.toList());
             unentailedHouses.removeAll(places);
             Person heir;
@@ -149,6 +164,13 @@ public class InheritanceService {
                         estateBuilding.getType().getFriendlyName(),
                         estateBuilding.getLocationString(), onDate));
                 estateBuilding.addOwner(heir, onDate, heir.getDeathDate());
+                if (estateBuilding instanceof Dwelling) {
+                    CalendarDayEvent result = maybeMoveHeirIntoInheritedHouse(person, heir, onDate,
+                            (Dwelling) estateBuilding);
+                    if (result != null) {
+                        results.add(result);
+                    }
+                }
             }
             personService.save(heir);
         }
@@ -171,7 +193,13 @@ public class InheritanceService {
                     house.getLocationString(), onDate));
             house.addOwner(heir, onDate, heir.getDeathDate());
             personService.save(heir);
+            CalendarDayEvent result = maybeMoveHeirIntoInheritedHouse(person, heir, onDate, (Dwelling) house);
+            if (result != null) {
+                results.add(result);
+            }
+
         }
+        return results;
     }
 
     @NonNull
@@ -191,5 +219,63 @@ public class InheritanceService {
         familyService.save(family);
 
         return family.getHusband();
+    }
+
+    private CalendarDayEvent maybeMoveHeirIntoInheritedHouse(@NonNull Person deceasedPerson,
+                                                             @NonNull Person heir,
+                                                             @NonNull LocalDate onDate,
+                                                             @NonNull Dwelling dwelling) {
+        DwellingPlace heirsCurrentResidence = heir.getResidence(onDate);
+        if (heirsCurrentResidence == null || heirsCurrentResidence.getValue() < dwelling.getValue()) {
+            // If he doesn't live here or if his current house is not as nice as this one, move him and his
+            // family into the house.
+            Household heirsHousehold = heir.getHousehold(onDate);
+            if (heirsHousehold == null) {
+                heirsHousehold = householdService.createHouseholdForHead(heir, onDate, true);
+            }
+            householdDwellingPlaceService.addHouseholdToDwellingPlaceOnDate(dwelling, heirsHousehold, onDate);
+
+            Household oldHousehold = deceasedPerson.getHousehold(onDate.minusDays(1));
+            if (oldHousehold == null) {
+                return null;
+            }
+            if (dwelling.equals(oldHousehold.getDwellingPlace(onDate))) {
+                return maybeMoveCurrentHouseholdOutOfHouse(oldHousehold, onDate, heir, dwelling);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Used when a new household moves into a house as owners. Will move out an existing household into a buyable house,
+     * or creates a new house for the household. Does not move out the household if the new owner is a parent, child,
+     * or sibling of the other household's head.
+     *
+     * @param oldHousehold the household that might need to move
+     * @param onDate the date the new household moves in
+     * @param newOwner the new owner of the house
+     * @param dwelling the house
+     * @return an event if the household had to move out
+     */
+    private CalendarDayEvent maybeMoveCurrentHouseholdOutOfHouse(@NonNull Household oldHousehold,
+                                                                 @NonNull LocalDate onDate,
+                                                                 @NonNull Person newOwner,
+                                                                 @NonNull Dwelling dwelling) {
+        Person otherHead = oldHousehold.getHead(onDate);
+        Relationship relationship = ancestryService.calculateRelationship(newOwner, otherHead, false);
+        if (relationship == null ||
+                !(relationship.isParentChildRelationship() || relationship.isSiblingRelationship())) {
+            // Another household is living here, and they are not closely related to the heir. They
+            // have to move out.
+            DwellingPlace parish;
+            do {
+                parish = dwelling.getParent();
+            } while (parish != null && parish.getType() != DwellingPlaceType.PARISH);
+            if (parish instanceof Parish) {
+                return householdDwellingPlaceService.buyOrCreateHouseForHousehold((Parish) parish,
+                        oldHousehold, onDate);
+            }
+        }
+        return null;
     }
 }

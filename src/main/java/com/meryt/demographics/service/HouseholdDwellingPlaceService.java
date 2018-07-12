@@ -23,9 +23,13 @@ import com.meryt.demographics.domain.place.Estate;
 import com.meryt.demographics.domain.place.Farm;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.HouseholdLocationPeriod;
+import com.meryt.demographics.domain.place.Parish;
 import com.meryt.demographics.generator.WealthGenerator;
 import com.meryt.demographics.generator.random.BetweenDie;
 import com.meryt.demographics.generator.random.Die;
+import com.meryt.demographics.response.calendar.CalendarDayEvent;
+import com.meryt.demographics.response.calendar.NewHouseEvent;
+import com.meryt.demographics.response.calendar.PropertyTransferEvent;
 
 /**
  * Service used for finding houses for households and moving them in.
@@ -137,8 +141,8 @@ public class HouseholdDwellingPlaceService {
      */
     @Nullable
     public DwellingPlace moveHomelessHouseholdIntoHouse(@NonNull Household household,
-                                               @NonNull LocalDate referenceDate,
-                                               @NonNull LocalDate moveInDate) {
+                                                        @NonNull LocalDate referenceDate,
+                                                        @NonNull LocalDate moveInDate) {
         Person head = household.getHead(referenceDate);
         if (head == null) {
             householdService.resetHeadAsOf(household, referenceDate);
@@ -197,6 +201,58 @@ public class HouseholdDwellingPlaceService {
         }
     }
 
+    public CalendarDayEvent buyOrCreateHouseForHousehold(@NonNull Parish parish,
+                                                         @NonNull Household household,
+                                                         @NonNull LocalDate date) {
+        Person head = household.getHead(date);
+        if (head == null) {
+            throw new IllegalArgumentException("The household had no head on the date");
+        }
+
+        double capital = head.getCapital(date) == null ? 0.0 : head.getCapital(date);
+
+        List<DwellingPlace> buyableHouses = parish.getEmptyHouses(date).stream()
+                .filter(h -> h.getNullSafeValue() < capital)
+                .collect(Collectors.toList());
+        if (buyableHouses.isEmpty()) {
+            // Find a dwelling place in the parish. May purchase if there is an empty one, or build a new
+            // house, or...?
+            List<DwellingPlace> towns = new ArrayList<>(parish.getRecursiveDwellingPlaces(
+                    DwellingPlaceType.TOWN));
+            DwellingPlace townOrParish;
+            if (towns.isEmpty()) {
+                townOrParish = parish;
+            } else {
+                int whichTown = new BetweenDie().roll(1, towns.size() + 1);
+                if (whichTown > towns.size()) {
+                    // add ot parish
+                    townOrParish = parish;
+                } else {
+                    Collections.shuffle(towns);
+                    townOrParish = towns.get(0);
+                }
+            }
+            // Either build a house or move into an existing household depending on the social class
+            addToDwellingPlace(household, townOrParish, date, null);
+            DwellingPlace newHouse = moveHomelessHouseholdIntoHouse(household,
+                    date, date);
+            if (newHouse != null) {
+                List<Person> owners = newHouse.getOwners(date);
+                if (newHouse instanceof Dwelling && owners != null && owners.contains(head)) {
+                    return new NewHouseEvent(date, newHouse);
+                }
+            }
+        } else {
+            DwellingPlace house = buyableHouses.get(0);
+            dwellingPlaceService.buyDwellingPlace(house, head, date);
+            house = addToDwellingPlace(household, house, date, null);
+            return new PropertyTransferEvent(date, house, house.getOwners(date.minusDays(1)),
+                    house.getOwners(date));
+        }
+
+        return null;
+    }
+
     /**
      * Creates a house in a dwelling place and moves a household into it
      *
@@ -240,10 +296,10 @@ public class HouseholdDwellingPlaceService {
      * @param household the household
      * @param moveInDate the date on which the inhabitants should move in
      */
-    private DwellingPlace moveGentlemanIntoEstate(@NonNull DwellingPlace dwellingPlace,
-                                                  @NonNull Person headOfHousehold,
-                                                  @NonNull Household household,
-                                                  @NonNull LocalDate moveInDate) {
+    public DwellingPlace moveGentlemanIntoEstate(@NonNull DwellingPlace dwellingPlace,
+                                                 @NonNull Person headOfHousehold,
+                                                 @NonNull Household household,
+                                                 @NonNull LocalDate moveInDate) {
         Estate estate = new Estate();
         estate.setValue(WealthGenerator.getRandomLandValue(headOfHousehold.getSocialClass()));
         boolean isEntailed = headOfHousehold.isMale() && new BetweenDie().roll(1, 100) > 30;

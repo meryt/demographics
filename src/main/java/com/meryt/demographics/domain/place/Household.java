@@ -2,7 +2,6 @@ package com.meryt.demographics.domain.place;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -20,7 +19,6 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
 
-import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.person.Person;
 
 @Getter

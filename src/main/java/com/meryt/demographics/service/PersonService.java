@@ -273,6 +273,13 @@ public class PersonService {
     }
 
     /**
+     * Loads only unfinished people who have never lived in a household
+     */
+    List<Person> loadUnfinishedNonResidents() {
+        return personRepository.findUnfinishedNonResidents(null);
+    }
+
+    /**
      * Returns true if the person is a woman who was married more than once, or who has living children, or has a
      * husband still living. Otherwise false.
      * @param person the person to check

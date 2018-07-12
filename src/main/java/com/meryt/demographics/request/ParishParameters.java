@@ -70,4 +70,21 @@ public class ParishParameters {
         String suffix = estateSuffixes.get(index);
         return baseName + " " + suffix;
     }
+
+    /**
+     * Gets and removes a random farm name based on the estates list, if nonempty, otherwise based on a random town
+     * name. The name always ends in "Farm"
+     *
+     * @return a string containing a farm name, or null if there was no data to use for generating one.
+     */
+    @Nullable
+    public String getAndRemoveRandomFarmName() {
+        String baseName;
+        if (getEstateNames() == null || getEstateNames().isEmpty()) {
+            baseName = getAndRemoveRandomTownName();
+        } else {
+            baseName = estateNames.remove(new Die(getEstateNames().size()).roll() - 1);
+        }
+        return baseName + " Farm";
+    }
 }
