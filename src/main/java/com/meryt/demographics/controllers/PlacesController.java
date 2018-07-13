@@ -1,15 +1,11 @@
 package com.meryt.demographics.controllers;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-
-import javax.annotation.Nullable;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cglib.core.Local;
-import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,7 +18,8 @@ import com.meryt.demographics.domain.place.Dwelling;
 import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.DwellingPlaceType;
 import com.meryt.demographics.domain.place.Estate;
-import com.meryt.demographics.domain.place.Parish;
+import com.meryt.demographics.domain.place.Household;
+import com.meryt.demographics.generator.WealthGenerator;
 import com.meryt.demographics.request.EstatePost;
 import com.meryt.demographics.response.DwellingPlaceResponse;
 import com.meryt.demographics.rest.BadRequestException;
@@ -30,20 +27,25 @@ import com.meryt.demographics.rest.ResourceNotFoundException;
 import com.meryt.demographics.service.ControllerHelperService;
 import com.meryt.demographics.service.DwellingPlaceService;
 import com.meryt.demographics.service.HouseholdDwellingPlaceService;
+import com.meryt.demographics.service.PersonService;
 
+@Slf4j
 @RestController
 public class PlacesController {
 
     private final DwellingPlaceService dwellingPlaceService;
     private final ControllerHelperService controllerHelperService;
     private final HouseholdDwellingPlaceService householdDwellingPlaceService;
+    private final PersonService personService;
 
     public PlacesController(@Autowired DwellingPlaceService dwellingPlaceService,
                             @Autowired ControllerHelperService controllerHelperService,
-                            @Autowired HouseholdDwellingPlaceService householdDwellingPlaceService) {
+                            @Autowired HouseholdDwellingPlaceService householdDwellingPlaceService,
+                            @Autowired PersonService personService) {
         this.dwellingPlaceService = dwellingPlaceService;
         this.controllerHelperService = controllerHelperService;
         this.householdDwellingPlaceService = householdDwellingPlaceService;
+        this.personService = personService;
     }
 
     @RequestMapping("/api/places/{placeId}")
@@ -54,10 +56,7 @@ public class PlacesController {
         if (place == null) {
             throw new ResourceNotFoundException("No place found for ID " + placeId);
         } else {
-            LocalDate date = null;
-            if (onDate != null) {
-                date = LocalDate.parse(onDate);
-            }
+            LocalDate date = controllerHelperService.parseDate(onDate);
             return new DwellingPlaceResponse(place, date);
         }
     }
@@ -76,6 +75,12 @@ public class PlacesController {
         Person owner = controllerHelperService.loadPerson(estatePost.getOwnerId());
         LocalDate onDate = controllerHelperService.parseDate(estatePost.getOwnerFromDate());
 
+        Household ownerHousehold = owner.getHousehold(onDate);
+        if (ownerHousehold == null) {
+            throw new BadRequestException(String.format("%d %s is not a member of a household on %s",
+                    owner.getId(), owner.getName(), onDate));
+        }
+
         Dwelling house = (Dwelling) householdDwellingPlaceService.moveGentlemanIntoEstate(place, owner,
                 owner.getHousehold(onDate), onDate);
         Estate estate = (Estate) house.getParent();
@@ -83,12 +88,21 @@ public class PlacesController {
         house.setName(estatePost.getDwellingName());
         dwellingPlaceService.save(house);
         dwellingPlaceService.save(estate);
+
+        if (owner.getCapitalPeriods().isEmpty()) {
+            double capital = WealthGenerator.getRandomStartingCapital(owner.getSocialClass(),
+                    owner.getOccupation(onDate) != null);
+            owner.addCapital(capital, onDate);
+            log.info(String.format("%d %s got starting capital of %.2f", owner.getId(), owner.getName(), capital));
+            personService.save(owner);
+        }
+
         return new DwellingPlaceResponse(estate, onDate);
     }
 
     @RequestMapping("/api/places/estates")
     public List<DwellingPlaceResponse> getEstates(@RequestParam(value = "onDate", required = false) String onDate) {
-        final LocalDate date = (onDate != null) ? LocalDate.parse(onDate) : null;
+        final LocalDate date = controllerHelperService.parseDate(onDate);
 
         List<DwellingPlace> estates = dwellingPlaceService.loadByType(DwellingPlaceType.ESTATE);
         return estates.stream().map(e -> new DwellingPlaceResponse(e, date)).collect(Collectors.toList());
@@ -96,7 +110,7 @@ public class PlacesController {
 
     @RequestMapping("/api/places/parishes")
     public List<DwellingPlaceResponse> getParishes(@RequestParam(value = "onDate", required = false) String onDate) {
-        final LocalDate date = (onDate != null) ? LocalDate.parse(onDate) : null;
+        final LocalDate date = controllerHelperService.parseDate(onDate);
 
         List<DwellingPlace> estates = dwellingPlaceService.loadByType(DwellingPlaceType.PARISH);
         return estates.stream().map(e -> new DwellingPlaceResponse(e, date)).collect(Collectors.toList());
@@ -104,7 +118,7 @@ public class PlacesController {
 
     @RequestMapping("/api/places/towns")
     public List<DwellingPlaceResponse> getTowns(@RequestParam(value = "onDate", required = false) String onDate) {
-        final LocalDate date = (onDate != null) ? LocalDate.parse(onDate) : null;
+        final LocalDate date = controllerHelperService.parseDate(onDate);
 
         List<DwellingPlace> estates = dwellingPlaceService.loadByType(DwellingPlaceType.TOWN);
         return estates.stream().map(e -> new DwellingPlaceResponse(e, date)).collect(Collectors.toList());
@@ -112,16 +126,15 @@ public class PlacesController {
 
     @RequestMapping("/api/places/farms")
     public List<DwellingPlaceResponse> getFarms(@RequestParam(value = "onDate", required = false) String onDate) {
-        final LocalDate date = (onDate != null) ? LocalDate.parse(onDate) : null;
+        final LocalDate date = controllerHelperService.parseDate(onDate);
 
         List<DwellingPlace> estates = dwellingPlaceService.loadByType(DwellingPlaceType.FARM);
         return estates.stream().map(e -> new DwellingPlaceResponse(e, date)).collect(Collectors.toList());
     }
 
     @RequestMapping(value = "/api/places/houses/empty", method = RequestMethod.GET)
-    public List<DwellingPlaceResponse> getEmptyHouses(
-            @RequestParam(value = "onDate") String onDate) {
-        LocalDate date = parseDate(onDate);
+    public List<DwellingPlaceResponse> getEmptyHouses(@RequestParam(value = "onDate") String onDate) {
+        final LocalDate date = controllerHelperService.parseDate(onDate);
         List<Dwelling> houses = new ArrayList<>();
         for (DwellingPlace parish : dwellingPlaceService.loadByType(DwellingPlaceType.PARISH)) {
             houses.addAll(parish.getEmptyHouses(date));
@@ -129,17 +142,5 @@ public class PlacesController {
         return houses.stream()
                 .map(h -> new DwellingPlaceResponse(h, date))
                 .collect(Collectors.toList());
-    }
-
-    @Nullable
-    private LocalDate parseDate(@Nullable String date) {
-        if (StringUtils.isEmpty(date)) {
-            return null;
-        }
-        try {
-            return LocalDate.parse(date);
-        } catch (DateTimeParseException e) {
-            throw new BadRequestException("Invalid date: " + e.getMessage());
-        }
     }
 }

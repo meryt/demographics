@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import lombok.Getter;
 import lombok.NonNull;
 
@@ -19,6 +20,10 @@ import com.meryt.demographics.domain.place.HouseholdInhabitantPeriod;
  * This response shows details about a person and descends into its member family, households, and occupations.
  */
 @Getter
+@JsonPropertyOrder({"id", "firstName", "lastName", "gender", "age", "birthDate", "deathDate", "ageAtDeath",
+    "socialClass", "eyeColor", "hairColor", "height", "domesticity", "charisma", "comeliness", "intelligence",
+    "morality", "strength", "traits", "titles", "families", "occupations", "household", "households", "ownedProperties",
+    "family"})
 public class PersonDetailResponse extends PersonResponse {
 
     private final String age;

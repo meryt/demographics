@@ -88,12 +88,13 @@ public class PersonService {
     }
 
     @NonNull
-    List<Person> findUnmarriedMen(@NonNull LocalDate checkDate,
-                                  int minHusbandAge,
-                                  int maxHusbandAge,
-                                  boolean residentsOnly) {
-        List<Person> results = personRepository.findUnmarriedMen(checkDate, checkDate.minusYears(maxHusbandAge),
-                checkDate.minusYears(minHusbandAge));
+    List<Person> findUnmarriedPeople(@NonNull LocalDate checkDate,
+                                     int minHusbandAge,
+                                     int maxHusbandAge,
+                                     boolean residentsOnly,
+                                     @Nullable Gender gender) {
+        List<Person> results = personRepository.findUnmarriedPeople(checkDate, checkDate.minusYears(maxHusbandAge),
+                checkDate.minusYears(minHusbandAge), gender);
         if (residentsOnly) {
             return results.stream()
                     .filter(p -> p.getResidence(checkDate) != null)

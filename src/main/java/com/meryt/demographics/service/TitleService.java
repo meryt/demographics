@@ -120,6 +120,7 @@ public class TitleService {
         return (inheritanceDate == null) ? null : Pair.of(inheritanceDate.minusDays(1), new ArrayList<>());
     }
 
+    @Nullable
     private Pair<LocalDate, List<Person>> findFutureHeirForTitleInAbeyance(@NonNull Title title,
                                                                            @NonNull Person forPerson,
                                                                            @NonNull LocalDate startDate,
@@ -252,7 +253,7 @@ public class TitleService {
         Pair<LocalDate, List<Person>> heirs = getTitleHeirs(title);
         Person latestHolder = getLatestHolder(title);
         List<CalendarDayEvent> results = new ArrayList<>();
-        if (heirs == null) {
+        if (heirs == null || heirs.getSecond().isEmpty()) {
             if (heirMayBeBornOn != null) {
                 title.setNextAbeyanceCheckDate(heirMayBeBornOn);
                 save(title);

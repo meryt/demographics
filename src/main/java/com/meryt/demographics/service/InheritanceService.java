@@ -50,14 +50,10 @@ public class InheritanceService {
         this.householdDwellingPlaceService = householdDwellingPlaceService;
     }
 
-
-
     List<CalendarDayEvent> processDeath(@NonNull Person person) {
-        List<CalendarDayEvent> results = new ArrayList<>();
         LocalDate date = person.getDeathDate();
         distributeCashToHeirs(person, date);
-        results.addAll(distributeRealEstateToHeirs(person, date));
-        return results;
+        return new ArrayList<>(distributeRealEstateToHeirs(person, date));
     }
 
 
@@ -71,6 +67,7 @@ public class InheritanceService {
         personService.save(person);
 
         double cash = period.getCapital();
+
         List<Person> heirs = heirService.findHeirsForCashInheritance(person, onDate);
 
         if (heirs.isEmpty()) {
@@ -165,11 +162,9 @@ public class InheritanceService {
                         estateBuilding.getLocationString(), onDate));
                 estateBuilding.addOwner(heir, onDate, heir.getDeathDate());
                 if (estateBuilding instanceof Dwelling) {
-                    CalendarDayEvent result = maybeMoveHeirIntoInheritedHouse(person, heir, onDate,
+                    List<CalendarDayEvent> moveResults = maybeMoveHeirIntoInheritedHouse(person, heir, onDate,
                             (Dwelling) estateBuilding);
-                    if (result != null) {
-                        results.add(result);
-                    }
+                    results.addAll(moveResults);
                 }
             }
             personService.save(heir);
@@ -193,11 +188,8 @@ public class InheritanceService {
                     house.getLocationString(), onDate));
             house.addOwner(heir, onDate, heir.getDeathDate());
             personService.save(heir);
-            CalendarDayEvent result = maybeMoveHeirIntoInheritedHouse(person, heir, onDate, (Dwelling) house);
-            if (result != null) {
-                results.add(result);
-            }
-
+            List<CalendarDayEvent> moveResults = maybeMoveHeirIntoInheritedHouse(person, heir, onDate, (Dwelling) house);
+            results.addAll(moveResults);
         }
         return results;
     }
@@ -221,11 +213,16 @@ public class InheritanceService {
         return family.getHusband();
     }
 
-    private CalendarDayEvent maybeMoveHeirIntoInheritedHouse(@NonNull Person deceasedPerson,
-                                                             @NonNull Person heir,
-                                                             @NonNull LocalDate onDate,
-                                                             @NonNull Dwelling dwelling) {
+    private List<CalendarDayEvent> maybeMoveHeirIntoInheritedHouse(@NonNull Person deceasedPerson,
+                                                                   @NonNull Person heir,
+                                                                   @NonNull LocalDate onDate,
+                                                                   @NonNull Dwelling dwelling) {
+        List<CalendarDayEvent> results = new ArrayList<>();
         DwellingPlace heirsCurrentResidence = heir.getResidence(onDate);
+        if (dwelling.equals(heirsCurrentResidence)) {
+            // He already lives in the house, just return.
+            return results;
+        }
         if (heirsCurrentResidence == null || heirsCurrentResidence.getValue() < dwelling.getValue()) {
             // If he doesn't live here or if his current house is not as nice as this one, move him and his
             // family into the house.
@@ -237,13 +234,13 @@ public class InheritanceService {
 
             Household oldHousehold = deceasedPerson.getHousehold(onDate.minusDays(1));
             if (oldHousehold == null) {
-                return null;
+                return results;
             }
             if (dwelling.equals(oldHousehold.getDwellingPlace(onDate))) {
                 return maybeMoveCurrentHouseholdOutOfHouse(oldHousehold, onDate, heir, dwelling);
             }
         }
-        return null;
+        return results;
     }
 
     /**
@@ -257,10 +254,10 @@ public class InheritanceService {
      * @param dwelling the house
      * @return an event if the household had to move out
      */
-    private CalendarDayEvent maybeMoveCurrentHouseholdOutOfHouse(@NonNull Household oldHousehold,
-                                                                 @NonNull LocalDate onDate,
-                                                                 @NonNull Person newOwner,
-                                                                 @NonNull Dwelling dwelling) {
+    private List<CalendarDayEvent> maybeMoveCurrentHouseholdOutOfHouse(@NonNull Household oldHousehold,
+                                                                       @NonNull LocalDate onDate,
+                                                                       @NonNull Person newOwner,
+                                                                       @NonNull Dwelling dwelling) {
         Person otherHead = oldHousehold.getHead(onDate);
         Relationship relationship = ancestryService.calculateRelationship(newOwner, otherHead, false);
         if (relationship == null ||
@@ -276,6 +273,6 @@ public class InheritanceService {
                         oldHousehold, onDate);
             }
         }
-        return null;
+        return new ArrayList<>();
     }
 }

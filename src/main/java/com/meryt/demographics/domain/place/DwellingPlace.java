@@ -84,6 +84,12 @@ public abstract class DwellingPlace {
 
     private boolean entailed;
 
+    /**
+     * If true, this dwelling place cannot be bought or sold independent of its parent (e.g. a dwelling that is the
+     * principal house of an estate)
+     */
+    private boolean attachedToParent;
+
     public Double getSquareMiles() {
         if (acres == null) {
             return null;
@@ -114,6 +120,14 @@ public abstract class DwellingPlace {
 
     public double getNullSafeValue() {
         return value == null ? 0.0 : value;
+    }
+
+    public double getNullSafeValueIncludingAttachedParent() {
+        double myValue = getNullSafeValue();
+        if (attachedToParent && parent != null) {
+            myValue += parent.getNullSafeValue();
+        }
+        return myValue;
     }
 
     /**
@@ -216,19 +230,6 @@ public abstract class DwellingPlace {
         newMember.setParent(this);
     }
 
-    /**
-     * Removes a child dwelling place from the set of members. Also sets its parent to null if its parent was
-     * previously this.
-     *
-     * @param member the child to remove
-     */
-    public void removeDwellingPlace(@NonNull DwellingPlace member) {
-        dwellingPlaces.remove(member);
-        if (member.getParent().equals(this)) {
-            member.setParent(null);
-        }
-    }
-
     private Set<DwellingPlace> getRecursiveDwellingPlaces() {
         return Stream.concat(
                 Stream.of(this),
@@ -290,13 +291,6 @@ public abstract class DwellingPlace {
         newPeriod.setToDate(toDate);
         person.getOwnedDwellingPlaces().add(newPeriod);
         getOwnerPeriods().add(newPeriod);
-    }
-
-    public void mergeHouseholdPeriod(@NonNull HouseholdLocationPeriod period) {
-        getHouseholdPeriods().stream()
-                .filter(p -> p.getFromDate().equals(period.getFromDate()) && p.getHouseholdId() == period.getHouseholdId())
-                .findFirst().ifPresent(oldPeriod -> householdPeriods.remove(oldPeriod));
-        householdPeriods.add(period);
     }
 
     public Map<Occupation, List<Person>> getPeopleWithOccupations(@NonNull LocalDate onDate) {

@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.family.Family;
+import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.place.Dwelling;
 import com.meryt.demographics.domain.place.DwellingPlace;
@@ -28,12 +29,14 @@ import com.meryt.demographics.generator.random.BetweenDie;
 import com.meryt.demographics.generator.random.PercentDie;
 import com.meryt.demographics.request.AdvanceToDatePost;
 import com.meryt.demographics.request.RandomFamilyParameters;
+import com.meryt.demographics.response.calendar.BirthEvent;
 import com.meryt.demographics.response.calendar.CalendarDayEvent;
 import com.meryt.demographics.response.calendar.CalendarEventType;
 import com.meryt.demographics.response.calendar.DeathEvent;
 import com.meryt.demographics.response.calendar.EmploymentEvent;
 import com.meryt.demographics.response.calendar.MarriageEvent;
 import com.meryt.demographics.response.calendar.NewHouseEvent;
+import com.meryt.demographics.rest.BadRequestException;
 
 @Slf4j
 @Service
@@ -97,13 +100,24 @@ public class CalendarService {
         RandomFamilyParameters familyParameters = nextDatePost.getFamilyParameters();
 
         Map<LocalDate, List<CalendarDayEvent>> results = new TreeMap<>();
+        int i = 0;
+        int matBatchSize = nextDatePost.getMaternityNumDaysOrDefault();
+        if (matBatchSize <= 0) {
+            throw new BadRequestException("maternityNumDays must be a positive integer (defaults to 1 if not specified)");
+        }
         for (LocalDate date = currentDate.plusDays(1); !date.isAfter(toDate); date = date.plusDays(1)) {
             log.info(String.format("Checking for events on %s", date));
+
             Map<LocalDate, List<CalendarDayEvent>> marriageEvents = generateMarriagesToDate(date, familyParameters);
             results = mergeMaps(results, marriageEvents);
 
-            Map<LocalDate, List<CalendarDayEvent>> maternityEvents = advanceMaternitiesToDay(date);
-            results = mergeMaps(results, maternityEvents);
+            // Say the batch size is 7. If so, we don't check on the 0th through 5th date, but do on the 6th.
+            // Or, in case the number of days is such that less than a full 7 days fits in at the end, we always
+            // check on the last day of the iteration.
+            if (i % matBatchSize == (matBatchSize - 1) || date.equals(toDate)) {
+                Map<LocalDate, List<CalendarDayEvent>> maternityEvents = advanceMaternitiesToDay(date);
+                results = mergeMaps(results, maternityEvents);
+            }
 
             Map<LocalDate, List<CalendarDayEvent>> deathEvents = processDeathsOnDay(date);
             results = mergeMaps(results, deathEvents);
@@ -122,27 +136,34 @@ public class CalendarService {
                 wealthService.distributeCapital(date, goodYearFactor);
             }
             checkDateService.setCurrentDate(date);
+            i++;
         }
+
+        filterOutEventTypes(results, nextDatePost);
 
         return results;
     }
 
     private Map<LocalDate, List<CalendarDayEvent>> generateMarriagesToDate(@NonNull LocalDate date,
                                                                            @NonNull RandomFamilyParameters familyParameters) {
-        List<Person> unmarriedPeople = personService.findUnmarriedMen(date, familyParameters.getMinHusbandAgeOrDefault(),
-                familyParameters.getMaxHusbandAgeOrDefault(), true);
+        Gender gender = null;
+        boolean residentsOnly = false;
+        List<Person> unmarriedPeople = personService.findUnmarriedPeople(date,
+                familyParameters.getMinHusbandAgeOrDefault(), familyParameters.getMaxHusbandAgeOrDefault(), residentsOnly,
+                gender);
         Map<LocalDate, List<CalendarDayEvent>> results = new TreeMap<>();
         List<CalendarDayEvent> dayResults = new ArrayList<>();
 
-        log.info(unmarriedPeople.size() + " unmarried men may be looking for a spouse.");
+        log.info(String.format("%d unmarried %s may be looking for a spouse.", unmarriedPeople.size(),
+                (gender == null ? "people" : ((gender == Gender.MALE) ? "men" : "women"))));
 
-        for (Person man : unmarriedPeople) {
-            Family family = familyGenerator.attemptToFindSpouse(date, date, man, familyParameters);
+        for (Person person : unmarriedPeople) {
+            Family family = familyGenerator.attemptToFindSpouse(date, date, person, familyParameters);
             if (family != null) {
                 familyService.save(family);
                 dayResults.add(new MarriageEvent(date, family));
                 logMarriage(family, date);
-                family = familyService.setupMarriage(family, family.getWeddingDate());
+                family = familyService.setupMarriage(family, family.getWeddingDate(), person.isMale());
                 family.getWife().getMaternity().setHavingRelations(false);
                 // If the woman is randomly generated her last check date is in the past. Bring her up to yesterday so
                 // that in th next step when we advance maternities, she will start with her wedding night.
@@ -150,19 +171,19 @@ public class CalendarService {
                 family.getWife().getMaternity().setHavingRelations(true);
                 personService.save(family.getWife());
 
-                Household household = man.getHousehold(date);
+                Household household = person.getHousehold(date);
                 if (household != null) {
                     DwellingPlace householdLocation = household.getDwellingPlace(date);
                     if (householdLocation != null) {
-                        Occupation occupation = occupationService.findAvailableOccupationForPerson(man,
+                        Occupation occupation = occupationService.findAvailableOccupationForPerson(person,
                                 householdLocation, date);
                         if (occupation != null) {
-                            man.addOccupation(occupation, date);
-                            personService.save(man);
-                            dayResults.add(new EmploymentEvent(date, man, occupation));
+                            person.addOccupation(occupation, date);
+                            personService.save(person);
+                            dayResults.add(new EmploymentEvent(date, person, occupation));
 
                             if (occupation.isFarmOwner()) {
-                                DwellingPlace dwellingPlace = man.getResidence(date);
+                                DwellingPlace dwellingPlace = person.getResidence(date);
                                 if (dwellingPlace != null && dwellingPlace.isHouse()
                                         && !dwellingPlace.getParent().isFarm()) {
                                     Farm farm = householdDwellingPlaceService.convertRuralHouseToFarm(
@@ -199,6 +220,20 @@ public class CalendarService {
                 results.get(result.getDate()).add(result);
                 if (result.getType() == CalendarEventType.BIRTH) {
                     shouldRebuildAncestry = true;
+                    BirthEvent event = (BirthEvent) result;
+                    // If the child died before the given date, process the death, since we will have already passed
+                    // it by in the main loop due to the batching of maternity checks.
+                    if (event.getChild().getDeathDate().isBefore(date)) {
+                        Map<LocalDate, List<CalendarDayEvent>> childDeathResults = processSingleDeath(event.getChild(),
+                                event.getChild().getDeathDate());
+                        results = mergeMaps(results, childDeathResults);
+                    }
+                }
+                if (result.getType() == CalendarEventType.DEATH && !result.getDate().equals(date)) {
+                    // A mother died in childbirth but the date is in the past according to our batching logic.
+                    // Go back and process her death.
+                    Map<LocalDate, List<CalendarDayEvent>> deathResults = processSingleDeath(woman, result.getDate());
+                    results = mergeMaps(results, deathResults);
                 }
             }
         }
@@ -211,20 +246,27 @@ public class CalendarService {
     private Map<LocalDate, List<CalendarDayEvent>> processDeathsOnDay(@NonNull LocalDate date) {
         List<Person> peopleDyingToday = personService.findByDeathDate(date);
         Map<LocalDate, List<CalendarDayEvent>> results = new TreeMap<>();
-        List<CalendarDayEvent> daysResults = new ArrayList<>();
         for (Person person : peopleDyingToday) {
-            log.info(String.format("%d %s died on %s, aged %d", person.getId(), person.getName(), date,
-                    person.getAgeInYears(date)));
-            List<CalendarDayEvent> events = personService.processDeath(person);
-            daysResults.addAll(titleService.processDeadPersonsTitles(person));
-            daysResults.addAll(inheritanceService.processDeath(person));
-            daysResults.add(new DeathEvent(date, person));
-            daysResults.addAll(events);
+            Map<LocalDate, List<CalendarDayEvent>> singleResult = processSingleDeath(person, date);
+            results = mergeMaps(results, singleResult);
         }
+
+        return results;
+    }
+
+    private Map<LocalDate, List<CalendarDayEvent>> processSingleDeath(@NonNull Person person, @NonNull LocalDate date) {
+        Map<LocalDate, List<CalendarDayEvent>> results = new TreeMap<>();
+        List<CalendarDayEvent> daysResults = new ArrayList<>();
+        log.info(String.format("%d %s died on %s, aged %d", person.getId(), person.getName(), date,
+                person.getAgeInYears(date)));
+        List<CalendarDayEvent> events = personService.processDeath(person);
+        daysResults.addAll(titleService.processDeadPersonsTitles(person));
+        daysResults.addAll(inheritanceService.processDeath(person));
+        daysResults.add(new DeathEvent(date, person));
+        daysResults.addAll(events);
         if (!daysResults.isEmpty()) {
             results.put(date, daysResults);
         }
-
         return results;
     }
 
@@ -306,5 +348,14 @@ public class CalendarService {
         log.info(String.format("%d %s, age %d, %s of %s, married %d %s, age %d, %s of %s, on %s",
                 husband.getId(), husband.getName(), husband.getAgeInYears(date), husbandOccupationName, husbandLocation,
                 wife.getId(), wife.getName(), wife.getAgeInYears(date), wifeOccupationName, wifeLocation, date));
+    }
+
+    private void filterOutEventTypes(Map<LocalDate, List<CalendarDayEvent>> map1,
+                                     @NonNull AdvanceToDatePost post) {
+        for (Map.Entry<LocalDate, List<CalendarDayEvent>> entry : map1.entrySet()) {
+            entry.getValue().removeIf(post::isSuppressedEventType);
+        }
+
+        map1.values().removeIf(List::isEmpty);
     }
 }

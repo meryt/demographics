@@ -1,9 +1,13 @@
 package com.meryt.demographics.request;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.Setter;
 
+import com.meryt.demographics.response.calendar.CalendarDayEvent;
 import com.meryt.demographics.rest.BadRequestException;
 
 /**
@@ -19,10 +23,16 @@ public class AdvanceToDatePost {
     private Integer firstMonthOfYear;
     private Integer firstDayOfYear;
     /**
+     * Number of days to check at once for maternities, since this is the most expensive part of the calculations.
+     */
+    private Integer maternityNumDays;
+    /**
      * Percent chance, per year, that a new family will arrive in a parish. The check will be performed per day,
      * with this value divided by 365 to determine whether a new family moves into the parish.
      */
     private Double chanceNewFamilyPerYear;
+
+    private List<String> suppressedEventTypes;
 
     public void validate() {
         if (date == null && advanceDays == null) {
@@ -42,5 +52,14 @@ public class AdvanceToDatePost {
 
     public int getFirstDayOfYearOrDefault() {
         return firstDayOfYear == null ? 1 : firstDayOfYear;
+    }
+
+    public int getMaternityNumDaysOrDefault() {
+        return maternityNumDays == null ? 1 : maternityNumDays;
+    }
+
+    public boolean isSuppressedEventType(@NonNull CalendarDayEvent event) {
+        return suppressedEventTypes != null && !suppressedEventTypes.isEmpty()
+                && suppressedEventTypes.contains(event.getType().name());
     }
 }

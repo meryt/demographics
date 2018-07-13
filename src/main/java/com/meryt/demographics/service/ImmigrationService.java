@@ -86,11 +86,10 @@ public class ImmigrationService {
             dayResults.add(new EmploymentEvent(date, man, occupation));
         }
 
-        CalendarDayEvent result = householdDwellingPlaceService.buyOrCreateHouseForHousehold(parish, household, date);
+        List<CalendarDayEvent> results = householdDwellingPlaceService.buyOrCreateHouseForHousehold(parish, household,
+                date);
 
-        if (result != null) {
-            dayResults.add(result);
-        }
+        dayResults.addAll(results);
 
         return dayResults;
     }

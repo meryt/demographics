@@ -100,13 +100,13 @@ public class FamilyService {
         wife.getMaternity().setFather(husband);
         personService.save(wife);
         family = save(family);
-        return setupMarriage(family, weddingDate);
+        return setupMarriage(family, weddingDate, false);
     }
 
-    Family setupMarriage(@NonNull Family family, @NonNull LocalDate weddingDate) {
+    Family setupMarriage(@NonNull Family family, @NonNull LocalDate weddingDate, boolean moveAwayIfHusbandNonResident) {
 
         Household husbandsHousehold = moveWifeAndStepchildrenToHusbandsHousehold(family);
-        findResidenceForNewFamily(family, husbandsHousehold);
+        findResidenceForNewFamily(family, husbandsHousehold, moveAwayIfHusbandNonResident);
 
         // If a first-time bride has living parents, they should give her some money.
         applyMarriageSettlements(family.getWife(), weddingDate);
@@ -157,8 +157,12 @@ public class FamilyService {
      * Combines the households. The wife and any of her children always join the man's household.
      * @param family the newly wedded family
      * @param mansHousehold the household of the man
+     * @param moveAwayIfHusbandNonResident if true, and the husband is not a resident of any dwelling place, and the
+     *                                     wife is neither a property owner nor employed, then move the household will
+     *                                     not be moved anywhere
      */
-    private void findResidenceForNewFamily(@NonNull Family family, @NonNull Household mansHousehold) {
+    private void findResidenceForNewFamily(@NonNull Family family, @NonNull Household mansHousehold,
+                                           boolean moveAwayIfHusbandNonResident) {
         LocalDate date = family.getWeddingDate();
         Person man = family.getHusband();
         Person wife = family.getWife();
@@ -167,6 +171,15 @@ public class FamilyService {
         // the day before her marriage.
         DwellingPlace wifesFormerHouse = wife.getResidence(date.minusDays(1));
         DwellingPlace husbandsCurrentHouse = man.getResidence(date);
+
+        // If the man is not a resident of the parishes, and the wife does not own a house or have a job, move the
+        // household away from the parishes.
+        if (husbandsCurrentHouse == null && moveAwayIfHusbandNonResident &&
+                wife.getOwnedDwellingPlaces(date).isEmpty()
+                && wife.getOccupation(date) == null) {
+            log.info("Moving new family away from the parishes, as the husband is not a resident.");
+            return;
+        }
 
         DwellingPlace residence = selectResidenceForNewFamily(family);
         if (residence == null) {
@@ -180,7 +193,7 @@ public class FamilyService {
 
         // If one of the couple moved out of a dwelling place, it might be empty now, or contain only minors, or require
         // a new head of household.
-        DwellingPlace possiblyEmptyResidence = husbandsCurrentHouse == residence
+        DwellingPlace possiblyEmptyResidence = residence.equals(husbandsCurrentHouse)
                 ? wifesFormerHouse
                 : husbandsCurrentHouse;
         if (possiblyEmptyResidence == null || possiblyEmptyResidence.equals(residence)) {

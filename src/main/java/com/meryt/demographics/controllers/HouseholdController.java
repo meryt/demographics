@@ -146,14 +146,14 @@ public class HouseholdController {
             Parish parish = specificPlace.getParish();
             if (householdPlacePost.getEvictCurrentResidents()) {
                 for (Household evictedHousehold : specificPlace.getHouseholds(onDate)) {
-                    CalendarDayEvent event = householdDwellingPlaceService.buyOrCreateHouseForHousehold(parish,
+                    List<CalendarDayEvent> events = householdDwellingPlaceService.buyOrCreateHouseForHousehold(parish,
                             evictedHousehold, onDate);
-                    if (event != null) {
-                        log.info(event.toLogMessage());
+                    if (!events.isEmpty()) {
+                        events.forEach(e -> log.info(e.toLogMessage()));
                     }
                 }
             }
-            householdDwellingPlaceService.addHouseholdToDwellingPlaceOnDate(specificPlace, household, onDate);
+            householdDwellingPlaceService.addToDwellingPlace(household, specificPlace, onDate, null);
         } else {
             throw new BadRequestException("dwellingPlaceId must be either a Parish, a Dwelling, or null");
         }

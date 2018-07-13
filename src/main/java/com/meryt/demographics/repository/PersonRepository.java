@@ -38,21 +38,27 @@ public interface PersonRepository extends PagingAndSortingRepository<Person, Lon
                                       @Param("minAgeAtDeath") @NonNull Integer minAgeAtDeath);
 
     @Query("SELECT p FROM Person p " +
-            "WHERE p.gender = 'MALE' " +
+            "WHERE (:gender IS NULL OR p.gender = :gender) " +
             "AND (p.fatheredFamilies IS EMPTY OR NOT EXISTS " +
             "    (SELECT f " +
             "     FROM Family f " +
             "     JOIN Person p2 ON f.wife = p2 " +
             "     WHERE f.husband = p AND p2.deathDate >= :aliveOnDate)) " +
+            "AND (p.motheredFamilies IS EMPTY OR NOT EXISTS " +
+            "    (SELECT f " +
+            "     FROM Family f " +
+            "     JOIN Person p2 ON f.husband = p2 " +
+            "     WHERE f.wife = p AND p2.deathDate >= :aliveOnDate)) " +
             "AND p.birthDate < :aliveOnDate " +
             "AND p.deathDate > :aliveOnDate " +
             "AND (CAST(:minBirthDate AS date) IS NULL OR p.birthDate >= :minBirthDate) " +
             "AND (CAST(:maxBirthDate AS date) IS NULL OR p.birthDate <= :maxBirthDate) " +
             "AND p.finishedGeneration = FALSE " +
             "ORDER BY p.birthDate")
-    List<Person> findUnmarriedMen(@Param("aliveOnDate") @NonNull LocalDate aliveOnDate,
-                                  @Param("minBirthDate") @NonNull LocalDate minBirthDate,
-                                  @Param("maxBirthDate") @NonNull LocalDate maxBirthDate);
+    List<Person> findUnmarriedPeople(@Param("aliveOnDate") @NonNull LocalDate aliveOnDate,
+                                     @Param("minBirthDate") @NonNull LocalDate minBirthDate,
+                                     @Param("maxBirthDate") @NonNull LocalDate maxBirthDate,
+                                     @Param("gender") @Nullable Gender gender);
 
     @Query("SELECT p FROM Person p " +
             "WHERE (:gender IS NULL OR p.gender = :gender) " +

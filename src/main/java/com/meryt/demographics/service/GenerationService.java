@@ -10,6 +10,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import com.google.common.base.Strings;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
@@ -136,15 +137,10 @@ public class GenerationService {
      */
     public List<Family> processGeneration(@NonNull GenerationPost generationPost) {
         generationPost.validate();
-        PersonFamilyPost personFamilyPost = generationPost.getPersonFamilyPost();
-        if (!personFamilyPost.isPersist()) {
-            throw new IllegalArgumentException("Cannot process generation unless persist is true");
-        }
 
         LocalDate untilDate = generationPost.getPersonFamilyPost().getUntilDate();
         boolean onlyNonResidents = untilDate != null && generationPost.getOnlyNonResidents() != null
                 && generationPost.getOnlyNonResidents();
-        boolean shouldLoopUntilReferenceDate = untilDate != null;
 
         List<Person> unfinishedPersons;
         if (onlyNonResidents) {
@@ -153,6 +149,20 @@ public class GenerationService {
         } else {
             unfinishedPersons = personService.loadUnfinishedPersons();
         }
+
+        return processGeneration(unfinishedPersons, generationPost);
+    }
+
+    public List<Family> processGeneration(@NonNull List<Person> unfinishedPersons,
+                                          @NonNull GenerationPost generationPost) {
+
+        PersonFamilyPost personFamilyPost = generationPost.getPersonFamilyPost();
+        if (!personFamilyPost.isPersist()) {
+            throw new IllegalArgumentException("Cannot process generation unless persist is true");
+        }
+
+        LocalDate untilDate = generationPost.getPersonFamilyPost().getUntilDate();
+        boolean shouldLoopUntilReferenceDate = untilDate != null;
 
         List<Family> results = new ArrayList<>();
         for (int i = 0; i < unfinishedPersons.size(); i++) {
@@ -299,11 +309,6 @@ public class GenerationService {
             List<Person> foundersWithoutTitles = founders.stream()
                     .filter(p -> p.getTitles().isEmpty())
                     .collect(Collectors.toList());
-            for (Person founder : foundersWithoutTitles) {
-                Set<Long> alreadyWrittenPersons = new HashSet<>();
-                writeFamily(out, founder, 0, founder, alreadyWrittenPersons);
-                out.write("\n");
-            }
 
             List<Person> foundersWithTitles = founders.stream()
                     .filter(p -> !p.getTitles().isEmpty())
@@ -311,6 +316,12 @@ public class GenerationService {
                             .thenComparing((Person p) -> p.getTitles().get(0).getTitle().getName()))
                     .collect(Collectors.toList());
             for (Person founder : foundersWithTitles) {
+                Set<Long> alreadyWrittenPersons = new HashSet<>();
+                writeFamily(out, founder, 0, founder, alreadyWrittenPersons);
+                out.write("\n");
+            }
+
+            for (Person founder : foundersWithoutTitles) {
                 Set<Long> alreadyWrittenPersons = new HashSet<>();
                 writeFamily(out, founder, 0, founder, alreadyWrittenPersons);
                 out.write("\n");

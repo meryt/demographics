@@ -83,10 +83,10 @@ public class HouseholdDwellingPlaceService {
         }
     }
 
-    DwellingPlace addToDwellingPlace(@NonNull Household household,
-                                     @NonNull DwellingPlace dwellingPlace,
-                                     @NonNull LocalDate fromDate,
-                                     LocalDate toDate) {
+    public DwellingPlace addToDwellingPlace(@NonNull Household household,
+                                            @NonNull DwellingPlace dwellingPlace,
+                                            @NonNull LocalDate fromDate,
+                                            LocalDate toDate) {
         List<HouseholdLocationPeriod> periodsToDelete = new ArrayList<>();
         for (HouseholdLocationPeriod period : household.getDwellingPlaces()) {
             if (period.getFromDate().isBefore(fromDate) &&
@@ -201,9 +201,11 @@ public class HouseholdDwellingPlaceService {
         }
     }
 
-    public CalendarDayEvent buyOrCreateHouseForHousehold(@NonNull Parish parish,
+    public List<CalendarDayEvent> buyOrCreateHouseForHousehold(@NonNull Parish parish,
                                                          @NonNull Household household,
                                                          @NonNull LocalDate date) {
+        List<CalendarDayEvent> results = new ArrayList<>();
+
         Person head = household.getHead(date);
         if (head == null) {
             throw new IllegalArgumentException("The household had no head on the date");
@@ -212,7 +214,7 @@ public class HouseholdDwellingPlaceService {
         double capital = head.getCapital(date) == null ? 0.0 : head.getCapital(date);
 
         List<DwellingPlace> buyableHouses = parish.getEmptyHouses(date).stream()
-                .filter(h -> h.getNullSafeValue() < capital)
+                .filter(h -> h.getNullSafeValueIncludingAttachedParent() < capital)
                 .collect(Collectors.toList());
         if (buyableHouses.isEmpty()) {
             // Find a dwelling place in the parish. May purchase if there is an empty one, or build a new
@@ -239,18 +241,25 @@ public class HouseholdDwellingPlaceService {
             if (newHouse != null) {
                 List<Person> owners = newHouse.getOwners(date);
                 if (newHouse instanceof Dwelling && owners != null && owners.contains(head)) {
-                    return new NewHouseEvent(date, newHouse);
+                    results.add(new NewHouseEvent(date, newHouse));
+                    return results;
                 }
             }
         } else {
             DwellingPlace house = buyableHouses.get(0);
+            if (house.isAttachedToParent() && house.getParent() != null) {
+                DwellingPlace parent = house.getParent();
+                dwellingPlaceService.buyDwellingPlace(parent, head, date);
+                results.add(new PropertyTransferEvent(date, parent, parent.getOwners(date.minusDays(1)),
+                        parent.getOwners(date)));
+            }
             dwellingPlaceService.buyDwellingPlace(house, head, date);
             house = addToDwellingPlace(household, house, date, null);
-            return new PropertyTransferEvent(date, house, house.getOwners(date.minusDays(1)),
-                    house.getOwners(date));
+            results.add(new PropertyTransferEvent(date, house, house.getOwners(date.minusDays(1)),
+                    house.getOwners(date)));
         }
 
-        return null;
+        return results;
     }
 
     /**
@@ -313,6 +322,7 @@ public class HouseholdDwellingPlaceService {
         manorHouse.setName(estate.getName());
         manorHouse.setValue(WealthGenerator.getRandomHouseValue(headOfHousehold.getSocialClass()));
         manorHouse.setEntailed(isEntailed);
+        manorHouse.setAttachedToParent(true);
         estate.addDwellingPlace(manorHouse);
         manorHouse = (Dwelling) dwellingPlaceService.save(manorHouse);
         estate = (Estate) dwellingPlaceService.save(estate);
@@ -462,6 +472,7 @@ public class HouseholdDwellingPlaceService {
         house.getParent().addDwellingPlace(farm);
         dwellingPlaceService.save(house.getParent());
 
+        house.setAttachedToParent(true);
         farm.addDwellingPlace(house);
         dwellingPlaceService.save(house);
         dwellingPlaceService.save(farm);
@@ -481,6 +492,7 @@ public class HouseholdDwellingPlaceService {
         dwellingPlace.addDwellingPlace(farm);
         dwellingPlaceService.save(dwellingPlace);
         Dwelling farmHouse = new Dwelling();
+        farmHouse.setAttachedToParent(true);
         farmHouse.setValue(WealthGenerator.getRandomHouseValue(headOfHousehold.getSocialClass()));
         farm.addDwellingPlace(farmHouse);
         dwellingPlaceService.save(farmHouse);
