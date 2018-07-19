@@ -266,8 +266,8 @@ public class TitleService {
         } else if (heirs.getSecond().size() > 1) {
             results.add(new TitleAbeyanceEvent(date, title, heirs.getSecond()));
             LocalDate nextCheck = heirMayBeBornOn == null
-                    ? heirs.getFirst()
-                    : LocalDateComparator.min(heirMayBeBornOn, heirs.getFirst());
+                    ? heirs.getSecond().get(0).getDeathDate()
+                    : LocalDateComparator.min(heirMayBeBornOn, heirs.getSecond().get(0).getDeathDate());
             title.setNextAbeyanceCheckDate(nextCheck);
             save(title);
         } else {

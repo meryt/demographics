@@ -61,19 +61,29 @@ public class HouseholdDwellingPlaceService {
         Occupation occupationOnDate = headOfHousehold == null ? null : headOfHousehold.getOccupation(moveInDate);
         if (headOfHousehold != null && headOfHousehold.getSocialClass().getRank() >= SocialClass.GENTLEMAN.getRank()
                 && headOfHousehold.getOccupations().isEmpty()) {
-            // An unemployed gentleman or better moves into an estate rather than directly into the town or parish.
-            return moveGentlemanIntoEstate(dwellingPlace, headOfHousehold, household, moveInDate);
+            if (dwellingPlace instanceof Dwelling) {
+                return addToDwellingPlace(household, dwellingPlace, moveInDate, null);
+            } else {
+                // An unemployed gentleman or better moves into an estate rather than directly into the town or parish.
+                return moveGentlemanIntoEstate(dwellingPlace, headOfHousehold, household, moveInDate);
+            }
         } else if (headOfHousehold != null &&
                 (headOfHousehold.getSocialClass().getRank() >= SocialClass.YEOMAN_OR_MERCHANT.getRank()
                         || (occupationOnDate != null &&
                         occupationOnDate.getMinClass().getRank() >= SocialClass.YEOMAN_OR_MERCHANT.getRank()))) {
             // An employed gentleman or a yeoman/merchant moves into a house
-            return moveFamilyIntoNewHouse(dwellingPlace, household, moveInDate);
-        } else if (headOfHousehold != null && occupationOnDate != null && occupationOnDate.isFarmOwner()) {
+            if (dwellingPlace instanceof Dwelling) {
+                return addToDwellingPlace(household, dwellingPlace, moveInDate, null);
+            } else {
+                return moveFamilyIntoNewHouse(dwellingPlace, household, moveInDate);
+            }
+        } else if (headOfHousehold != null && occupationOnDate != null && occupationOnDate.isFarmOwner() &&
+                !(dwellingPlace instanceof Dwelling)) {
             log.info("Moving farmer onto farm");
             // Farm-owners move into a house on a farm
             return moveFarmerOntoFarm(dwellingPlace, headOfHousehold, household, moveInDate);
-        } else if (headOfHousehold != null & occupationOnDate != null && occupationOnDate.isRural()) {
+        } else if (headOfHousehold != null & occupationOnDate != null && occupationOnDate.isRural() &&
+                !(dwellingPlace instanceof Dwelling)) {
             // Rural non-farm-owners get a house on an existing farm or estate, if possible, otherwise just a house in
             // the area.
             return moveRuralLaborerOntoEstateOrFarm(dwellingPlace, headOfHousehold, household,
@@ -100,12 +110,14 @@ public class HouseholdDwellingPlaceService {
                             || (period.getToDate().equals(toDate)))) {
                 // If the periods are identical, just change the dwelling place.
                 DwellingPlace oldDwellingPlace = period.getDwellingPlace();
-                oldDwellingPlace.getHouseholdPeriods().remove(period);
-                dwellingPlaceService.save(oldDwellingPlace);
-                period.setDwellingPlace(dwellingPlace);
-                //householdLocationRepository.save(period);
-                householdService.save(household);
-                householdService.save(period);
+                if (oldDwellingPlace.getId() != dwellingPlace.getId()) {
+                    oldDwellingPlace.getHouseholdPeriods().remove(period);
+                    dwellingPlaceService.save(oldDwellingPlace);
+                    period.setDwellingPlace(dwellingPlace);
+                    //householdLocationRepository.save(period);
+                    householdService.save(household);
+                    householdService.save(period);
+                }
                 return dwellingPlace;
             } else if (toDate == null && period.getFromDate().isAfter(fromDate)) {
                 // If this is an open-ended date range, we should delete any future locations for this household
@@ -250,13 +262,11 @@ public class HouseholdDwellingPlaceService {
             if (house.isAttachedToParent() && house.getParent() != null) {
                 DwellingPlace parent = house.getParent();
                 dwellingPlaceService.buyDwellingPlace(parent, head, date);
-                results.add(new PropertyTransferEvent(date, parent, parent.getOwners(date.minusDays(1)),
-                        parent.getOwners(date)));
+                results.add(new PropertyTransferEvent(date, parent, parent.getOwners(date.minusDays(1))));
             }
             dwellingPlaceService.buyDwellingPlace(house, head, date);
             house = addToDwellingPlace(household, house, date, null);
-            results.add(new PropertyTransferEvent(date, house, house.getOwners(date.minusDays(1)),
-                    house.getOwners(date)));
+            results.add(new PropertyTransferEvent(date, house, house.getOwners(date.minusDays(1))));
         }
 
         return results;

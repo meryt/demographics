@@ -13,6 +13,7 @@ import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 
 import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.title.TitleInheritanceStyle;
 import com.meryt.demographics.time.LocalDateComparator;
@@ -238,13 +239,31 @@ public class HeirService {
 
     @NonNull
     List<Person> findHeirsForRealEstate(@NonNull Person person, @NonNull LocalDate onDate) {
-        // Spouse is first
+
         final List<Person> heirs = new ArrayList<>();
+
+        Person eldestSon = null;
+        if (person.getSocialClassRank() >= SocialClass.GENTLEMAN.getRank()) {
+            // A gentleman's proper heir should inherit the principal real estate first, ensuring a wife's second
+            // husband's child will not later inherit it if she inherits.
+            Pair<Person, LocalDate> son = findHeirForPerson(person, onDate, TitleInheritanceStyle.HEIRS_OF_THE_BODY,
+                    false, true);
+            if (son != null && son.getFirst().isLiving(onDate)) {
+                eldestSon = son.getFirst();
+                heirs.add(son.getFirst());
+            }
+        }
+
+        final Person alreadyAddedSon = eldestSon;
+
+        // Spouse is first
         if (person.isMarried(onDate)) {
             heirs.add(person.getSpouse(onDate));
         }
         // Living children are second, in order of birth
-        heirs.addAll(person.getLivingChildren(onDate).stream().sorted(Comparator.comparing(Person::getBirthDate))
+        heirs.addAll(person.getLivingChildren(onDate).stream()
+                .filter(p -> !p.equals(alreadyAddedSon))
+                .sorted(Comparator.comparing(Person::getBirthDate))
                 .collect(Collectors.toList()));
         if (!heirs.isEmpty()) {
             return heirs;

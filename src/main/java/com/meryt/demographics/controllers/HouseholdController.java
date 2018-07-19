@@ -59,9 +59,11 @@ public class HouseholdController {
     public HouseholdResponse getHousehold(@PathVariable long householdId,
                                           @RequestParam(value = "onDate", required = false) String onDate) {
         Household household = loadHousehold(householdId);
-        LocalDate date = null;
+        LocalDate date;
         if (onDate != null) {
             date = controllerHelperService.parseDate(onDate);
+        } else {
+            date = controllerHelperService.parseDate("current");
         }
         return new HouseholdResponse(household, date);
     }

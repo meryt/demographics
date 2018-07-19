@@ -191,7 +191,7 @@ public class PersonService {
                 .collect(Collectors.toList());
         if (!possibleJobHeirs.isEmpty()) {
             possibleJobHeirs.get(0).addOccupation(occupation, date);
-            return new EmploymentEvent(date, person, occupation);
+            return new EmploymentEvent(date, possibleJobHeirs.get(0), occupation);
         }
 
         return null;

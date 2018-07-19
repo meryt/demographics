@@ -279,22 +279,29 @@ public class HouseholdService {
 
         if (!includeHomelessFamilyMembers) {
             return household;
+        } else {
+            return addHomelessFamilyMembersToHousehold(head, household, asOfDate);
         }
 
-        Person spouse = head.getSpouse(asOfDate);
+    }
+
+    public Household addHomelessFamilyMembersToHousehold(@NonNull Person person,
+                                                         @NonNull Household household,
+                                                         @NonNull LocalDate onDate) {
+        Person spouse = person.getSpouse(onDate);
         if (spouse != null) {
-            addPersonToHousehold(spouse, household, asOfDate, false);
+            addPersonToHousehold(spouse, household, onDate, false);
         }
-        for (Person child : head.getChildren()) {
+        for (Person child : person.getChildren()) {
             // We want to add all living children who do not have families of their own
-            if (child.isLiving(asOfDate) && child.getFamilies().isEmpty()) {
-                addPersonToHousehold(child, household, asOfDate, false);
+            if (child.isLiving(onDate) && child.getFamilies().isEmpty()) {
+                addPersonToHousehold(child, household, onDate, false);
             }
         }
         if (spouse != null && spouse.getFamilies().size() > 1) {
             for (Person child : spouse.getChildren()) {
-                if (child.isLiving(asOfDate) && child.getFamilies().isEmpty()) {
-                    addPersonToHousehold(child, household, asOfDate, false);
+                if (child.isLiving(onDate) && child.getFamilies().isEmpty()) {
+                    addPersonToHousehold(child, household, onDate, false);
                 }
             }
         }

@@ -16,20 +16,15 @@ public class PropertyTransferEvent extends CalendarDayEvent {
 
     private final DwellingPlaceResponse dwellingPlace;
     private final List<PersonReference> previousOwners;
-    private final List<PersonReference> newOwners;
 
 
     public PropertyTransferEvent(@NonNull LocalDate date,
                                  @NonNull DwellingPlace dwellingPlace,
-                                 @NonNull List<Person> previousOwners,
-                                 @NonNull List<Person> newOwners) {
+                                 @NonNull List<Person> previousOwners) {
         super(date);
         setType(CalendarEventType.PROPERTY_TRANSFER);
         this.dwellingPlace = new DwellingPlaceResponse(dwellingPlace, date);
         this.previousOwners = previousOwners.stream().
-                map(p -> new PersonReference(p, date))
-                .collect(Collectors.toList());
-        this.newOwners = newOwners.stream().
                 map(p -> new PersonReference(p, date))
                 .collect(Collectors.toList());
     }

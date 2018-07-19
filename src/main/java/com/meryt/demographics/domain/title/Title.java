@@ -17,6 +17,7 @@ import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
+import org.thymeleaf.util.StringUtils;
 
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.PersonTitlePeriod;
@@ -57,6 +58,12 @@ public class Title {
 
     public boolean singleFemaleMayInherit() {
         return !inheritance.isMalesOnly() && peerage == Peerage.SCOTLAND;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("%d %s%s (Peerage of %s)", id, name, (extinct ? " (extinct)" : ""),
+                (peerage == null ? "null" : StringUtils.capitalizeWords(peerage.name().toLowerCase())));
     }
 
 }

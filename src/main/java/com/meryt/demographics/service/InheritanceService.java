@@ -21,6 +21,7 @@ import com.meryt.demographics.domain.place.Parish;
 import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.request.RandomFamilyParameters;
 import com.meryt.demographics.response.calendar.CalendarDayEvent;
+import com.meryt.demographics.response.calendar.PropertyTransferEvent;
 
 @Slf4j
 @Service
@@ -124,9 +125,14 @@ public class InheritanceService {
                 log.info(String.format("%s is entailed. Giving to male heir %d %s.", dwelling.getFriendlyName(),
                         maleHeirForEntailments.getId(), maleHeirForEntailments.getName()));
                 dwelling.addOwner(maleHeirForEntailments, onDate, maleHeirForEntailments.getDeathDate());
+                results.add(new PropertyTransferEvent(onDate, dwelling, dwelling.getOwners(onDate.minusDays(1))));
                 log.info(String.format("%d %s inherits %s %s on %s", maleHeirForEntailments.getId(),
                         maleHeirForEntailments.getName(), dwelling.getType().getFriendlyName(),
                         dwelling.getLocationString(), onDate));
+                if (dwelling instanceof Dwelling) {
+                    results.addAll(maybeMoveHeirIntoInheritedHouse(person, maleHeirForEntailments,
+                            onDate, (Dwelling) dwelling));
+                }
                 personService.save(maleHeirForEntailments);
             }
         }
@@ -153,6 +159,7 @@ public class InheritanceService {
             }
             // Make him the owner of the estate as well as the given places.
             estateOrFarm.addOwner(heir, onDate, heir.getDeathDate());
+            results.add(new PropertyTransferEvent(onDate, estateOrFarm, estateOrFarm.getOwners(onDate.minusDays(1))));
             log.info(String.format("%d %s inherits %s %s on %s", heir.getId(), heir.getName(),
                     estateOrFarm.getType().getFriendlyName(),
                     estateOrFarm.getLocationString(), onDate));
@@ -161,10 +168,11 @@ public class InheritanceService {
                         estateBuilding.getType().getFriendlyName(),
                         estateBuilding.getLocationString(), onDate));
                 estateBuilding.addOwner(heir, onDate, heir.getDeathDate());
+                results.add(new PropertyTransferEvent(onDate, estateBuilding,
+                        estateBuilding.getOwners(onDate.minusDays(1))));
                 if (estateBuilding instanceof Dwelling) {
-                    List<CalendarDayEvent> moveResults = maybeMoveHeirIntoInheritedHouse(person, heir, onDate,
-                            (Dwelling) estateBuilding);
-                    results.addAll(moveResults);
+                    results.addAll(maybeMoveHeirIntoInheritedHouse(person, heir, onDate,
+                            (Dwelling) estateBuilding));
                 }
             }
             personService.save(heir);
@@ -187,9 +195,9 @@ public class InheritanceService {
                     house.getType().getFriendlyName(),
                     house.getLocationString(), onDate));
             house.addOwner(heir, onDate, heir.getDeathDate());
+            results.add(new PropertyTransferEvent(onDate, house, house.getOwners(onDate.minusDays(1))));
             personService.save(heir);
-            List<CalendarDayEvent> moveResults = maybeMoveHeirIntoInheritedHouse(person, heir, onDate, (Dwelling) house);
-            results.addAll(moveResults);
+            results.addAll(maybeMoveHeirIntoInheritedHouse(person, heir, onDate, (Dwelling) house));
         }
         return results;
     }
@@ -259,7 +267,14 @@ public class InheritanceService {
                                                                        @NonNull Person newOwner,
                                                                        @NonNull Dwelling dwelling) {
         Person otherHead = oldHousehold.getHead(onDate);
-        Relationship relationship = ancestryService.calculateRelationship(newOwner, otherHead, false);
+        if (otherHead == null) {
+            otherHead = oldHousehold.getInhabitants(onDate).stream()
+                    .min(Comparator.comparing(Person::getBirthDate))
+                    .orElse(null);
+        }
+        Relationship relationship = (otherHead == null
+                ? null
+                : ancestryService.calculateRelationship(newOwner, otherHead, false));
         if (relationship == null ||
                 !(relationship.isParentChildRelationship() || relationship.isSiblingRelationship())) {
             // Another household is living here, and they are not closely related to the heir. They

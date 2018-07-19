@@ -36,6 +36,7 @@ import com.meryt.demographics.response.calendar.DeathEvent;
 import com.meryt.demographics.response.calendar.EmploymentEvent;
 import com.meryt.demographics.response.calendar.MarriageEvent;
 import com.meryt.demographics.response.calendar.NewHouseEvent;
+import com.meryt.demographics.response.calendar.PropertyTransferEvent;
 import com.meryt.demographics.rest.BadRequestException;
 
 @Slf4j
@@ -106,7 +107,7 @@ public class CalendarService {
             throw new BadRequestException("maternityNumDays must be a positive integer (defaults to 1 if not specified)");
         }
         for (LocalDate date = currentDate.plusDays(1); !date.isAfter(toDate); date = date.plusDays(1)) {
-            log.info(String.format("Checking for events on %s", date));
+            log.debug(String.format("Checking for events on %s", date));
 
             Map<LocalDate, List<CalendarDayEvent>> marriageEvents = generateMarriagesToDate(date, familyParameters);
             results = mergeMaps(results, marriageEvents);
@@ -153,9 +154,6 @@ public class CalendarService {
                 gender);
         Map<LocalDate, List<CalendarDayEvent>> results = new TreeMap<>();
         List<CalendarDayEvent> dayResults = new ArrayList<>();
-
-        log.info(String.format("%d unmarried %s may be looking for a spouse.", unmarriedPeople.size(),
-                (gender == null ? "people" : ((gender == Gender.MALE) ? "men" : "women"))));
 
         for (Person person : unmarriedPeople) {
             Family family = familyGenerator.attemptToFindSpouse(date, date, person, familyParameters);
@@ -354,6 +352,8 @@ public class CalendarService {
                                      @NonNull AdvanceToDatePost post) {
         for (Map.Entry<LocalDate, List<CalendarDayEvent>> entry : map1.entrySet()) {
             entry.getValue().removeIf(post::isSuppressedEventType);
+            entry.getValue().removeIf(e -> e.getType() == CalendarEventType.PROPERTY_TRANSFER &&
+                    ((PropertyTransferEvent) e).getDwellingPlace().getType().equals("DWELLING"));
         }
 
         map1.values().removeIf(List::isEmpty);

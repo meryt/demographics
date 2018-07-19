@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import javassist.NotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.util.Pair;
 import org.springframework.http.HttpStatus;
@@ -23,6 +24,7 @@ import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.PersonTitlePeriod;
 import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.domain.person.fertility.Fertility;
+import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.title.Title;
 import com.meryt.demographics.domain.title.TitleInheritanceStyle;
 import com.meryt.demographics.generator.family.FamilyGenerator;
@@ -30,9 +32,11 @@ import com.meryt.demographics.generator.family.MatchMaker;
 import com.meryt.demographics.generator.person.PersonGenerator;
 import com.meryt.demographics.request.PersonFamilyPost;
 import com.meryt.demographics.request.PersonFertilityPost;
+import com.meryt.demographics.request.PersonHouseholdPost;
 import com.meryt.demographics.request.PersonParameters;
 import com.meryt.demographics.request.PersonTitlePost;
 import com.meryt.demographics.request.RandomFamilyParameters;
+import com.meryt.demographics.response.HouseholdResponse;
 import com.meryt.demographics.response.PersonDescendantResponse;
 import com.meryt.demographics.response.PersonDetailResponse;
 import com.meryt.demographics.response.PersonFamilyResponse;
@@ -47,6 +51,7 @@ import com.meryt.demographics.service.ControllerHelperService;
 import com.meryt.demographics.service.FamilyService;
 import com.meryt.demographics.service.FertilityService;
 import com.meryt.demographics.service.HeirService;
+import com.meryt.demographics.service.HouseholdService;
 import com.meryt.demographics.service.PersonService;
 import com.meryt.demographics.service.TitleService;
 
@@ -74,6 +79,8 @@ public class PersonController {
 
     private final ControllerHelperService controllerHelperService;
 
+    private final HouseholdService householdService;
+
     public PersonController(@Autowired PersonGenerator personGenerator,
                             @Autowired PersonService personService,
                             @Autowired TitleService titleService,
@@ -82,7 +89,8 @@ public class PersonController {
                             @Autowired FertilityService fertilityService,
                             @Autowired AncestryService ancestryService,
                             @Autowired HeirService heirService,
-                            @Autowired ControllerHelperService controllerHelperService) {
+                            @Autowired ControllerHelperService controllerHelperService,
+                            @Autowired HouseholdService householdService) {
         this.personGenerator = personGenerator;
         this.personService = personService;
         this.titleService = titleService;
@@ -92,6 +100,7 @@ public class PersonController {
         this.ancestryService = ancestryService;
         this.heirService = heirService;
         this.controllerHelperService = controllerHelperService;
+        this.householdService = householdService;
     }
 
     @RequestMapping("/api/persons/random")
@@ -141,6 +150,29 @@ public class PersonController {
             fertilityService.cycleToDate(person, cycleToDate);
         }
         return person.getFertility();
+    }
+
+    @RequestMapping(value = "/api/persons/{personId}/households", method = RequestMethod.POST)
+    public HouseholdResponse addPersonToHousehold(@PathVariable long personId, @RequestBody PersonHouseholdPost post) {
+        Person person = controllerHelperService.loadPerson(personId);
+
+        if (post.getHouseholdId() == null) {
+            throw new BadRequestException("householdId is required");
+        }
+        if (post.getFromDate() == null) {
+            throw new BadRequestException("fromDate is required");
+        }
+
+        Household household = householdService.load(post.getHouseholdId());
+        if (household == null) {
+            throw new ResourceNotFoundException("No household exists for ID " + post.getHouseholdId());
+        }
+
+        person = householdService.addPersonToHousehold(person, household, post.getFromDate(), post.isHead());
+        if (post.isIncludeHomelessFamilyMembers()) {
+            household = householdService.addHomelessFamilyMembersToHousehold(person, household, post.getFromDate());
+        }
+        return new HouseholdResponse(household, post.getFromDate());
     }
 
     @RequestMapping(value = "/api/persons/{personId}/living-descendants", method = RequestMethod.GET)

@@ -691,15 +691,37 @@ public class Person {
         newPeriod.setToDate(getDeathDate());
         List<PersonCapitalPeriod> existingPeriods = getCapitalPeriods().stream()
                 .filter(p -> p.contains(asOfDate) || p.getFromDate().isAfter(asOfDate))
+                .distinct()
                 .sorted(Comparator.comparing(PersonCapitalPeriod::getFromDate))
                 .collect(Collectors.toList());
         if (!existingPeriods.isEmpty()) {
-            existingPeriods.get(0).setToDate(asOfDate);
-            if (existingPeriods.size() > 1) {
-                newPeriod.setToDate(existingPeriods.get(1).getFromDate());
+            PersonCapitalPeriod existingPeriod = existingPeriods.get(0);
+            if (existingPeriod.getFromDate().isAfter(asOfDate)) {
+                // The first entry starts after the new entry. So the new entry should only go until the old one's
+                // start. (If this occurs, there will be no entry that contains the asOfDate, since they are
+                // sorted by fromDate)
+                newPeriod.setToDate(existingPeriod.getFromDate());
+            } else {
+                // The first entry contains the new entry. So cap the existing entry.
+                existingPeriod.setToDate(asOfDate);
+                if (existingPeriods.size() > 1) {
+                    // If there's another entry in here, its from date will be after the asOfDate. So cap the new entry
+                    // with its from date.
+                    newPeriod.setToDate(existingPeriods.get(1).getFromDate());
+                }
             }
         }
         getCapitalPeriods().add(newPeriod);
+
+        for (PersonCapitalPeriod period : getCapitalPeriods()) {
+            if (period.getToDate() != null) {
+                if (period.getToDate().isBefore(period.getFromDate())) {
+                    throw new IllegalStateException(String.format(
+                            "Can't save the capital period for %d %s: to date %s is before from date %s",
+                            getId(), getName(), period.getToDate(), period.getFromDate()));
+                }
+            }
+        }
     }
 
     public void addCapital(double capital, @NonNull LocalDate onDate) {
