@@ -279,8 +279,8 @@ public class HeirService {
                 TitleInheritanceStyle.HEIRS_MALE_GENERAL, false, false).stream()
                 .filter(p -> p.isLiving(onDate))
                 .min(Comparator.comparing(Person::getBirthDate)).orElse(null);
-        Person father;
-        while (maleHeirForEntailments == null && (father = person.getFather()) != null) {
+        Person father = person;
+        while (maleHeirForEntailments == null && (father = father.getFather()) != null) {
             maleHeirForEntailments = findPotentialHeirsForPerson(father, onDate.plusDays(1),
                     TitleInheritanceStyle.HEIRS_MALE_GENERAL, false, false).stream()
                     .filter(p -> p.isLiving(onDate))

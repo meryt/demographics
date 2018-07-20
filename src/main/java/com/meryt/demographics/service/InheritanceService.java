@@ -60,7 +60,7 @@ public class InheritanceService {
 
     private void distributeCashToHeirs(@NonNull Person person, @NonNull LocalDate onDate) {
 
-        PersonCapitalPeriod period = person.getCapitalPeriod(onDate.minusDays(1));
+        PersonCapitalPeriod period = person.getCapitalPeriod(onDate);
         if (period == null) {
             return;
         }
@@ -105,6 +105,10 @@ public class InheritanceService {
             }
         }
 
+        List<DwellingPlace> entailedToTitlePlaces = realEstate.stream()
+                .filter(p -> p.getEntailedTitle() != null)
+                .collect(Collectors.toList());
+
         List<DwellingPlace> entailedPlaces = realEstate.stream()
                 .filter(DwellingPlace::isEntailed)
                 .collect(Collectors.toList());
@@ -119,6 +123,32 @@ public class InheritanceService {
                 .filter(dp -> !dp.isEntailed() && dp.getType() == DwellingPlaceType.DWELLING)
                 .sorted(Comparator.comparing(DwellingPlace::getValue).reversed())
                 .collect(Collectors.toList());
+
+        for (DwellingPlace dwelling : entailedToTitlePlaces) {
+            Person titleHolder = dwelling.getEntailedTitle().getHolder(onDate);
+            if (titleHolder != null && !dwelling.getOwners(onDate).contains(titleHolder)) {
+                log.info(String.format("%s is entailed to %s. Giving to title heir %d %s.", dwelling.getFriendlyName(),
+                        dwelling.getEntailedTitle().getName(), titleHolder.getId(), titleHolder.getName()));
+                dwelling.addOwner(titleHolder, onDate, titleHolder.getDeathDate());
+                results.add(new PropertyTransferEvent(onDate, dwelling, dwelling.getOwners(onDate.minusDays(1))));
+                log.info(String.format("%d %s inherits %s %s on %s", titleHolder.getId(),
+                        titleHolder.getName(), dwelling.getType().getFriendlyName(),
+                        dwelling.getLocationString(), onDate));
+                personService.save(titleHolder);
+            }
+            if (titleHolder != null && dwelling.getOwners(onDate).contains(titleHolder)) {
+                // This dwelling should have been taken care of by the inheritance service. We don't need to do
+                // anything here.
+                entailedPlaces.remove(dwelling);
+                unentailedEstates.remove(dwelling);
+                unentailedHouses.remove(dwelling);
+                if (dwelling instanceof Dwelling) {
+                    maybeMoveHeirIntoInheritedHouse(person, titleHolder, onDate, (Dwelling) dwelling);
+                }
+            }
+            // If there is currently no title holder (extinct or in abeyance), or for some reason the title holder
+            // does not own it, proceed with inheritance as usual.
+        }
 
         for (DwellingPlace dwelling : entailedPlaces) {
             if (dwelling.isEntailed() && maleHeirForEntailments != null) {
@@ -229,15 +259,25 @@ public class InheritanceService {
         DwellingPlace heirsCurrentResidence = heir.getResidence(onDate);
         if (dwelling.equals(heirsCurrentResidence)) {
             // He already lives in the house, just return.
+            log.info(String.format("Not moving %d %s into house since he or she already lives there", heir.getId(),
+                    heir.getName()));
             return results;
         }
         if (heirsCurrentResidence == null || heirsCurrentResidence.getValue() < dwelling.getValue()) {
+            log.info(String.format("Will move %d %s into house", heir.getId(),
+                    heir.getName()));
+
             // If he doesn't live here or if his current house is not as nice as this one, move him and his
             // family into the house.
             Household heirsHousehold = heir.getHousehold(onDate);
             if (heirsHousehold == null) {
+                log.info(String.format("%d %s does not have a household yet; creating", heir.getId(),
+                        heir.getName()));
                 heirsHousehold = householdService.createHouseholdForHead(heir, onDate, true);
             }
+            log.info(String.format("Moving household of %d %s into house", heir.getId(),
+                    heir.getName()));
+
             householdDwellingPlaceService.addHouseholdToDwellingPlaceOnDate(dwelling, heirsHousehold, onDate);
 
             Household oldHousehold = deceasedPerson.getHousehold(onDate.minusDays(1));
@@ -276,14 +316,20 @@ public class InheritanceService {
                 ? null
                 : ancestryService.calculateRelationship(newOwner, otherHead, false));
         if (relationship == null ||
-                !(relationship.isParentChildRelationship() || relationship.isSiblingRelationship())) {
+                !(relationship.isParentChildRelationship() ||
+                        relationship.isSiblingRelationship() || relationship.isSelf()
+                        || relationship.isMarriageOrPartnership())) {
             // Another household is living here, and they are not closely related to the heir. They
             // have to move out.
-            DwellingPlace parish;
+            DwellingPlace parish = dwelling;
             do {
-                parish = dwelling.getParent();
+                parish = parish.getParent();
             } while (parish != null && parish.getType() != DwellingPlaceType.PARISH);
             if (parish instanceof Parish) {
+
+                log.info(String.format("%d %s is evicting current household from house", newOwner.getId(),
+                        newOwner.getName()));
+
                 return householdDwellingPlaceService.buyOrCreateHouseForHousehold((Parish) parish,
                         oldHousehold, onDate);
             }

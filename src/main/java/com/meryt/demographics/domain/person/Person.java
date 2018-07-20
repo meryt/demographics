@@ -669,6 +669,11 @@ public class Person {
         return period == null ? null : period.getCapital();
     }
 
+    public double getCapitalNullSafe(@NonNull LocalDate onDate) {
+        Double capital = getCapital(onDate);
+        return capital == null ? 0.0 : capital;
+    }
+
     public PersonCapitalPeriod getCapitalPeriod(@NonNull LocalDate onDate) {
         return getCapitalPeriods().stream()
                 .filter(o -> o.contains(onDate))
@@ -688,7 +693,7 @@ public class Person {
         newPeriod.setPerson(this);
         newPeriod.setPersonId(getId());
         newPeriod.setFromDate(asOfDate);
-        newPeriod.setToDate(getDeathDate());
+        newPeriod.setToDate(null);
         List<PersonCapitalPeriod> existingPeriods = getCapitalPeriods().stream()
                 .filter(p -> p.contains(asOfDate) || p.getFromDate().isAfter(asOfDate))
                 .distinct()
@@ -728,14 +733,5 @@ public class Person {
         Double currentCapital = getCapital(onDate);
 
         setCapital((currentCapital == null ? 0 : currentCapital) + capital, onDate);
-    }
-
-    public Double getTotalWealth(@NonNull LocalDate onDate) {
-        Double cashWealth = getCapital(onDate);
-        List<DwellingPlace> realEstate = getOwnedDwellingPlaces(onDate);
-        double realEstateValue = realEstate.stream()
-                .mapToDouble(d -> d.getValue() == null ? 0.0 : d.getValue())
-                .sum();
-        return (cashWealth == null ? 0.0 : cashWealth) + realEstateValue;
     }
 }

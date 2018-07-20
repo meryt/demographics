@@ -30,6 +30,14 @@ public class OccupationService {
         this.occupationRepository = occupationRepository;
     }
 
+    public List<Occupation> findByIsDomesticServant() {
+        return occupationRepository.findByIsDomesticServantIsTrue();
+    }
+
+    public List<Occupation> findByIsFarmLaborer() {
+        return occupationRepository.findByIsFarmLaborerIsTrue();
+    }
+
     /**
      * Returns a list with the expected occupation slots for a town of this size. There is some randomness involved.
      *

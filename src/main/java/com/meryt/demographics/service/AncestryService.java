@@ -62,7 +62,7 @@ public class AncestryService {
             return null;
         }
         if (person1.getId() == person2.getId()) {
-            return new Relationship("self", 0, null, null);
+            return new Relationship(Relationship.SELF, 0, null, null);
         }
         if (!bloodOnly) {
             Relationship maritalRelationship = determineMaritalRelationship(person1, person2);
@@ -113,9 +113,9 @@ public class AncestryService {
                 .findFirst();
         if (couplesFamily.isPresent()) {
             if (couplesFamily.get().isMarriage()) {
-                return new Relationship("spouse", 1, null, null);
+                return new Relationship(Relationship.SPOUSE, 1, null, null);
             } else {
-                return new Relationship("partner", 1, null, null);
+                return new Relationship(Relationship.PARTNER, 1, null, null);
             }
         }
         return null;

@@ -13,4 +13,7 @@ public interface OccupationRepository extends PagingAndSortingRepository<Occupat
 
     List<Occupation> findByAllowFemaleIsTrue();
 
+    List<Occupation> findByIsDomesticServantIsTrue();
+
+    List<Occupation> findByIsFarmLaborerIsTrue();
 }

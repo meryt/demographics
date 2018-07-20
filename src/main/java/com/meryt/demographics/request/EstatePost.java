@@ -12,4 +12,5 @@ public class EstatePost {
     private String dwellingName;
     private Long ownerId;
     private String ownerFromDate;
+    private Long entailedTitleId;
 }

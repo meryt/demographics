@@ -142,6 +142,8 @@ public class CalendarService {
 
         filterOutEventTypes(results, nextDatePost);
 
+        log.info("Finished advancing calendar");
+
         return results;
     }
 
@@ -307,7 +309,8 @@ public class CalendarService {
         List<CalendarDayEvent> dayResults = new ArrayList<>();
 
         for (Title title : titles) {
-            dayResults.addAll(titleService.checkForSingleTitleHeir(title, onDate, null));
+            List<CalendarDayEvent> result = titleService.checkForSingleTitleHeir(title, onDate, null);
+            dayResults.addAll(result);
         }
         if (!dayResults.isEmpty()) {
             results.put(onDate, dayResults);

@@ -36,7 +36,7 @@ import lombok.Setter;
 import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.SocialClass;
-import com.meryt.demographics.response.DwellingPlacePointer;
+import com.meryt.demographics.domain.title.Title;
 
 @Getter
 @Setter
@@ -89,6 +89,9 @@ public abstract class DwellingPlace {
      * principal house of an estate)
      */
     private boolean attachedToParent;
+
+    @ManyToOne
+    private Title entailedTitle;
 
     public Double getSquareMiles() {
         if (acres == null) {
@@ -327,6 +330,16 @@ public abstract class DwellingPlace {
         } while (place != null && !(place instanceof Parish));
 
         return (Parish) place;
+    }
+
+    public void setEntailedTitle(@Nullable Title title) {
+        if (entailedTitle != null) {
+            entailedTitle.getEntailedProperties().remove(this);
+        }
+        if (title != null) {
+            title.getEntailedProperties().add(this);
+        }
+        entailedTitle = title;
     }
 
 }

@@ -13,12 +13,16 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.domain.person.PersonTitlePeriod;
 import com.meryt.demographics.domain.place.Dwelling;
 import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.DwellingPlaceType;
 import com.meryt.demographics.domain.place.Estate;
 import com.meryt.demographics.domain.place.Household;
+import com.meryt.demographics.domain.title.Title;
+import com.meryt.demographics.generator.ParishGenerator;
 import com.meryt.demographics.generator.WealthGenerator;
 import com.meryt.demographics.request.EstatePost;
 import com.meryt.demographics.response.DwellingPlaceResponse;
@@ -37,15 +41,18 @@ public class PlacesController {
     private final ControllerHelperService controllerHelperService;
     private final HouseholdDwellingPlaceService householdDwellingPlaceService;
     private final PersonService personService;
+    private final ParishGenerator parishGenerator;
 
     public PlacesController(@Autowired DwellingPlaceService dwellingPlaceService,
                             @Autowired ControllerHelperService controllerHelperService,
                             @Autowired HouseholdDwellingPlaceService householdDwellingPlaceService,
-                            @Autowired PersonService personService) {
+                            @Autowired PersonService personService,
+                            @Autowired ParishGenerator parishGenerator) {
         this.dwellingPlaceService = dwellingPlaceService;
         this.controllerHelperService = controllerHelperService;
         this.householdDwellingPlaceService = householdDwellingPlaceService;
         this.personService = personService;
+        this.parishGenerator = parishGenerator;
     }
 
     @RequestMapping("/api/places/{placeId}")
@@ -67,7 +74,7 @@ public class PlacesController {
     }
 
     @RequestMapping(value = "/api/estates", method = RequestMethod.POST)
-    public DwellingPlaceResponse postEstateForHousehold(@RequestBody EstatePost estatePost) {
+    public DwellingPlaceResponse createEstateForHousehold(@RequestBody EstatePost estatePost) {
         if (estatePost.getParentDwellingPlaceId() == null) {
             throw new BadRequestException("parentDwellingPlaceIdIsRequired");
         }
@@ -81,13 +88,20 @@ public class PlacesController {
                     owner.getId(), owner.getName(), onDate));
         }
 
-        Dwelling house = (Dwelling) householdDwellingPlaceService.moveGentlemanIntoEstate(place, owner,
-                owner.getHousehold(onDate), onDate);
-        Estate estate = (Estate) house.getParent();
-        estate.setName(estatePost.getName());
-        house.setName(estatePost.getDwellingName());
-        dwellingPlaceService.save(house);
-        dwellingPlaceService.save(estate);
+        Title entailedTitle = null;
+        if (estatePost.getEntailedTitleId() != null) {
+            entailedTitle = owner.getTitles(onDate).stream()
+                    .map(PersonTitlePeriod::getTitle)
+                    .filter(t -> t.getId() == estatePost.getEntailedTitleId())
+                    .findFirst().orElse(null);
+            if (entailedTitle == null) {
+                throw new BadRequestException(String.format("%d %s does not have the title %d on date %s",
+                        owner.getId(), owner.getName(), estatePost.getEntailedTitleId(), onDate));
+            }
+        }
+
+        Estate estate = householdDwellingPlaceService.createEstateForHousehold(place, estatePost.getName(),
+                estatePost.getDwellingName(), owner, ownerHousehold, onDate, entailedTitle);
 
         if (owner.getCapitalPeriods().isEmpty()) {
             double capital = WealthGenerator.getRandomStartingCapital(owner.getSocialClass(),
@@ -96,6 +110,8 @@ public class PlacesController {
             log.info(String.format("%d %s got starting capital of %.2f", owner.getId(), owner.getName(), capital));
             personService.save(owner);
         }
+
+        parishGenerator.populateEstateWithEmployees(estate, onDate);
 
         return new DwellingPlaceResponse(estate, onDate);
     }

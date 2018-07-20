@@ -1,5 +1,6 @@
 package com.meryt.demographics.generator;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -12,12 +13,14 @@ import org.springframework.stereotype.Service;
 import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.DwellingPlaceType;
+import com.meryt.demographics.domain.place.Estate;
 import com.meryt.demographics.domain.place.Parish;
 import com.meryt.demographics.domain.place.Town;
 import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.generator.family.HouseholdGenerator;
 import com.meryt.demographics.generator.random.Die;
 import com.meryt.demographics.request.ParishParameters;
+import com.meryt.demographics.request.RandomFamilyParameters;
 import com.meryt.demographics.service.DwellingPlaceService;
 import com.meryt.demographics.service.FamilyService;
 import com.meryt.demographics.service.HouseholdDwellingPlaceService;
@@ -171,6 +174,31 @@ public class ParishGenerator {
         populator.populateParish(template);
 
         return parish;
+    }
+
+    public void populateEstateWithEmployees(@NonNull Estate estate, @NonNull LocalDate onDate) {
+
+        ParishParameters parishParameters = new ParishParameters();
+        ParishPopulator populator = new ParishPopulator(parishParameters, householdGenerator,
+                familyGenerator,
+                familyService,
+                householdService,
+                dwellingPlaceService,
+                personService,
+                householdDwellingPlaceService);
+
+        RandomFamilyParameters parameters = new RandomFamilyParameters();
+        parameters.setReferenceDate(onDate);
+
+        List<Occupation> domesticServants = occupationService.findByIsDomesticServant();
+        List<Occupation> farmLaborers = occupationService.findByIsFarmLaborer();
+
+        for (int i = 0; i < 5; i++) {
+            populator.createHouseholdToFillOccupation(parameters, estate,
+                    domesticServants.get(i % domesticServants.size()));
+            populator.createHouseholdToFillOccupation(parameters, estate,
+                    farmLaborers.get(i % farmLaborers.size()));
+        }
     }
 
     private TownTemplate createTown(String name, long population, boolean persist) {

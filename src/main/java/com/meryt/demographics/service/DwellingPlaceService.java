@@ -16,6 +16,7 @@ import com.meryt.demographics.domain.place.DwellingPlaceOwnerPeriod;
 import com.meryt.demographics.domain.place.DwellingPlaceType;
 import com.meryt.demographics.domain.place.Parish;
 import com.meryt.demographics.repository.DwellingPlaceRepository;
+import com.meryt.demographics.response.calendar.PropertyTransferEvent;
 
 @Service
 public class DwellingPlaceService {
@@ -62,22 +63,38 @@ public class DwellingPlaceService {
                     buyer.getId(), buyer.getName(), place.getType().getFriendlyName(), place.getId()));
         }
 
+        transferDwellingPlaceToPerson(place, buyer, onDate, true);
+
+    }
+
+    PropertyTransferEvent transferDwellingPlaceToPerson(@NonNull DwellingPlace place,
+                                                               @NonNull Person newOwner,
+                                                               @NonNull LocalDate onDate,
+                                                               boolean transferCapital) {
+        if (!newOwner.isLiving(onDate)) {
+            throw new IllegalArgumentException(String.format("%d %s cannot obtain %s %d because he is not alive on %s",
+                    newOwner.getId(), newOwner.getName(), place.getType().getFriendlyName(), place.getId(), onDate));
+        }
+
         List<Person> currentOwners = place.getOwners(onDate);
         for (DwellingPlaceOwnerPeriod period : place.getOwnerPeriods()) {
             if (period.contains(onDate)) {
                 period.setToDate(onDate);
             }
         }
-        place.addOwner(buyer, onDate, buyer.getDeathDate());
+        place.addOwner(newOwner, onDate, newOwner.getDeathDate());
         save(place);
 
-        for (Person previousOwner : currentOwners) {
-            previousOwner.addCapital(place.getValue() / currentOwners.size(), onDate);
-            personService.save(previousOwner);
+        if (transferCapital) {
+            for (Person previousOwner : currentOwners) {
+                previousOwner.addCapital(place.getValue() / currentOwners.size(), onDate);
+                personService.save(previousOwner);
+            }
+
+            newOwner.addCapital(place.getValue() * -1, onDate);
+            personService.save(newOwner);
         }
 
-        buyer.addCapital(place.getValue() * -1, onDate);
-        personService.save(buyer);
+        return new PropertyTransferEvent(onDate, place, currentOwners);
     }
-
 }

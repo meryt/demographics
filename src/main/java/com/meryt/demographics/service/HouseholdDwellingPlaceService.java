@@ -24,6 +24,7 @@ import com.meryt.demographics.domain.place.Farm;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.HouseholdLocationPeriod;
 import com.meryt.demographics.domain.place.Parish;
+import com.meryt.demographics.domain.title.Title;
 import com.meryt.demographics.generator.WealthGenerator;
 import com.meryt.demographics.generator.random.BetweenDie;
 import com.meryt.demographics.generator.random.Die;
@@ -315,7 +316,7 @@ public class HouseholdDwellingPlaceService {
      * @param household the household
      * @param moveInDate the date on which the inhabitants should move in
      */
-    public DwellingPlace moveGentlemanIntoEstate(@NonNull DwellingPlace dwellingPlace,
+    private DwellingPlace moveGentlemanIntoEstate(@NonNull DwellingPlace dwellingPlace,
                                                  @NonNull Person headOfHousehold,
                                                  @NonNull Household household,
                                                  @NonNull LocalDate moveInDate) {
@@ -457,7 +458,7 @@ public class HouseholdDwellingPlaceService {
         }
         Person farmer = house.getAllResidents(onDate).stream()
                 .filter(p -> personRequiresFarmOnDate(p, onDate))
-                .max(Comparator.comparing(p -> ((Person) p).getCapital(onDate)).reversed())
+                .max(Comparator.comparing(p -> ((Person) p).getCapitalNullSafe(onDate)).reversed())
                 .orElse(null);
         if (farmer == null) {
             farmer = house.getHouseholds(onDate).stream()
@@ -558,6 +559,29 @@ public class HouseholdDwellingPlaceService {
             Family family = person.getFamilies().iterator().next();
             return family.getWeddingDate() == null ? referenceDate : family.getWeddingDate();
         }
+    }
+
+    public Estate createEstateForHousehold(@NonNull DwellingPlace locationOfEstate,
+                                           @NonNull String estateName,
+                                           @NonNull String dwellingName,
+                                           @NonNull Person owner,
+                                           @NonNull Household ownerHousehold,
+                                           @NonNull LocalDate onDate,
+                                           @Nullable Title enatailedToTitle) {
+        Dwelling house = (Dwelling) moveGentlemanIntoEstate(locationOfEstate, owner, ownerHousehold, onDate);
+        Estate estate = (Estate) house.getParent();
+        estate.setName(estateName);
+        house.setName(dwellingName);
+
+        if (enatailedToTitle != null) {
+            estate.setEntailedTitle(enatailedToTitle);
+            house.setEntailedTitle(enatailedToTitle);
+        }
+
+        dwellingPlaceService.save(house);
+        dwellingPlaceService.save(estate);
+
+        return estate;
     }
 
     /**

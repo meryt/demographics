@@ -242,6 +242,7 @@ public class FamilyGenerator {
 
                     family.setWeddingDate(currentDate);
                     family.addSpouse(potentialSpouse);
+                    family.getWife().getMaternity().setFather(family.getHusband());
                     return family;
                 }
             }

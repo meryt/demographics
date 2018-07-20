@@ -15,8 +15,9 @@ import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 
 import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.domain.person.PersonCapitalPeriod;
 import com.meryt.demographics.domain.person.PersonTitlePeriod;
-import com.meryt.demographics.domain.title.Peerage;
+import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.title.Title;
 import com.meryt.demographics.repository.TitleRepository;
 import com.meryt.demographics.response.calendar.CalendarDayEvent;
@@ -32,13 +33,16 @@ public class TitleService {
     private final TitleRepository titleRepository;
     private final PersonService personService;
     private final HeirService heirService;
+    private final DwellingPlaceService dwellingPlaceService;
 
     public TitleService(@Autowired @NonNull TitleRepository titleRepository,
                         @Autowired @NonNull PersonService personService,
-                        @Autowired @NonNull HeirService heirService) {
+                        @Autowired @NonNull HeirService heirService,
+                        @Autowired @NonNull DwellingPlaceService dwellingPlaceService) {
         this.titleRepository = titleRepository;
         this.personService = personService;
         this.heirService = heirService;
+        this.dwellingPlaceService = dwellingPlaceService;
     }
 
     @Nullable
@@ -93,6 +97,10 @@ public class TitleService {
         for (PersonTitlePeriod period : holdersMostRecentToOldest) {
             Person currentHolder = period.getPerson();
             if (inheritanceDate == null) {
+                if (currentHolder.getDeathDate() == null) {
+                    // Should never happen
+                    return null;
+                }
                 // On the first round, set the inheritance date to the death date of the last holder, plus one day.
                 // This is because the person himself passes the "is-living" test on his own death date, so the logic
                 // for finding the heir of a grandparent would find the person again.
@@ -117,7 +125,7 @@ public class TitleService {
             }
         }
 
-        return (inheritanceDate == null) ? null : Pair.of(inheritanceDate.minusDays(1), new ArrayList<>());
+        return Pair.of(inheritanceDate.minusDays(1), new ArrayList<>());
     }
 
     @Nullable
@@ -180,8 +188,9 @@ public class TitleService {
                 return null;
             }
 
-            LocalDate dateObtained = addTitleToPerson(title, nextHolder, nextHolders.getFirst());
-            return dateObtained == null ? null : nextHolder;
+            Pair<LocalDate, List<CalendarDayEvent>> dateAndEvents = addTitleToPerson(title, nextHolder,
+                    nextHolders.getFirst());
+            return dateAndEvents == null ? null : nextHolder;
         } else if (allHoldersHaveFinishedGeneration(title) && nextHolders.getSecond().isEmpty()) {
             log.info(String.format("The title of %s has gone extinct.", title.getName()));
             title.setExtinct(true);
@@ -190,7 +199,10 @@ public class TitleService {
         return null;
     }
 
-    private LocalDate addTitleToPerson(@NonNull Title title, @NonNull Person person, @NonNull LocalDate dateObtained) {
+    private Pair<LocalDate, List<CalendarDayEvent>> addTitleToPerson(@NonNull Title title,
+                                                                     @NonNull Person person,
+                                                                     @NonNull LocalDate dateObtained) {
+        List<CalendarDayEvent> results = new ArrayList<>();
         // The person may not have been born when the current title-holder died (e.g. he inherited via
         // his mother), so in that case he inherited at birth.
         dateObtained = LocalDateComparator.max(dateObtained, person.getBirthDate());
@@ -210,7 +222,14 @@ public class TitleService {
             person.setLastName(lastNameFromTitle);
         }
         personService.save(person);
-        return dateObtained;
+
+        results.add(new TitleInheritanceEvent(dateObtained, title, person));
+
+        for (DwellingPlace place : title.getEntailedProperties()) {
+            results.add(dwellingPlaceService.transferDwellingPlaceToPerson(place, person, dateObtained, false));
+        }
+
+        return Pair.of(dateObtained, results);
     }
 
     /**
@@ -231,6 +250,7 @@ public class TitleService {
             throw new IllegalArgumentException(String.format("%d %s has no death date", person.getId(), person.getName()));
         }
         List<CalendarDayEvent> results = new ArrayList<>();
+        List<Person> singleTitleHeirs = new ArrayList<>();
         for (PersonTitlePeriod period : person.getTitles(date.minusDays(1))) {
             Title title = period.getTitle();
             if (title.getTitleHolders().stream().anyMatch(p -> p.getFromDate().isAfter(date) || p.getFromDate().equals(date))) {
@@ -242,8 +262,34 @@ public class TitleService {
                     person.getSpouse(date).getMaternity().getMiscarriageDate() == null) {
                 heirMayBeBorn = person.getSpouse(date).getMaternity().getDueDate();
             }
-            results.addAll(checkForSingleTitleHeir(title, date, heirMayBeBorn));
+            List<CalendarDayEvent> result = checkForSingleTitleHeir(title, date, heirMayBeBorn);
+            singleTitleHeirs.addAll(result.stream()
+                    .filter(TitleInheritanceEvent.class::isInstance)
+                    .map(TitleInheritanceEvent.class::cast)
+                    .map(TitleInheritanceEvent::getPerson)
+                    .map(pr -> personService.load(pr.getId()))
+                    .collect(Collectors.toList()));
+            results.addAll(result);
         }
+
+        if (!singleTitleHeirs.isEmpty()) {
+            Double capital = person.getCapital(date);
+            if (capital != null) {
+                double portion = capital / singleTitleHeirs.size();
+                for (Person heir : singleTitleHeirs) {
+                    heir.addCapital(portion, date);
+                    log.info(String.format("%d %s inherited %.2f from %d %s on %s", heir.getId(), heir.getName(),
+                            portion, person.getId(), person.getName(), date));
+                    personService.save(heir);
+                }
+                PersonCapitalPeriod period = person.getCapitalPeriod(date);
+                if (period != null) {
+                    period.setToDate(date);
+                    personService.save(person);
+                }
+            }
+        }
+
         return results;
     }
 
@@ -279,8 +325,10 @@ public class TitleService {
                 save(title);
             } else {
                 LocalDate dateOfTitle = heirs.getFirst();
-                LocalDate dateObtained = addTitleToPerson(title, heir, dateOfTitle);
-                results.add(new TitleInheritanceEvent(dateObtained, title, heir));
+                Pair<LocalDate, List<CalendarDayEvent>> dateObtainedAndEvents = addTitleToPerson(title, heir, dateOfTitle);
+                if (dateObtainedAndEvents != null) {
+                    results.addAll(dateObtainedAndEvents.getSecond());
+                }
             }
         }
         return results;
@@ -290,8 +338,9 @@ public class TitleService {
      * Check to see whether any holder has not finished generation. This is needed to handle the case where the
      * son and heir died without issue, but the previous holder (father) had not finished generation as of the check.
      *
-     * @param title
-     * @return
+     * @param title the title to check
+     * @return true if all holders in the past are definitely not going to have any children that might affect the
+     * order of inheritance
      */
     private boolean allHoldersHaveFinishedGeneration(@NonNull Title title) {
         return title.getTitleHolders().stream()

@@ -88,7 +88,8 @@ class ParishPopulator {
                 log.info("Creating new households in this town to fill jobs.");
                 for (Map.Entry<Occupation, Integer> occupationSlot : town.getExpectedOccupations().entrySet()) {
                     for (int i = 0; i < occupationSlot.getValue(); i++) {
-                        createHouseholdToFillOccupation(template, town, occupationSlot.getKey());
+                        createHouseholdToFillOccupation(template.getFamilyParameters(), town.getTown(),
+                                occupationSlot.getKey());
                     }
                 }
             }
@@ -130,10 +131,9 @@ class ParishPopulator {
         return childHouseholdPopulation + household.getPopulation(familyParameters.getReferenceDate());
     }
 
-    private void createHouseholdToFillOccupation(@NonNull ParishTemplate template,
-                                                 @NonNull TownTemplate townTemplate,
-                                                 @NonNull Occupation occupation) {
-        RandomFamilyParameters familyParameters = template.getFamilyParameters();
+    void createHouseholdToFillOccupation(@NonNull RandomFamilyParameters familyParameters,
+                                         @NonNull DwellingPlace town,
+                                         @NonNull Occupation occupation) {
         familyParameters.setMinSocialClass(occupation.getMinClass());
         familyParameters.setMaxSocialClass(occupation.getMaxClass());
         if (occupation.isAllowMale() && occupation.isAllowFemale()) {
@@ -160,16 +160,16 @@ class ParishPopulator {
         Person person = inhabitants.get(0);
 
         log.info(String.format("%d %s (%s) was created to take a job in %s as a %s", person.getId(), person.getName(),
-                person.getSocialClass().getFriendlyName(), townTemplate.getTown().getName(),
+                person.getSocialClass().getFriendlyName(), town.getName(),
                 occupation.getName()));
 
         person.addOccupation(occupation, getJobStartDate(person));
         personService.generateStartingCapitalForFounder(person, familyParameters.getReferenceDate());
-        DwellingPlace newHouse = householdDwellingPlaceService.addHouseholdToDwellingPlaceOnDate(
-                townTemplate.getTown(), household, getMoveInDate(person, familyParameters.getReferenceDate()));
+        DwellingPlace newHouse = householdDwellingPlaceService.addHouseholdToDwellingPlaceOnDate(town, household,
+                getMoveInDate(person, familyParameters.getReferenceDate()));
         maybeRenameNewEstateOrFarm(newHouse);
 
-        dwellingPlaceService.save(townTemplate.getTown());
+        dwellingPlaceService.save(town);
         householdService.save(household);
     }
 
@@ -185,8 +185,8 @@ class ParishPopulator {
 
         if (!placedInTown) {
             if (parishTemplate.hasRuralPopulationRemaining(onDate)) {
-                maybeRenameNewEstateOrFarm(householdDwellingPlaceService.addHouseholdToDwellingPlaceOnDate(parishTemplate.getParish(),
-                        household, getMoveInDate(person, onDate)));
+                maybeRenameNewEstateOrFarm(householdDwellingPlaceService.addHouseholdToDwellingPlaceOnDate(
+                        parishTemplate.getParish(), household, getMoveInDate(person, onDate)));
             } else {
                 // Add to a random town even without a job. First try to fill out any towns that have room left but
                 // no more jobs.

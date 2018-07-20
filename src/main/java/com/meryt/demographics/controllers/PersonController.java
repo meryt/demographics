@@ -170,7 +170,7 @@ public class PersonController {
 
         person = householdService.addPersonToHousehold(person, household, post.getFromDate(), post.isHead());
         if (post.isIncludeHomelessFamilyMembers()) {
-            household = householdService.addHomelessFamilyMembersToHousehold(person, household, post.getFromDate());
+            household = householdService.addHomelessFamilyMembersToHousehold(person, household, post.getFromDate(), true);
         }
         return new HouseholdResponse(household, post.getFromDate());
     }
