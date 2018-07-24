@@ -101,7 +101,8 @@ public class HouseholdService {
     @Nullable
     public Person resetHeadAsOf(@NonNull Household household, @NonNull LocalDate onDate) {
         List<Person> inhabitantsByAge = household.getInhabitants(onDate).stream()
-                .filter(p -> p.getBirthDate() != null && p.getAgeInYears(onDate) >= MIN_HEAD_OF_HOUSEHOLD_AGE)
+                .filter(p -> p.getBirthDate() != null && p.isLiving(onDate) &&
+                        p.getAgeInYears(onDate) >= MIN_HEAD_OF_HOUSEHOLD_AGE)
                 .sorted(Comparator.comparing(Person::getGender).thenComparing(Person::getBirthDate))
                 .collect(Collectors.toList());
         if (inhabitantsByAge.isEmpty()) {
@@ -308,9 +309,10 @@ public class HouseholdService {
         }
 
         if (includeSiblings && person.getFamily() != null) {
-            List<Person> siblings = person.getFamily().getChildren();
+            List<Person> siblings = person.getSiblings();
             for (Person sibling : siblings) {
-                if (sibling.isLiving(onDate) && sibling.getResidence(onDate) == null) {
+                if (sibling.isLiving(onDate) && sibling.getFamilies().isEmpty()
+                        && sibling.getResidence(onDate) == null) {
                     addPersonToHousehold(sibling, household, onDate, false);
                     addHomelessFamilyMembersToHousehold(sibling, household, onDate, false);
                 }

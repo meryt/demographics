@@ -94,6 +94,16 @@ public class FertilityService {
         if (maternity.getNumBirths() != currentNumBirths) {
             familyService.save(family);
         }
+
+        // Remove father if the woman is not pregnant and he is dead. This can be used to optimize which women are
+        // loaded for cycling to date.
+        if (!maternity.isPregnant(toDate)) {
+            Person father = maternity.getFather();
+            if (father != null && !father.isLiving(toDate)) {
+                maternity.setFather(null);
+            }
+        }
+
         woman.setMaternity(maternityRepository.save(maternity));
         personService.save(woman);
         return results;

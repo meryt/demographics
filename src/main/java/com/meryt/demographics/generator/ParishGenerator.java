@@ -14,6 +14,7 @@ import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.DwellingPlaceType;
 import com.meryt.demographics.domain.place.Estate;
+import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.Parish;
 import com.meryt.demographics.domain.place.Town;
 import com.meryt.demographics.generator.family.FamilyGenerator;
@@ -193,11 +194,24 @@ public class ParishGenerator {
         List<Occupation> domesticServants = occupationService.findByIsDomesticServant();
         List<Occupation> farmLaborers = occupationService.findByIsFarmLaborer();
 
+        Household household;
         for (int i = 0; i < 5; i++) {
-            populator.createHouseholdToFillOccupation(parameters, estate,
+            household = populator.createHouseholdToFillOccupation(parameters, estate,
                     domesticServants.get(i % domesticServants.size()));
-            populator.createHouseholdToFillOccupation(parameters, estate,
+            if (household != null) {
+                DwellingPlace currentPlace = household.getDwellingPlace(onDate);
+                if (currentPlace != null && !currentPlace.isHouse()) {
+                    householdDwellingPlaceService.moveHomelessHouseholdIntoHouse(household, onDate, onDate);
+                }
+            }
+            household = populator.createHouseholdToFillOccupation(parameters, estate,
                     farmLaborers.get(i % farmLaborers.size()));
+            if (household != null) {
+                DwellingPlace currentPlace = household.getDwellingPlace(onDate);
+                if (currentPlace != null && !currentPlace.isHouse()) {
+                    householdDwellingPlaceService.moveHomelessHouseholdIntoHouse(household, onDate, onDate);
+                }
+            }
         }
     }
 

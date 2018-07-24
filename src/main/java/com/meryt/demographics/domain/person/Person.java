@@ -734,4 +734,19 @@ public class Person {
 
         setCapital((currentCapital == null ? 0 : currentCapital) + capital, onDate);
     }
+
+    /**
+     * Gets a person's full brothers and sisters
+     */
+    public List<Person> getSiblings() {
+        if (family == null) {
+            return new ArrayList<>();
+        }
+        return family.getChildren().stream()
+                .filter(p -> !p.equals(this))
+                .sorted(Comparator.comparing(Person::getBirthDate))
+                .collect(Collectors.toList());
+    }
+
+
 }

@@ -10,4 +10,8 @@ import com.meryt.demographics.domain.place.DwellingPlaceType;
 public interface DwellingPlaceRepository extends CrudRepository<DwellingPlace, Long> {
 
     List<DwellingPlace> findByType(@NonNull DwellingPlaceType type);
+
+    List<DwellingPlace> findByParentIsNotNullAndAttachedToParentIsTrue();
+
+    List<DwellingPlace> findByName(@NonNull String name);
 }

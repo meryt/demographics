@@ -5,8 +5,10 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 
 import com.meryt.demographics.domain.family.Family;
@@ -18,6 +20,7 @@ import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.DwellingPlaceType;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.Parish;
+import com.meryt.demographics.domain.title.Title;
 import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.request.RandomFamilyParameters;
 import com.meryt.demographics.response.calendar.CalendarDayEvent;
@@ -34,6 +37,8 @@ public class InheritanceService {
     private final HeirService heirService;
     private final HouseholdService householdService;
     private final HouseholdDwellingPlaceService householdDwellingPlaceService;
+    private final DwellingPlaceService dwellingPlaceService;
+    private final TitleService titleService;
 
     public InheritanceService(@NonNull FamilyGenerator familyGenerator,
                               @NonNull FamilyService familyService,
@@ -41,7 +46,9 @@ public class InheritanceService {
                               @NonNull AncestryService ancestryService,
                               @NonNull HeirService heirService,
                               @NonNull HouseholdService householdService,
-                              @NonNull HouseholdDwellingPlaceService householdDwellingPlaceService) {
+                              @NonNull HouseholdDwellingPlaceService householdDwellingPlaceService,
+                              @NonNull DwellingPlaceService dwellingPlaceService,
+                              @NonNull TitleService titleService) {
         this.familyGenerator = familyGenerator;
         this.familyService = familyService;
         this.personService = personService;
@@ -49,6 +56,8 @@ public class InheritanceService {
         this.heirService = heirService;
         this.householdService = householdService;
         this.householdDwellingPlaceService = householdDwellingPlaceService;
+        this.dwellingPlaceService = dwellingPlaceService;
+        this.titleService = titleService;
     }
 
     List<CalendarDayEvent> processDeath(@NonNull Person person) {
@@ -125,7 +134,8 @@ public class InheritanceService {
                 .collect(Collectors.toList());
 
         for (DwellingPlace dwelling : entailedToTitlePlaces) {
-            Person titleHolder = dwelling.getEntailedTitle().getHolder(onDate);
+            Person titleHolder = getHeirForRealEstateEntailedToTitle(dwelling.getEntailedTitle(), onDate);
+
             if (titleHolder != null && !dwelling.getOwners(onDate).contains(titleHolder)) {
                 log.info(String.format("%s is entailed to %s. Giving to title heir %d %s.", dwelling.getFriendlyName(),
                         dwelling.getEntailedTitle().getName(), titleHolder.getId(), titleHolder.getName()));
@@ -189,6 +199,7 @@ public class InheritanceService {
             }
             // Make him the owner of the estate as well as the given places.
             estateOrFarm.addOwner(heir, onDate, heir.getDeathDate());
+            estateOrFarm = dwellingPlaceService.save(estateOrFarm);
             results.add(new PropertyTransferEvent(onDate, estateOrFarm, estateOrFarm.getOwners(onDate.minusDays(1))));
             log.info(String.format("%d %s inherits %s %s on %s", heir.getId(), heir.getName(),
                     estateOrFarm.getType().getFriendlyName(),
@@ -200,6 +211,7 @@ public class InheritanceService {
                 estateBuilding.addOwner(heir, onDate, heir.getDeathDate());
                 results.add(new PropertyTransferEvent(onDate, estateBuilding,
                         estateBuilding.getOwners(onDate.minusDays(1))));
+                estateBuilding = dwellingPlaceService.save(estateBuilding);
                 if (estateBuilding instanceof Dwelling) {
                     results.addAll(maybeMoveHeirIntoInheritedHouse(person, heir, onDate,
                             (Dwelling) estateBuilding));
@@ -308,13 +320,13 @@ public class InheritanceService {
                                                                        @NonNull Dwelling dwelling) {
         Person otherHead = oldHousehold.getHead(onDate);
         if (otherHead == null) {
-            otherHead = oldHousehold.getInhabitants(onDate).stream()
-                    .min(Comparator.comparing(Person::getBirthDate))
-                    .orElse(null);
+            otherHead = householdService.resetHeadAsOf(oldHousehold, onDate);
+            if (otherHead == null) {
+                log.info("Could not evict existing household as it has no candidate to be head of household");
+                return new ArrayList<>();
+            }
         }
-        Relationship relationship = (otherHead == null
-                ? null
-                : ancestryService.calculateRelationship(newOwner, otherHead, false));
+        Relationship relationship = ancestryService.calculateRelationship(newOwner, otherHead, false);
         if (relationship == null ||
                 !(relationship.isParentChildRelationship() ||
                         relationship.isSiblingRelationship() || relationship.isSelf()
@@ -335,5 +347,21 @@ public class InheritanceService {
             }
         }
         return new ArrayList<>();
+    }
+
+    @Nullable
+    private Person getHeirForRealEstateEntailedToTitle(@NonNull Title title, @NonNull LocalDate onDate) {
+        Person titleHolder = title.getHolder(onDate);
+        if (titleHolder == null) {
+            Pair<LocalDate, List<Person>> titleHeirs = titleService.getTitleHeirs(title);
+            // Get the oldest living potential heir and make him the heir of the real estate.
+            if (titleHeirs != null && !titleHeirs.getSecond().isEmpty()) {
+                titleHolder = titleHeirs.getSecond().stream()
+                        .filter(p -> p.isLiving(onDate))
+                        .max(Comparator.comparing(Person::getBirthDate).reversed())
+                        .orElse(null);
+            }
+        }
+        return titleHolder;
     }
 }

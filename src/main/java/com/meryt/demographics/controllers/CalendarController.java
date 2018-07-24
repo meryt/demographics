@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.meryt.demographics.request.AdvanceToDatePost;
@@ -16,17 +17,28 @@ import com.meryt.demographics.rest.BadRequestException;
 import com.meryt.demographics.rest.ConflictException;
 import com.meryt.demographics.service.CalendarService;
 import com.meryt.demographics.service.CheckDateService;
+import com.meryt.demographics.service.ControllerHelperService;
 
 @RestController
 public class CalendarController {
 
     private final CheckDateService checkDateService;
     private final CalendarService calendarService;
+    private final ControllerHelperService controllerHelperService;
 
     public CalendarController(@Autowired @NonNull CheckDateService checkDateService,
-                              @Autowired @NonNull CalendarService calendarService) {
+                              @Autowired @NonNull CalendarService calendarService,
+                              @Autowired @NonNull ControllerHelperService controllerHelperService) {
         this.checkDateService = checkDateService;
         this.calendarService = calendarService;
+        this.controllerHelperService = controllerHelperService;
+    }
+
+    @RequestMapping(value = "/api/calendar/errors", method = RequestMethod.GET)
+    public LocalDate getErrorsOnDate(@RequestParam(value = "onDate") String onDate) {
+        final LocalDate date = controllerHelperService.parseDate(onDate);
+        calendarService.checkForErrors(date);
+        return date;
     }
 
     @RequestMapping(value = "/api/calendar/currentDate", method = RequestMethod.GET)

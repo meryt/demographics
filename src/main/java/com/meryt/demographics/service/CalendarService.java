@@ -56,6 +56,7 @@ public class CalendarService {
     private final ImmigrationService immigrationService;
     private final HouseholdDwellingPlaceService householdDwellingPlaceService;
     private final TitleService titleService;
+    private final HouseholdService householdService;
 
     public CalendarService(@Autowired @NonNull CheckDateService checkDateService,
                            @Autowired @NonNull PersonService personService,
@@ -69,7 +70,8 @@ public class CalendarService {
                            @Autowired @NonNull DwellingPlaceService dwellingPlaceService,
                            @Autowired @NonNull ImmigrationService immigrationService,
                            @Autowired @NonNull HouseholdDwellingPlaceService householdDwellingPlaceService,
-                           @Autowired @NonNull TitleService titleService) {
+                           @Autowired @NonNull TitleService titleService,
+                           @Autowired @NonNull HouseholdService householdService) {
         this.checkDateService = checkDateService;
         this.personService = personService;
         this.familyGenerator = familyGenerator;
@@ -83,6 +85,7 @@ public class CalendarService {
         this.immigrationService = immigrationService;
         this.householdDwellingPlaceService = householdDwellingPlaceService;
         this.titleService = titleService;
+        this.householdService = householdService;
     }
 
     /**
@@ -109,7 +112,8 @@ public class CalendarService {
         for (LocalDate date = currentDate.plusDays(1); !date.isAfter(toDate); date = date.plusDays(1)) {
             log.debug(String.format("Checking for events on %s", date));
 
-            Map<LocalDate, List<CalendarDayEvent>> marriageEvents = generateMarriagesToDate(date, familyParameters);
+            Map<LocalDate, List<CalendarDayEvent>> marriageEvents = generateMarriagesToDate(date, familyParameters,
+                    nextDatePost.getFarmNamesOrDefault());
             results = mergeMaps(results, marriageEvents);
 
             // Say the batch size is 7. If so, we don't check on the 0th through 5th date, but do on the 6th.
@@ -140,6 +144,8 @@ public class CalendarService {
             i++;
         }
 
+        checkForErrors(toDate);
+
         filterOutEventTypes(results, nextDatePost);
 
         log.info("Finished advancing calendar");
@@ -148,11 +154,17 @@ public class CalendarService {
     }
 
     private Map<LocalDate, List<CalendarDayEvent>> generateMarriagesToDate(@NonNull LocalDate date,
-                                                                           @NonNull RandomFamilyParameters familyParameters) {
+                                                                           @NonNull RandomFamilyParameters familyParameters,
+                                                                           @NonNull List<String> farmNames) {
         Gender gender = null;
         boolean residentsOnly = false;
+
         List<Person> unmarriedPeople = personService.findUnmarriedPeople(date,
-                familyParameters.getMinHusbandAgeOrDefault(), familyParameters.getMaxHusbandAgeOrDefault(), residentsOnly,
+                familyParameters.getMinHusbandAgeOrDefault(),
+                familyParameters.getMaxHusbandAgeOrDefault(),
+                familyParameters.getMinWifeAgeOrDefault(),
+                familyParameters.getMaxWifeAgeOrDefault(),
+                residentsOnly,
                 gender);
         Map<LocalDate, List<CalendarDayEvent>> results = new TreeMap<>();
         List<CalendarDayEvent> dayResults = new ArrayList<>();
@@ -166,7 +178,7 @@ public class CalendarService {
                 family = familyService.setupMarriage(family, family.getWeddingDate(), person.isMale());
                 family.getWife().getMaternity().setHavingRelations(false);
                 // If the woman is randomly generated her last check date is in the past. Bring her up to yesterday so
-                // that in th next step when we advance maternities, she will start with her wedding night.
+                // that in the next step when we advance maternities, she will start with her wedding night.
                 fertilityService.cycleToDate(family.getWife(), date.minusDays(1));
                 family.getWife().getMaternity().setHavingRelations(true);
                 personService.save(family.getWife());
@@ -187,7 +199,7 @@ public class CalendarService {
                                 if (dwellingPlace != null && dwellingPlace.isHouse()
                                         && !dwellingPlace.getParent().isFarm()) {
                                     Farm farm = householdDwellingPlaceService.convertRuralHouseToFarm(
-                                            (Dwelling) dwellingPlace, date);
+                                            (Dwelling) dwellingPlace, date, farmNames);
                                     if (farm != null) {
                                         dayResults.add(new NewHouseEvent(date, farm));
                                     }
@@ -360,5 +372,18 @@ public class CalendarService {
         }
 
         map1.values().removeIf(List::isEmpty);
+    }
+
+    public void checkForErrors(@NonNull LocalDate onDate) {
+        dwellingPlaceService.getUnownedHousesEstatesAndFarms(onDate).forEach(p ->
+            log.warn(String.format("%d %s has no owner on %s", p.getId(), p.getFriendlyName(), onDate)));
+        householdService.loadHouseholdsWithoutHouses(onDate).forEach(h ->
+            log.warn(String.format("%d %s is a homeless household on %s", h.getId(), h.getFriendlyName(onDate), onDate)));
+        dwellingPlaceService.getPlacesSeparatedFromParents(onDate).forEach(p ->
+            log.warn(String.format("%d %s is owned by %s but its parent %d %s is owned by %s",
+                    p.getId(), p.getFriendlyName(), p.getOwners(onDate).stream()
+                            .map(o -> o.getId() + " " + o.getName()).collect(Collectors.joining(", ")),
+                    p.getParent().getId(), p.getParent().getFriendlyName(), p.getParent().getOwners(onDate).stream()
+                            .map(o -> o.getId() + " " + o.getName()).collect(Collectors.joining(", ")))));
     }
 }

@@ -146,7 +146,9 @@ public abstract class DwellingPlace {
      * recursive, unlike getPopulation)
      */
     public long getDirectPopulation(@NonNull LocalDate onDate) {
-        return householdPeriods.stream().mapToLong(h -> h.getHousehold().getPopulation(onDate)).sum();
+        return householdPeriods.stream()
+                .filter(hp -> hp.contains(onDate))
+                .mapToLong(hp -> hp.getHousehold().getPopulation(onDate)).sum();
     }
 
     /**
@@ -310,6 +312,15 @@ public abstract class DwellingPlace {
                 .filter(h -> h.getAllResidents(onDate).isEmpty())
                 .sorted(Comparator.comparing(DwellingPlace::getNullSafeValue).reversed())
                 .map(d -> (Dwelling) d)
+                .collect(Collectors.toList());
+    }
+
+    @NonNull
+    public List<DwellingPlace> getUnownedHousesEstatesAndFarms(@NonNull LocalDate onDate) {
+        return getRecursiveDwellingPlaces().stream()
+                .filter(p -> p.isHouse() || p.isEstateOrFarm())
+                .filter(h -> h.getOwners(onDate).isEmpty())
+                .sorted(Comparator.comparing(DwellingPlace::getNullSafeValue).reversed())
                 .collect(Collectors.toList());
     }
 

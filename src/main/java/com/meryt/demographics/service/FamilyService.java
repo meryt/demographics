@@ -14,6 +14,7 @@ import com.meryt.demographics.domain.place.Dwelling;
 import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.HouseholdLocationPeriod;
+import com.meryt.demographics.domain.place.Parish;
 import com.meryt.demographics.repository.FamilyRepository;
 
 @Service
@@ -105,11 +106,16 @@ public class FamilyService {
 
     Family setupMarriage(@NonNull Family family, @NonNull LocalDate weddingDate, boolean moveAwayIfHusbandNonResident) {
 
-        Household husbandsHousehold = moveWifeAndStepchildrenToHusbandsHousehold(family);
-        findResidenceForNewFamily(family, husbandsHousehold, moveAwayIfHusbandNonResident);
-
         // If a first-time bride has living parents, they should give her some money.
         applyMarriageSettlements(family.getWife(), weddingDate);
+
+        if (moveAwayIfHusbandNonResident && family.getHusband().getResidence(weddingDate) == null &&
+                family.getWife().getResidence(weddingDate) == null) {
+            log.info("Not creating household. Neither family member lives in the parishes.");
+        } else {
+            Household husbandsHousehold = moveWifeAndStepchildrenToHusbandsHousehold(family);
+            findResidenceForNewFamily(family, husbandsHousehold, moveAwayIfHusbandNonResident);
+        }
 
         return family;
     }
@@ -154,14 +160,16 @@ public class FamilyService {
     }
 
     /**
-     * Combines the households. The wife and any of her children always join the man's household.
+     * Find a residence for the new couple.
+     *
      * @param family the newly wedded family
      * @param mansHousehold the household of the man
      * @param moveAwayIfHusbandNonResident if true, and the husband is not a resident of any dwelling place, and the
      *                                     wife is neither a property owner nor employed, then move the household will
      *                                     not be moved anywhere
      */
-    private void findResidenceForNewFamily(@NonNull Family family, @NonNull Household mansHousehold,
+    private void findResidenceForNewFamily(@NonNull Family family,
+                                           @NonNull Household mansHousehold,
                                            boolean moveAwayIfHusbandNonResident) {
         LocalDate date = family.getWeddingDate();
         Person man = family.getHusband();
@@ -177,7 +185,8 @@ public class FamilyService {
         if (husbandsCurrentHouse == null && moveAwayIfHusbandNonResident &&
                 wife.getOwnedDwellingPlaces(date).isEmpty()
                 && wife.getOccupation(date) == null) {
-            log.info("Moving new family away from the parishes, as the husband is not a resident.");
+            log.info("Moving new family away from the parishes, as the husband is not a resident, and the wife is " +
+                    "unemployed and owns no property.");
             return;
         }
 
@@ -230,7 +239,9 @@ public class FamilyService {
         LocalDate date = family.getWeddingDate();
         Person man = family.getHusband();
         Person wife = family.getWife();
-        DwellingPlace wifesFormerHouse = wife.getResidence(date);
+        // She has already moved to the husband's household so we need to get the house of the household she lived in
+        // the day before her marriage.
+        DwellingPlace wifesFormerHouse = wife.getResidence(date.minusDays(1));
         DwellingPlace husbandsCurrentHouse = man.getResidence(date);
         DwellingPlace residence;
         // If one of the residences is null, they will live in the one that is not.
@@ -260,6 +271,13 @@ public class FamilyService {
                         : husbandsCurrentHouse;
             }
         }
+
+        if (residence != null) {
+            // If the selected residence is not owned by either of the two people, they may buy a new house instead.
+            Parish parish = residence.getParish();
+
+        }
+
         return residence;
     }
 

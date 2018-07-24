@@ -84,6 +84,9 @@ public interface PersonRepository extends PagingAndSortingRepository<Person, Lon
             "WHERE p.gender = 'FEMALE' " +
             "AND p.maternity.lastCheckDate < :check_date " +
             "AND p.deathDate > p.maternity.lastCheckDate " +
+            "AND (p.maternity.conceptionDate IS NOT NULL OR p.maternity.father IS NOT NULL) " +
+            "AND YEAR(CAST(:check_date AS date)) - YEAR(p.birthDate) >= 13 " +
+            "AND YEAR(CAST(:check_date AS date)) - YEAR(p.birthDate) <= 55 " +
             "ORDER BY p.birthDate")
     List<Person> findWomenWithPendingMaternities(@NonNull @Param("check_date") LocalDate checkDate);
 

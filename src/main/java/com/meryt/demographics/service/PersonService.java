@@ -91,17 +91,21 @@ public class PersonService {
     List<Person> findUnmarriedPeople(@NonNull LocalDate checkDate,
                                      int minHusbandAge,
                                      int maxHusbandAge,
+                                     int minWifeAge,
+                                     int maxWifeAge,
                                      boolean residentsOnly,
                                      @Nullable Gender gender) {
-        List<Person> results = personRepository.findUnmarriedPeople(checkDate, checkDate.minusYears(maxHusbandAge),
-                checkDate.minusYears(minHusbandAge), gender);
-        if (residentsOnly) {
-            return results.stream()
-                    .filter(p -> p.getResidence(checkDate) != null)
-                    .collect(Collectors.toList());
-        } else {
-            return results;
-        }
+        int minAge = Math.min(minHusbandAge, minWifeAge);
+        int maxAge = Math.max(maxHusbandAge, maxWifeAge);
+        List<Person> results = personRepository.findUnmarriedPeople(checkDate, checkDate.minusYears(maxAge),
+                checkDate.minusYears(minAge), gender);
+        return results.stream()
+                .filter(p -> (p.isFemale()
+                                && p.getAgeInYears(checkDate) >= minWifeAge && p.getAgeInYears(checkDate) <= maxWifeAge)
+                          || (p.isMale()
+                                && p.getAgeInYears(checkDate) >= minHusbandAge && p.getAgeInYears(checkDate) <= maxHusbandAge))
+                .filter(p -> !residentsOnly || p.getResidence(checkDate) != null)
+                .collect(Collectors.toList());
     }
 
     @NonNull

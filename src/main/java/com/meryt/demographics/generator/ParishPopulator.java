@@ -131,7 +131,7 @@ class ParishPopulator {
         return childHouseholdPopulation + household.getPopulation(familyParameters.getReferenceDate());
     }
 
-    void createHouseholdToFillOccupation(@NonNull RandomFamilyParameters familyParameters,
+    Household createHouseholdToFillOccupation(@NonNull RandomFamilyParameters familyParameters,
                                          @NonNull DwellingPlace town,
                                          @NonNull Occupation occupation) {
         familyParameters.setMinSocialClass(occupation.getMinClass());
@@ -154,7 +154,7 @@ class ParishPopulator {
                 .collect(Collectors.toList());
         if (inhabitants.isEmpty()) {
             log.warn("Unable to find a person of the appropriate gender to be a " + occupation.getName());
-            return;
+            return null;
         }
 
         Person person = inhabitants.get(0);
@@ -171,6 +171,7 @@ class ParishPopulator {
 
         dwellingPlaceService.save(town);
         householdService.save(household);
+        return household;
     }
 
     /**

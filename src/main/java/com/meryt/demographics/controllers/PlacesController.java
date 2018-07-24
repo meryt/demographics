@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.PersonTitlePeriod;
 import com.meryt.demographics.domain.place.Dwelling;
@@ -155,6 +154,15 @@ public class PlacesController {
         for (DwellingPlace parish : dwellingPlaceService.loadByType(DwellingPlaceType.PARISH)) {
             houses.addAll(parish.getEmptyHouses(date));
         }
+        return houses.stream()
+                .map(h -> new DwellingPlaceResponse(h, date))
+                .collect(Collectors.toList());
+    }
+
+    @RequestMapping(value = "/api/places/unowned", method = RequestMethod.GET)
+    public List<DwellingPlaceResponse> getUnownedHousesEstatesAndFarms(@RequestParam(value = "onDate") String onDate) {
+        final LocalDate date = controllerHelperService.parseDate(onDate);
+        List<DwellingPlace> houses = dwellingPlaceService.getUnownedHousesEstatesAndFarms(date);
         return houses.stream()
                 .map(h -> new DwellingPlaceResponse(h, date))
                 .collect(Collectors.toList());

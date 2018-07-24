@@ -1,11 +1,9 @@
 package com.meryt.demographics.service;
 
 import java.time.LocalDate;
-import java.util.Comparator;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 import javax.annotation.Nullable;
-
 import lombok.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -14,7 +12,6 @@ import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.DwellingPlaceOwnerPeriod;
 import com.meryt.demographics.domain.place.DwellingPlaceType;
-import com.meryt.demographics.domain.place.Parish;
 import com.meryt.demographics.repository.DwellingPlaceRepository;
 import com.meryt.demographics.response.calendar.PropertyTransferEvent;
 
@@ -44,6 +41,36 @@ public class DwellingPlaceService {
 
     public List<DwellingPlace> loadByType(DwellingPlaceType type) {
         return dwellingPlaceRepository.findByType(type);
+    }
+
+    public List<DwellingPlace> loadByName(@NonNull String name) {
+        return dwellingPlaceRepository.findByName(name);
+    }
+
+    public List<DwellingPlace> getUnownedHousesEstatesAndFarms(@NonNull LocalDate onDate) {
+        List<DwellingPlace> houses = new ArrayList<>();
+        for (DwellingPlace parish : loadByType(DwellingPlaceType.PARISH)) {
+            houses.addAll(parish.getUnownedHousesEstatesAndFarms(onDate));
+        }
+        return houses;
+    }
+
+    private List<DwellingPlace> getPlacesAttachedToParents() {
+        return dwellingPlaceRepository.findByParentIsNotNullAndAttachedToParentIsTrue();
+    }
+
+    List<DwellingPlace> getPlacesSeparatedFromParents(@NonNull LocalDate onDate) {
+        List<DwellingPlace> results = new ArrayList<>();
+        for (DwellingPlace place : getPlacesAttachedToParents()) {
+            if (place.getOwners(onDate) != null && place.getParent().getOwners(onDate) == null) {
+                results.add(place);
+            } else if (place.getOwners(onDate) == null && place.getParent().getOwners(onDate) != null) {
+                results.add(place);
+            } else if (!place.getOwners(onDate).containsAll(place.getParent().getOwners(onDate))) {
+                results.add(place);
+            }
+        }
+        return results;
     }
 
     /**
@@ -97,4 +124,5 @@ public class DwellingPlaceService {
 
         return new PropertyTransferEvent(onDate, place, currentOwners);
     }
+
 }

@@ -1,6 +1,7 @@
 package com.meryt.demographics.request;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.Getter;
 import lombok.NonNull;
@@ -32,6 +33,7 @@ public class AdvanceToDatePost {
     private Double chanceNewFamilyPerYear;
 
     private List<String> suppressedEventTypes;
+    private List<String> farmNames;
 
     public void validate() {
         if (date == null && advanceDays == null) {
@@ -60,5 +62,9 @@ public class AdvanceToDatePost {
     public boolean isSuppressedEventType(@NonNull CalendarDayEvent event) {
         return suppressedEventTypes != null && !suppressedEventTypes.isEmpty()
                 && suppressedEventTypes.contains(event.getType().name());
+    }
+
+    public List<String> getFarmNamesOrDefault() {
+        return farmNames == null ? new ArrayList<>() : farmNames;
     }
 }

@@ -99,13 +99,11 @@ public class HouseholdDwellingPlaceService {
                                             @NonNull LocalDate fromDate,
                                             LocalDate toDate) {
         List<HouseholdLocationPeriod> periodsToDelete = new ArrayList<>();
+        List<HouseholdLocationPeriod> periodsToCap = new ArrayList<>();
         for (HouseholdLocationPeriod period : household.getDwellingPlaces()) {
             if (period.getFromDate().isBefore(fromDate) &&
                     (period.getToDate() == null || period.getToDate().isAfter(fromDate))) {
-                period.setToDate(fromDate);
-                period = householdService.save(period);
-                household = householdService.save(household);
-                period.setDwellingPlace(dwellingPlaceService.save(period.getDwellingPlace()));
+                periodsToCap.add(period);
             }  else if (period.getFromDate().equals(fromDate) && (
                     (period.getToDate() == null && toDate == null)
                             || (period.getToDate().equals(toDate)))) {
@@ -115,7 +113,6 @@ public class HouseholdDwellingPlaceService {
                     oldDwellingPlace.getHouseholdPeriods().remove(period);
                     dwellingPlaceService.save(oldDwellingPlace);
                     period.setDwellingPlace(dwellingPlace);
-                    //householdLocationRepository.save(period);
                     householdService.save(household);
                     householdService.save(period);
                 }
@@ -124,6 +121,13 @@ public class HouseholdDwellingPlaceService {
                 // If this is an open-ended date range, we should delete any future locations for this household
                 periodsToDelete.add(period);
             }
+        }
+
+        for (HouseholdLocationPeriod period : periodsToCap) {
+            period.setToDate(fromDate);
+            period = householdService.save(period);
+            household = householdService.save(household);
+            period.setDwellingPlace(dwellingPlaceService.save(period.getDwellingPlace()));
         }
 
         for (HouseholdLocationPeriod periodToDelete : periodsToDelete) {
@@ -449,7 +453,7 @@ public class HouseholdDwellingPlaceService {
      * @return the new farm (or existing farm if it is already on a farm) or null if none could be created.
      */
     @Nullable
-    Farm convertRuralHouseToFarm(@NonNull Dwelling house, @NonNull LocalDate onDate) {
+    Farm convertRuralHouseToFarm(@NonNull Dwelling house, @NonNull LocalDate onDate, @NonNull List<String> farmNames) {
         if (house.getParent() == null) {
             return null;
         }
@@ -472,14 +476,30 @@ public class HouseholdDwellingPlaceService {
         }
 
         Farm farm = new Farm();
-        farm.setName(farmer.getLastName() + " Farm");
+        if (farmer.getLastName() != null) {
+            farm.setName(farmer.getLastName() + " Farm");
+        } else if (!farmNames.isEmpty()) {
+            // If the owner has no last name and we have some potential farm names, try to find one that is unused.
+            Collections.shuffle(farmNames);
+            for (String farmName : farmNames) {
+                List<DwellingPlace> placesWithName = dwellingPlaceService.loadByName(farmName + " Farm");
+                if (placesWithName == null || placesWithName.isEmpty()) {
+                    farm.setName(farmName + " Farm");
+                    break;
+                }
+            }
+        }
         double value = WealthGenerator.getRandomLandValue(farmer.getSocialClass());
         farm.setValue(value);
         farmer.addCapital(value * -1, onDate);
         personService.save(farmer);
 
         dwellingPlaceService.save(farm);
-        farm.addOwner(farmer, onDate, farmer.getDeathDate());
+        if (house.getOwners(onDate).isEmpty()) {
+            house.addOwner(farmer, onDate, farmer.getDeathDate());
+        }
+        house.getOwners(onDate).forEach(o -> farm.addOwner(o, onDate, o.getDeathDate()));
+
         house.getParent().addDwellingPlace(farm);
         dwellingPlaceService.save(house.getParent());
 
