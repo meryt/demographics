@@ -353,17 +353,18 @@ public class Person {
         if (father == null) {
             return false;
         }
-        List<Person> legitimateChildren = father.getLegitimateChildren();
-        legitimateChildren.sort(Comparator.comparing(Person::getBirthDate));
         LocalDate fatherDeathDate = father.getDeathDate();
         if (fatherDeathDate == null) {
             return false;
         }
+        List<Person> legitimateChildren = father.getLegitimateChildren();
+        legitimateChildren.sort(Comparator.comparing(Person::getBirthDate));
         List<Person> legitimateMalesSurvivingFather = legitimateChildren.stream()
+                .sorted(Comparator.comparing(Person::getBirthDate))
                 .filter(Person::isMale)
                 .filter(p -> p.getDeathDate() != null && (onDate != null ? p.isLiving(onDate) : p.getDeathDate().isAfter(fatherDeathDate)))
                 .collect(Collectors.toList());
-        return !legitimateMalesSurvivingFather.isEmpty() && legitimateChildren.get(0).getId() == getId();
+        return !legitimateMalesSurvivingFather.isEmpty() && legitimateMalesSurvivingFather.get(0).equals(this);
     }
 
     public boolean isSibling(@NonNull Person person) {

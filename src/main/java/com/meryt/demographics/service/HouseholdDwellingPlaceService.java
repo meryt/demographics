@@ -218,9 +218,9 @@ public class HouseholdDwellingPlaceService {
         }
     }
 
-    public List<CalendarDayEvent> buyOrCreateHouseForHousehold(@NonNull Parish parish,
-                                                         @NonNull Household household,
-                                                         @NonNull LocalDate date) {
+    public List<CalendarDayEvent> buyOrCreateOrMoveIntoEmptyHouseForHousehold(@NonNull Parish parish,
+                                                                              @NonNull Household household,
+                                                                              @NonNull LocalDate date) {
         List<CalendarDayEvent> results = new ArrayList<>();
 
         Person head = household.getHead(date);
@@ -230,50 +230,72 @@ public class HouseholdDwellingPlaceService {
 
         double capital = head.getCapital(date) == null ? 0.0 : head.getCapital(date);
 
-        List<DwellingPlace> buyableHouses = parish.getEmptyHouses(date).stream()
+        List<Dwelling> emptyHouses = parish.getEmptyHouses(date);
+        List<Dwelling> buyableHouses = emptyHouses.stream()
                 .filter(h -> h.getNullSafeValueIncludingAttachedParent() < capital)
                 .collect(Collectors.toList());
+
         if (buyableHouses.isEmpty()) {
-            // Find a dwelling place in the parish. May purchase if there is an empty one, or build a new
-            // house, or...?
-            List<DwellingPlace> towns = new ArrayList<>(parish.getRecursiveDwellingPlaces(
-                    DwellingPlaceType.TOWN));
-            DwellingPlace townOrParish;
-            if (towns.isEmpty()) {
-                townOrParish = parish;
+            if (!emptyHouses.isEmpty()) {
+                Collections.shuffle(emptyHouses);
+                Dwelling house = emptyHouses.get(0);
+                List<Person> owners = house.getOwners(date);
+                log.info(String.format("Household is moving into empty house in %s owned by %s",
+                        house.getLocationString(), owners.isEmpty()
+                                ? "nobody"
+                                : owners.get(0).getId() + " " + owners.get(0).getName()));
+                addToDwellingPlace(household, house, date, null);
+                return results;
             } else {
-                int whichTown = new BetweenDie().roll(1, towns.size() + 1);
-                if (whichTown > towns.size()) {
-                    // add ot parish
+                // Find a dwelling place in the parish. May purchase if there is an empty one, or build a new
+                // house, or...?
+                List<DwellingPlace> towns = new ArrayList<>(parish.getRecursiveDwellingPlaces(
+                        DwellingPlaceType.TOWN));
+                DwellingPlace townOrParish;
+                if (towns.isEmpty()) {
                     townOrParish = parish;
                 } else {
-                    Collections.shuffle(towns);
-                    townOrParish = towns.get(0);
+                    int whichTown = new BetweenDie().roll(1, towns.size() + 1);
+                    if (whichTown > towns.size()) {
+                        // add ot parish
+                        townOrParish = parish;
+                    } else {
+                        Collections.shuffle(towns);
+                        townOrParish = towns.get(0);
+                    }
                 }
-            }
-            // Either build a house or move into an existing household depending on the social class
-            addToDwellingPlace(household, townOrParish, date, null);
-            DwellingPlace newHouse = moveHomelessHouseholdIntoHouse(household,
-                    date, date);
-            if (newHouse != null) {
-                List<Person> owners = newHouse.getOwners(date);
-                if (newHouse instanceof Dwelling && owners != null && owners.contains(head)) {
-                    results.add(new NewHouseEvent(date, newHouse));
-                    return results;
+                // Either build a house or move into an existing household depending on the social class
+                addToDwellingPlace(household, townOrParish, date, null);
+                DwellingPlace newHouse = moveHomelessHouseholdIntoHouse(household,
+                        date, date);
+                if (newHouse != null) {
+                    List<Person> owners = newHouse.getOwners(date);
+                    if (newHouse instanceof Dwelling && owners != null && owners.contains(head)) {
+                        results.add(new NewHouseEvent(date, newHouse));
+                        return results;
+                    }
                 }
             }
         } else {
             DwellingPlace house = buyableHouses.get(0);
-            if (house.isAttachedToParent() && house.getParent() != null) {
-                DwellingPlace parent = house.getParent();
-                dwellingPlaceService.buyDwellingPlace(parent, head, date);
-                results.add(new PropertyTransferEvent(date, parent, parent.getOwners(date.minusDays(1))));
-            }
-            dwellingPlaceService.buyDwellingPlace(house, head, date);
-            house = addToDwellingPlace(household, house, date, null);
-            results.add(new PropertyTransferEvent(date, house, house.getOwners(date.minusDays(1))));
+            results.addAll(buyAndMoveIntoHouse((Dwelling) house, head, date));
         }
 
+        return results;
+    }
+
+    List<PropertyTransferEvent> buyAndMoveIntoHouse(@NonNull Dwelling house,
+                                                    @NonNull Person buyer,
+                                                    @NonNull LocalDate date) {
+        List<PropertyTransferEvent> results = new ArrayList<>();
+        if (house.isAttachedToParent() && house.getParent() != null) {
+            DwellingPlace parent = house.getParent();
+            dwellingPlaceService.buyDwellingPlace(parent, buyer, date);
+            results.add(new PropertyTransferEvent(date, parent, parent.getOwners(date.minusDays(1))));
+        }
+        dwellingPlaceService.buyDwellingPlace(house, buyer, date);
+        house = (Dwelling) addToDwellingPlace(buyer.getHousehold(date), house, date, null);
+        results.add(new PropertyTransferEvent(date, house, house.getOwners(date.minusDays(1))));
         return results;
     }
 
@@ -306,6 +328,7 @@ public class HouseholdDwellingPlaceService {
         house = (Dwelling) addToDwellingPlace(household, house, moveInDate, null);
         if (head != null) {
             house.addOwner(head, moveInDate, head.getDeathDate());
+            house = (Dwelling) dwellingPlaceService.save(house);
         }
         log.info(String.format("Moved %s into new house in %s", household.getFriendlyName(moveInDate),
                 (dwellingPlace.getName() == null ? "a " + dwellingPlace.getType() : dwellingPlace.getName())));

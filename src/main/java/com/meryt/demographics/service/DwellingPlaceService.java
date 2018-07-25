@@ -2,6 +2,7 @@ package com.meryt.demographics.service;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import javax.annotation.Nullable;
 import lombok.NonNull;
@@ -52,6 +53,7 @@ public class DwellingPlaceService {
         for (DwellingPlace parish : loadByType(DwellingPlaceType.PARISH)) {
             houses.addAll(parish.getUnownedHousesEstatesAndFarms(onDate));
         }
+        houses.sort(Comparator.comparing(DwellingPlace::getId));
         return houses;
     }
 

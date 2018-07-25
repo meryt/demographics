@@ -15,12 +15,14 @@ import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.family.Relationship;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.PersonCapitalPeriod;
+import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.domain.place.Dwelling;
 import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.DwellingPlaceType;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.Parish;
 import com.meryt.demographics.domain.title.Title;
+import com.meryt.demographics.generator.WealthGenerator;
 import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.request.RandomFamilyParameters;
 import com.meryt.demographics.response.calendar.CalendarDayEvent;
@@ -91,6 +93,13 @@ public class InheritanceService {
             log.info(String.format("%d %s (%s) received %.2f on %s", heir.getId(), heir.getName(),
                     (relationship == null ? "no relation" : relationship.getName()), cashPerPerson, onDate));
             heir.addCapital(cashPerPerson, onDate);
+            SocialClass newSocialClass = WealthGenerator.getSocialClassForInheritance(heir.getSocialClass(), cashPerPerson);
+            if (newSocialClass.getRank() > heir.getSocialClass().getRank()) {
+                log.info(String.format("%d %s has increased in rank from %s to %s", heir.getId(), heir.getName(),
+                        heir.getSocialClass().getFriendlyName(), newSocialClass.getFriendlyName()));
+                heir.setSocialClass(newSocialClass);
+            }
+
             personService.save(heir);
         }
     }
@@ -342,7 +351,7 @@ public class InheritanceService {
                 log.info(String.format("%d %s is evicting current household from house", newOwner.getId(),
                         newOwner.getName()));
 
-                return householdDwellingPlaceService.buyOrCreateHouseForHousehold((Parish) parish,
+                return householdDwellingPlaceService.buyOrCreateOrMoveIntoEmptyHouseForHousehold((Parish) parish,
                         oldHousehold, onDate);
             }
         }

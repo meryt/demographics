@@ -1,6 +1,9 @@
 package com.meryt.demographics.service;
 
 import java.time.LocalDate;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import lombok.NonNull;
@@ -147,10 +150,11 @@ public class FamilyService {
         Person wife = family.getWife();
 
         Household mansHousehold = man.getHousehold(date);
-        if (mansHousehold == null) {
+        if (mansHousehold == null || !man.equals(mansHousehold.getHead(date))) {
             mansHousehold = new Household();
             man = householdService.addPersonToHousehold(man, mansHousehold, date, true);
             personService.save(man);
+            householdService.addChildrenToHousehold(man, mansHousehold, date).forEach(personService::save);
         }
         wife = householdService.addPersonToHousehold(wife, mansHousehold, date, false);
         personService.save(wife);
@@ -190,13 +194,13 @@ public class FamilyService {
             return;
         }
 
-        DwellingPlace residence = selectResidenceForNewFamily(family);
+        DwellingPlace residence = selectResidenceForNewFamily(family, mansHousehold);
         if (residence == null) {
             return;
         }
 
         // If the husband is not living in the new residence move him there.
-        if (!residence.equals(husbandsCurrentHouse)) {
+        if (!residence.equals(man.getResidence(date))) {
             residence = householdDwellingPlaceService.addToDwellingPlace(mansHousehold, residence, date, null);
         }
 
@@ -235,7 +239,7 @@ public class FamilyService {
     }
 
     @Nullable
-    private DwellingPlace selectResidenceForNewFamily(@NonNull Family family) {
+    private DwellingPlace selectResidenceForNewFamily(@NonNull Family family, @NonNull Household mansHousehold) {
         LocalDate date = family.getWeddingDate();
         Person man = family.getHusband();
         Person wife = family.getWife();
@@ -272,10 +276,48 @@ public class FamilyService {
             }
         }
 
-        if (residence != null) {
+        if (residence.getOwners(date).contains(family.getHusband())
+                || residence.getOwners(date).contains(family.getWife())) {
+            return residence;
+        }
+
+        if (residence.getParish() != null) {
             // If the selected residence is not owned by either of the two people, they may buy a new house instead.
             Parish parish = residence.getParish();
+            Person richerSpouse = family.getHusband().getCapitalNullSafe(date) > family.getWife().getCapitalNullSafe(date)
+                    ? family.getHusband()
+                    : family.getWife();
+            double capital = richerSpouse.getCapitalNullSafe(date);
+            List<Dwelling> emptyHouses = parish.getEmptyHouses(date);
+            Dwelling buyableHouse = emptyHouses.stream()
+                    .filter(h -> h.getNullSafeValueIncludingAttachedParent() < capital)
+                    .max(Comparator.comparing(Dwelling::getNullSafeValueIncludingAttachedParent))
+                    .orElse(null);
 
+            if (buyableHouse != null && (buyableHouse.getOwners(date).contains(family.getWife())
+                    || buyableHouse.getOwners(date).contains(family.getHusband()))) {
+                return buyableHouse;
+            }
+
+            if (buyableHouse != null) {
+                log.info(String.format("%d %s is buying a house %d in %s on %s", richerSpouse.getId(),
+                        richerSpouse.getName(), buyableHouse.getId(), buyableHouse.getLocationString(), date));
+                householdDwellingPlaceService.buyAndMoveIntoHouse(buyableHouse, richerSpouse, date);
+                return buyableHouse;
+            }
+
+            if (!emptyHouses.isEmpty()) {
+                Collections.shuffle(emptyHouses);
+                Dwelling house = emptyHouses.get(0);
+                List<Person> owners = house.getOwners(date);
+                log.info(String.format("%d %s's new family is moving into empty house in %s owned by %s",
+                        family.getHusband().getId(), family.getHusband().getName(),
+                        house.getLocationString(), owners.isEmpty()
+                                ? "nobody"
+                                : owners.get(0).getId() + " " + owners.get(0).getName()));
+                householdDwellingPlaceService.addToDwellingPlace(mansHousehold, house, date, null);
+                return house;
+            }
         }
 
         return residence;

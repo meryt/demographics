@@ -69,34 +69,34 @@ public class SocialClassService {
                                                                 boolean forceCalculation,
                                                                 Person child,
                                                                 LocalDate onDate) {
-        SocialClass fathers = getCalculatedSocialClass(father, forceCalculation, onDate);
-        if (fathers == null) {
+        SocialClass fathersClass = getCalculatedSocialClass(father, forceCalculation, onDate);
+        if (fathersClass == null) {
             return null;
         }
         // If father and grandfather are both gentlemen, child remains a gentleman.
-        if (fathers == SocialClass.GENTLEMAN) {
+        if (fathersClass == SocialClass.GENTLEMAN) {
             Family fathersFamily = father.getFamily();
             Person grandfather = fathersFamily == null ? null : fathersFamily.getHusband();
             if (grandfather == null) {
-                return getChildSocialClassFromFather(father, fathers, child, onDate);
+                return getChildSocialClassFromFather(fathersClass, child, onDate);
             } else {
                 SocialClass grandfathers = getCalculatedSocialClass(grandfather, forceCalculation, onDate);
                 if (grandfathers.getRank() >= SocialClass.GENTLEMAN.getRank()) {
                     return SocialClass.GENTLEMAN;
                 } else {
-                    return getChildSocialClassFromFather(father, fathers, child, onDate);
+                    return getChildSocialClassFromFather(fathersClass, child, onDate);
                 }
             }
         }
 
         // If the father has a high nobility, the child loses 1 point unless firstborn
-        else if (fathers.getRank() > SocialClass.GENTLEMAN.getRank()) {
-            return getChildSocialClassFromFather(father, fathers, child, onDate);
+        else if (fathersClass.getRank() > SocialClass.GENTLEMAN.getRank()) {
+            return getChildSocialClassFromFather(fathersClass, child, onDate);
         }
 
         // Otherwise if father is lowborn, child is at same rank
         else {
-            return fathers;
+            return fathersClass;
         }
     }
 
@@ -104,24 +104,18 @@ public class SocialClassService {
      * Get the child's social class based on the father's. If the is the firstborn living son, he has the same social
      * class, otherwise is minus one.
      *
-     * @param father the child's father
      * @param fathersCalculatedClass the calculated class for the father
      * @param child optionally include the child since we may need to know whether he is the firstborn son
      * @param onDate optionally pass in a date for determining whether he is firstborn surviving son
      * @return the calculated child's class based only on the father's
      */
-    private SocialClass getChildSocialClassFromFather(@NonNull Person father,
-                                                      @NonNull SocialClass fathersCalculatedClass,
+    private SocialClass getChildSocialClassFromFather(@NonNull SocialClass fathersCalculatedClass,
                                                       Person child,
                                                       LocalDate onDate) {
-        if (child == null) {
+        if (child == null || onDate == null || !child.isFirstbornSurvivingSonOfFather(onDate)) {
             return fathersCalculatedClass.minusOne();
-        } else if (onDate != null && father.isLiving(onDate)) {
-            return fathersCalculatedClass.minusOne();
-        } else if (child.isFirstbornSurvivingSonOfFather(onDate)) {
-            return fathersCalculatedClass;
         } else {
-            return fathersCalculatedClass.minusOne();
+            return fathersCalculatedClass;
         }
     }
 

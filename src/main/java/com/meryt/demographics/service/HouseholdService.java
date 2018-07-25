@@ -2,6 +2,7 @@ package com.meryt.demographics.service;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -227,6 +228,19 @@ public class HouseholdService {
         }
 
         return person;
+    }
+
+    public List<Person> addChildrenToHousehold(@NonNull Person parent,
+                                               @NonNull Household household,
+                                               @NonNull LocalDate onDate) {
+        List<Person> movedChildren = new ArrayList<>();
+        for (Person child : parent.getLivingChildren(onDate)) {
+            if (child.getFamilies().isEmpty() && child.getAgeInYears(onDate) < 16
+                    && !household.equals(child.getHousehold(onDate))) {
+                movedChildren.add(addPersonToHousehold(child, household, onDate, false));
+            }
+        }
+        return movedChildren;
     }
 
     public List<Person> addStepchildrenToHousehold(@NonNull Person stepParent,

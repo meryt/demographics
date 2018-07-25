@@ -143,12 +143,12 @@ public class HouseholdController {
         }
 
         if (specificPlace instanceof Parish) {
-            householdDwellingPlaceService.buyOrCreateHouseForHousehold((Parish) specificPlace, household, onDate);
+            householdDwellingPlaceService.buyOrCreateOrMoveIntoEmptyHouseForHousehold((Parish) specificPlace, household, onDate);
         } else if (specificPlace instanceof Dwelling) {
             Parish parish = specificPlace.getParish();
             if (householdPlacePost.getEvictCurrentResidents()) {
                 for (Household evictedHousehold : specificPlace.getHouseholds(onDate)) {
-                    List<CalendarDayEvent> events = householdDwellingPlaceService.buyOrCreateHouseForHousehold(parish,
+                    List<CalendarDayEvent> events = householdDwellingPlaceService.buyOrCreateOrMoveIntoEmptyHouseForHousehold(parish,
                             evictedHousehold, onDate);
                     if (!events.isEmpty()) {
                         events.forEach(e -> log.info(e.toLogMessage()));

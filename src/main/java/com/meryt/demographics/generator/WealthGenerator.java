@@ -131,6 +131,33 @@ public class WealthGenerator {
         }
     }
 
+    /**
+     * Use this method to determine whether a person can rise in a social class when inheriting a large amount of
+     * capital. A person can rise at most once per inheritance.
+     *
+     * @param inheritanceCapital the amount they are inheriting
+     * @return the new social class they might be a part of
+     */
+    public static SocialClass getSocialClassForInheritance(@NonNull SocialClass currentSocialClass,
+                                                           double inheritanceCapital) {
+        if (currentSocialClass == SocialClass.MONARCH) {
+            return currentSocialClass;
+        }
+        for (int i = SocialClass.MONARCH.getRank(); i > 0; i--) {
+            SocialClass socialClass = SocialClass.fromRank(i);
+            // You have to have four times the highest value of the social class's upper bound. E.g. if a viscount can
+            // start with up to 200,000 then you need at least 800,000 to rise closer to the level of a viscount.
+            if (inheritanceCapital >= (getStartingCapitalValueRange(socialClass).getSecond() * 4)) {
+                if (socialClass.getRank() <= currentSocialClass.getRank() + 1) {
+                    return currentSocialClass;
+                } else {
+                    return SocialClass.fromRank(currentSocialClass.getRank() + 1);
+                }
+            }
+        }
+        return currentSocialClass;
+    }
+
     public static Pair<Integer, Integer> getYearlyIncomeValueRange(@NonNull SocialClass socialClass) {
         switch (socialClass) {
             case PAUPER:
