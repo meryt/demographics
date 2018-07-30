@@ -21,7 +21,6 @@ import com.meryt.demographics.generator.random.Die;
 import com.meryt.demographics.generator.random.PercentDie;
 import com.meryt.demographics.math.FunkyBetaDistribution;
 import com.meryt.demographics.request.PersonParameters;
-import com.meryt.demographics.service.FamilyService;
 import com.meryt.demographics.service.LifeTableService;
 import com.meryt.demographics.service.NameService;
 import com.meryt.demographics.service.SocialClassService;
@@ -48,18 +47,15 @@ public class PersonGenerator {
 
     private final NameService nameService;
     private final LifeTableService lifeTableService;
-    private final FamilyService familyService;
     private final TraitService traitService;
     private final SocialClassService socialClassService;
 
     PersonGenerator(@Autowired NameService nameService,
                     @Autowired LifeTableService lifeTableService,
-                    @Autowired FamilyService familyService,
                     @Autowired TraitService traitService,
                     @Autowired SocialClassService socialClassService) {
         this.nameService = nameService;
         this.lifeTableService = lifeTableService;
-        this.familyService = familyService;
         this.traitService = traitService;
         this.socialClassService = socialClassService;
     }

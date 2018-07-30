@@ -171,6 +171,9 @@ public abstract class DwellingPlace {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Recursively get all residents for this dwelling place and the dwelling places inside it
+     */
     public List<Person> getAllResidents(@NonNull LocalDate onDate) {
         return getAllHouseholds(onDate).stream()
                 .flatMap(h -> h.getInhabitants(onDate).stream())
@@ -343,6 +346,25 @@ public abstract class DwellingPlace {
         return (Parish) place;
     }
 
+    /**
+     * Get the town or parish this dwelling place is in.
+     *
+     * @return The parish or town it's in, if it is in a parish or town (recursively), or the current object if it is
+     * itself a parish or town, or null if it is not in a parish or town
+     */
+    @Nullable
+    public DwellingPlace getTownOrParish() {
+        if (this instanceof Parish || this instanceof Town) {
+            return this;
+        }
+        DwellingPlace place = this;
+        do {
+            place = place.getParent();
+        } while (place != null && !(place instanceof Parish || place instanceof Town));
+
+        return place;
+    }
+
     public void setEntailedTitle(@Nullable Title title) {
         if (entailedTitle != null) {
             entailedTitle.getEntailedProperties().remove(this);
@@ -351,6 +373,15 @@ public abstract class DwellingPlace {
             title.getEntailedProperties().add(this);
         }
         entailedTitle = title;
+    }
+
+    @Override
+    public String toString() {
+        if (name == null) {
+            return String.format("%s %d in %s", getType().getFriendlyName(), getId(), getLocationString());
+        } else {
+            return String.format("%s %d %s in %s", getType().getFriendlyName(), getId(), getName(), getLocationString());
+        }
     }
 
 }

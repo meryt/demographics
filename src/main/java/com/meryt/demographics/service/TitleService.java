@@ -240,7 +240,7 @@ public class TitleService {
      */
     @NonNull
     List<Title> findTitlesForAbeyanceCheck(@NonNull LocalDate date) {
-        return titleRepository.findAllByNextAbeyanceCheckDateIsLessThanEqual(date);
+        return titleRepository.findAllByNextAbeyanceCheckDateIsLessThanEqualAndExtinctIsFalse(date);
     }
 
     @NonNull
@@ -252,6 +252,12 @@ public class TitleService {
         List<CalendarDayEvent> results = new ArrayList<>();
         List<Person> singleTitleHeirs = new ArrayList<>();
         for (PersonTitlePeriod period : person.getTitles(date.minusDays(1))) {
+
+            if (!person.getDeathDate().equals(period.getToDate())) {
+                period.setToDate(person.getDeathDate());
+                personService.save(person);
+            }
+
             Title title = period.getTitle();
             if (title.getTitleHolders().stream().anyMatch(p -> p.getFromDate().isAfter(date) || p.getFromDate().equals(date))) {
                 // The subsequent title holders have already been decided, so skip the title.

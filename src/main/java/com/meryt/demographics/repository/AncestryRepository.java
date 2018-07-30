@@ -1,21 +1,19 @@
 package com.meryt.demographics.repository;
 
-import javax.annotation.Nullable;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
-
+import javax.annotation.Nullable;
 import lombok.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
-import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import com.meryt.demographics.domain.family.AncestryRecord;
 import com.meryt.demographics.domain.family.LeastCommonAncestorRelationship;
+import com.meryt.demographics.repository.rowmappers.LeastCommonAncestorRelationshipMapper;
 
 @Repository
 public class AncestryRepository  {
@@ -46,7 +44,70 @@ public class AncestryRepository  {
                 return rec;
             });
         } catch (EmptyResultDataAccessException e) {
-            return null;
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * Gets all persons related to this person, living or dead
+     * @param personId the person (will be subject1 in the results
+     * @return 0 or more relationship records (the record relating a person to himself is not included)
+     */
+    @NonNull
+    public List<LeastCommonAncestorRelationship> getRelatives(long personId, @Nullable Long maxDistance) {
+        String query =
+                "WITH rels AS (" +
+                        "SELECT DISTINCT ON (subject_2) *, " +
+                        "(subject_1_distance + subject_2_distance) AS distance " +
+                        "FROM least_common_ancestors " +
+                        "WHERE subject_1 = :personId " +
+                        "AND subject_2 != :personId " +
+                        "AND (:maxDistance IS NULL OR (subject_1_distance + subject_2_distance <= :maxDistance)) " +
+                        "ORDER BY subject_2, (subject_1_distance + subject_2_distance)) " +
+                        "SELECT * FROM rels ORDER BY distance; ";
+
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        params.addValue("personId", personId);
+        params.addValue("maxDistance", maxDistance);
+        try {
+            return jdbcTemplate.query(query, params, new LeastCommonAncestorRelationshipMapper());
+        } catch (EmptyResultDataAccessException e) {
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * Gets all persons related to this person, living on the given date
+     * @param personId the person (will be subject1 in the results
+     * @param onDate the date used to determine whether the person is living
+     * @return 0 or more relationship records (the record relating a person to himself is not included)
+     */
+    @NonNull
+    public List<LeastCommonAncestorRelationship> getLivingRelatives(long personId,
+                                                                    @NonNull LocalDate onDate,
+                                                                    @Nullable Long maxDistance) {
+        String query =
+                "WITH relas AS (" +
+                        "SELECT DISTINCT ON (lca.subject_2) lca.*, " +
+                        "(lca.subject_1_distance + lca.subject_2_distance) AS distance " +
+                        "FROM least_common_ancestors lca " +
+                        "INNER JOIN persons p ON lca.subject_2 = p.id " +
+                        "WHERE lca.subject_1 = :personId " +
+                        "AND lca.subject_2 != :personId " +
+                        "AND p.birth_date <= CAST(:onDate AS DATE) " +
+                        "AND p.death_date > CAST(:onDate AS DATE) " +
+                        "AND (:maxDistance IS NULL OR (lca.subject_1_distance + lca.subject_2_distance <= :maxDistance)) " +
+                        "ORDER BY lca.subject_2, (lca.subject_1_distance + lca.subject_2_distance)) " +
+                        "SELECT * FROM relas ORDER BY distance ";
+
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        params.addValue("personId", personId);
+        params.addValue("onDate", onDate);
+        params.addValue("maxDistance", maxDistance);
+        try {
+            return jdbcTemplate.query(query, params, new LeastCommonAncestorRelationshipMapper());
+        } catch (EmptyResultDataAccessException e) {
+            return Collections.emptyList();
         }
     }
 
@@ -76,17 +137,7 @@ public class AncestryRepository  {
         params.addValue("person2Id", person2Id);
 
         try {
-            return jdbcTemplate.queryForObject(query, params, (rs, rowNum) -> {
-                LeastCommonAncestorRelationship rel = new LeastCommonAncestorRelationship();
-                rel.setSubject1(rs.getLong("subject_1"));
-                rel.setSubject2(rs.getLong("subject_2"));
-                rel.setLeastCommonAncestor(rs.getLong("least_common_ancestor"));
-                rel.setSubject1Via(rs.getString("subject_1_via"));
-                rel.setSubject2Via(rs.getString("subject_2_via"));
-                rel.setSubject1Distance(rs.getInt("subject_1_distance"));
-                rel.setSubject2Distance(rs.getInt("subject_2_distance"));
-                return rel;
-            });
+            return jdbcTemplate.queryForObject(query, params, new LeastCommonAncestorRelationshipMapper());
         } catch (EmptyResultDataAccessException e) {
             return null;
         }

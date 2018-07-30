@@ -349,6 +349,7 @@ public class GenerationService {
                 .filter(p -> p.getAgeInYears(p.getDeathDate()) > 13)
                 .collect(Collectors.toList())) {
             if (person.isMale()
+                    || !person.getTitles().isEmpty() // always write if person has a title
                     || hasNoPaternalLineToFounder(child)
                     || hasSameTitleAsFounder(child, founder)
                     || anyChildHasSameTitleAsFounder(child, founder, alreadyWrittenPersons)

@@ -35,7 +35,7 @@ import com.meryt.demographics.response.calendar.CalendarEventType;
 import com.meryt.demographics.response.calendar.DeathEvent;
 import com.meryt.demographics.response.calendar.EmploymentEvent;
 import com.meryt.demographics.response.calendar.MarriageEvent;
-import com.meryt.demographics.response.calendar.NewHouseEvent;
+import com.meryt.demographics.response.calendar.NewFarmEvent;
 import com.meryt.demographics.response.calendar.PropertyTransferEvent;
 import com.meryt.demographics.rest.BadRequestException;
 
@@ -201,7 +201,7 @@ public class CalendarService {
                                     Farm farm = householdDwellingPlaceService.convertRuralHouseToFarm(
                                             (Dwelling) dwellingPlace, date, farmNames);
                                     if (farm != null) {
-                                        dayResults.add(new NewHouseEvent(date, farm));
+                                        dayResults.add(new NewFarmEvent(date, farm));
                                     }
                                 }
                             }
@@ -266,7 +266,7 @@ public class CalendarService {
         return results;
     }
 
-    private Map<LocalDate, List<CalendarDayEvent>> processSingleDeath(@NonNull Person person, @NonNull LocalDate date) {
+    public Map<LocalDate, List<CalendarDayEvent>> processSingleDeath(@NonNull Person person, @NonNull LocalDate date) {
         Map<LocalDate, List<CalendarDayEvent>> results = new TreeMap<>();
         List<CalendarDayEvent> daysResults = new ArrayList<>();
         log.info(String.format("%d %s died on %s, aged %d", person.getId(), person.getName(), date,

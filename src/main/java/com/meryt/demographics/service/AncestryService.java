@@ -1,5 +1,6 @@
 package com.meryt.demographics.service;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import javax.annotation.Nullable;
@@ -36,10 +37,21 @@ public class AncestryService {
     }
 
     @NonNull
-    public List<AncestryRecord> getDescendants(long personId) {
+    List<AncestryRecord> getDescendants(long personId) {
         return ancestryRepository.getDescendants(personId);
     }
 
+    @NonNull
+    List<LeastCommonAncestorRelationship> getRelatives(long personId, @Nullable Long maxDistance) {
+        return ancestryRepository.getRelatives(personId, maxDistance);
+    }
+
+    @NonNull
+    List<LeastCommonAncestorRelationship> getLivingRelatives(long personId,
+                                                             @NonNull LocalDate onDate,
+                                                             @Nullable Long maxDistance) {
+        return ancestryRepository.getLivingRelatives(personId, onDate, maxDistance);
+    }
 
     /**
      * Calculate the relationship between two people. Considers marital and in-law relationships.

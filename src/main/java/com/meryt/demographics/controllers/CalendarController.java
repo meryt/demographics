@@ -5,12 +5,14 @@ import java.util.List;
 import java.util.Map;
 import lombok.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.request.AdvanceToDatePost;
 import com.meryt.demographics.response.calendar.CalendarDayEvent;
 import com.meryt.demographics.rest.BadRequestException;
@@ -44,6 +46,20 @@ public class CalendarController {
     @RequestMapping(value = "/api/calendar/currentDate", method = RequestMethod.GET)
     public LocalDate getCurrentDate() {
         return checkDateService.getCurrentDate();
+    }
+
+    /**
+     * Helper method to reprocess a person's death in case an error occurred during processing.
+     *
+     * This method is NOT completely idempotent; for example, cash will be redistributed every time it is called.
+     *
+     * @param personId the person whose death events need processing
+     * @return the events caused by their death
+     */
+    @RequestMapping(value = "/api/calendar/deaths/{personId}", method = RequestMethod.POST)
+    public Map<LocalDate, List<CalendarDayEvent>> processSingleDeath(@PathVariable(value = "personId") Long personId) {
+        Person person = controllerHelperService.loadPerson(personId);
+        return calendarService.processSingleDeath(person, person.getDeathDate());
     }
 
     @RequestMapping(value = "/api/calendar/currentDate", method = RequestMethod.POST)

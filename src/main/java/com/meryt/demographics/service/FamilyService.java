@@ -18,6 +18,7 @@ import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.HouseholdLocationPeriod;
 import com.meryt.demographics.domain.place.Parish;
+import com.meryt.demographics.generator.WealthGenerator;
 import com.meryt.demographics.repository.FamilyRepository;
 
 @Service
@@ -182,11 +183,11 @@ public class FamilyService {
         // She has already moved to the husband's household so we need to get the house of the household she lived in
         // the day before her marriage.
         DwellingPlace wifesFormerHouse = wife.getResidence(date.minusDays(1));
-        DwellingPlace husbandsCurrentHouse = man.getResidence(date);
+        DwellingPlace husbandsFormerHouse = man.getResidence(date.minusDays(1));
 
         // If the man is not a resident of the parishes, and the wife does not own a house or have a job, move the
         // household away from the parishes.
-        if (husbandsCurrentHouse == null && moveAwayIfHusbandNonResident &&
+        if (husbandsFormerHouse == null && moveAwayIfHusbandNonResident &&
                 wife.getOwnedDwellingPlaces(date).isEmpty()
                 && wife.getOccupation(date) == null) {
             log.info("Moving new family away from the parishes, as the husband is not a resident, and the wife is " +
@@ -206,9 +207,9 @@ public class FamilyService {
 
         // If one of the couple moved out of a dwelling place, it might be empty now, or contain only minors, or require
         // a new head of household.
-        DwellingPlace possiblyEmptyResidence = residence.equals(husbandsCurrentHouse)
+        DwellingPlace possiblyEmptyResidence = residence.equals(husbandsFormerHouse)
                 ? wifesFormerHouse
-                : husbandsCurrentHouse;
+                : husbandsFormerHouse;
         if (possiblyEmptyResidence == null || possiblyEmptyResidence.equals(residence)) {
             return;
         }
@@ -276,6 +277,7 @@ public class FamilyService {
             }
         }
 
+        // If the residence is already owned by one of the spouses, there is no need to move
         if (residence.getOwners(date).contains(family.getHusband())
                 || residence.getOwners(date).contains(family.getWife())) {
             return residence;
@@ -306,6 +308,22 @@ public class FamilyService {
                 return buyableHouse;
             }
 
+            double randomNewHouseValue = WealthGenerator.getRandomHouseValue(richerSpouse.getSocialClass());
+            if (capital > randomNewHouseValue) {
+                DwellingPlace placeToBuildHouse = residence.getTownOrParish();
+                if (placeToBuildHouse != null) {
+                    Dwelling house = householdDwellingPlaceService.moveFamilyIntoNewHouse(placeToBuildHouse, mansHousehold,
+                            date, randomNewHouseValue);
+                    richerSpouse.addCapital(-1.0 * randomNewHouseValue, date);
+                    personService.save(richerSpouse);
+                    log.info(String.format("%d %s's new family built a new house in %s, worth %.2f",
+                            family.getHusband().getId(), family.getHusband().getName(),
+                            placeToBuildHouse.getFriendlyName(),
+                            randomNewHouseValue));
+                    return house;
+                }
+            }
+
             if (!emptyHouses.isEmpty()) {
                 Collections.shuffle(emptyHouses);
                 Dwelling house = emptyHouses.get(0);
@@ -318,6 +336,9 @@ public class FamilyService {
                 householdDwellingPlaceService.addToDwellingPlace(mansHousehold, house, date, null);
                 return house;
             }
+
+            log.info(String.format("No empty houses are available in %s; new family will stay in %s",
+                    parish.getName(), (wifesFormerHouse == residence ? "wife's house" : "husband's house")));
         }
 
         return residence;

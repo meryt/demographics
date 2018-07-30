@@ -76,7 +76,7 @@ public class HouseholdDwellingPlaceService {
             if (dwellingPlace instanceof Dwelling) {
                 return addToDwellingPlace(household, dwellingPlace, moveInDate, null);
             } else {
-                return moveFamilyIntoNewHouse(dwellingPlace, household, moveInDate);
+                return moveFamilyIntoNewHouse(dwellingPlace, household, moveInDate, null);
             }
         } else if (headOfHousehold != null && occupationOnDate != null && occupationOnDate.isFarmOwner() &&
                 !(dwellingPlace instanceof Dwelling)) {
@@ -203,7 +203,7 @@ public class HouseholdDwellingPlaceService {
             } else {
                 // All other occupations just get a house
                 log.info("Moving household into a new house");
-                return moveFamilyIntoNewHouse(currentLocation, household, moveInDate);
+                return moveFamilyIntoNewHouse(currentLocation, household, moveInDate, null);
             }
         }
 
@@ -214,7 +214,7 @@ public class HouseholdDwellingPlaceService {
         } else {
             // Anyone not a pauper and not employed gets a house
             log.info("Moving household into a new house");
-            return moveFamilyIntoNewHouse(currentLocation, household, moveInDate);
+            return moveFamilyIntoNewHouse(currentLocation, household, moveInDate, null);
         }
     }
 
@@ -305,10 +305,14 @@ public class HouseholdDwellingPlaceService {
      * @param dwellingPlace the place, such as a town, parish, or estate
      * @param household the household
      * @param moveInDate the date they begin to inhabit the place
+     * @param value if non-null, this value will be used for the house; otherwise a random value will be generated
+     *              based on the social class of the head of the household. The value will not be subtracted from the
+     *              person's capital
      */
-    private DwellingPlace moveFamilyIntoNewHouse(@NonNull DwellingPlace dwellingPlace,
-                                                 @NonNull Household household,
-                                                 @NonNull LocalDate moveInDate) {
+    Dwelling moveFamilyIntoNewHouse(@NonNull DwellingPlace dwellingPlace,
+                                         @NonNull Household household,
+                                         @NonNull LocalDate moveInDate,
+                                         @Nullable Double value) {
         Dwelling house = new Dwelling();
         Person head = household.getHead(moveInDate);
         if (head == null) {
@@ -316,10 +320,14 @@ public class HouseholdDwellingPlaceService {
                     .max(Comparator.comparing(Person::getSocialClassRank).reversed())
                     .orElse(null);
         }
-        if (head != null) {
-            house.setValue(WealthGenerator.getRandomHouseValue(head.getSocialClass()));
+        if (value != null) {
+            house.setValue(value);
         } else {
-            house.setValue(WealthGenerator.getRandomHouseValue(SocialClass.LABORER));
+            if (head != null) {
+                house.setValue(WealthGenerator.getRandomHouseValue(head.getSocialClass()));
+            } else {
+                house.setValue(WealthGenerator.getRandomHouseValue(SocialClass.LABORER));
+            }
         }
         house = (Dwelling) dwellingPlaceService.save(house);
         dwellingPlace.addDwellingPlace(house);
@@ -392,7 +400,7 @@ public class HouseholdDwellingPlaceService {
 
         if (leadingHouseholds.isEmpty()) {
             // There were no leading households anywhere. Just create a house.
-            return moveFamilyIntoNewHouse(currentLocation, household, moveInDate);
+            return moveFamilyIntoNewHouse(currentLocation, household, moveInDate, null);
         }
         Collections.shuffle(leadingHouseholds);
         Household employerHousehold = leadingHouseholds.get(0);
@@ -404,7 +412,7 @@ public class HouseholdDwellingPlaceService {
         // the main house.
         if (head.getSocialClass().getRank() > SocialClass.PAUPER.getRank() && new Die(2).roll() == 1
                 && (employeeHouseholdParentPlace != null && employeeHouseholdParentPlace.isEstateOrFarm())) {
-            return moveFamilyIntoNewHouse(employeeHouseholdParentPlace, household, moveInDate);
+            return moveFamilyIntoNewHouse(employeeHouseholdParentPlace, household, moveInDate, null);
         } else {
             // Otherwise add the household directly to the employer's house.
             employerHouse = addToDwellingPlace(household, employerHouse, moveInDate, null);
@@ -450,7 +458,7 @@ public class HouseholdDwellingPlaceService {
 
         if (placesOfType.isEmpty()) {
             // There were no places of this type anywhere, just move the household into a house.
-            return moveFamilyIntoNewHouse(currentLocation, household, moveInDate);
+            return moveFamilyIntoNewHouse(currentLocation, household, moveInDate, null);
         }
 
         Collections.shuffle(placesOfType);
@@ -463,7 +471,7 @@ public class HouseholdDwellingPlaceService {
             return addToDwellingPlace(household, house, moveInDate, null);
         } else {
             // Create a house for the family and place it in the random dwelling place
-            return moveFamilyIntoNewHouse(placesOfType.get(0), household, moveInDate);
+            return moveFamilyIntoNewHouse(placesOfType.get(0), household, moveInDate, null);
         }
     }
 

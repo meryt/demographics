@@ -64,9 +64,9 @@ public class WealthService {
                     estate.getLocationString()));
             return;
         }
-        // Estates have a rate of return of -5% to 5%. Farms have a rate of -10% to 10%.
+        // Estates have a rate of return of -5% to 10%. Farms have a rate of -10% to 10%.
         int minReturn = estate.getType() == DwellingPlaceType.FARM ? -10 : -5;
-        int maxReturn = estate.getType() == DwellingPlaceType.FARM ? 10 : 5;
+        int maxReturn = estate.getType() == DwellingPlaceType.FARM ? 10 : 10;
 
         double value = estate.getValue();
         double individualFactor = (new BetweenDie()).roll(minReturn * 100, maxReturn * 100) * 0.0001;

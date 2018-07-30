@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +22,12 @@ import com.meryt.demographics.time.LocalDateComparator;
 @Service
 @Slf4j
 public class HeirService {
+
+    private final PersonService personService;
+
+    public HeirService(@NonNull @Autowired PersonService personService) {
+        this.personService = personService;
+    }
 
     /**
      * Gets the potential heirs for a person on a given date.
@@ -185,8 +192,23 @@ public class HeirService {
             }
         }
 
+        Person ancestor = person;
+        // Look for heirs up paternal line
+        while (heirs.isEmpty() && ancestor.getFather() != null) {
+            ancestor = ancestor.getFather();
+            // Recursively get heirs for father, grandfather, etc., but excluding the person himself.
+            List<Person> potentialHeirs = findPotentialHeirsForPerson(ancestor, onDate,
+                    TitleInheritanceStyle.HEIRS_GENERAL, false, true).stream()
+                .filter(p -> !p.equals(person))
+                .collect(Collectors.toList());
+            heirs.addAll(potentialHeirs);
+        }
+
+        // Look for any living relatives
         if (heirs.isEmpty()) {
-            heirs.addAll(findPotentialHeirsForPerson(person, onDate, TitleInheritanceStyle.HEIRS_GENERAL, false, true));
+            List<Person> closestLiving = personService.findClosestLivingRelatives(person, onDate, 8L);
+            Collections.shuffle(closestLiving);
+            heirs.addAll(closestLiving);
         }
 
         if (heirs.isEmpty()) {

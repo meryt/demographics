@@ -89,9 +89,8 @@ public class InheritanceService {
 
         double cashPerPerson = cash / heirs.size();
         for (Person heir : heirs) {
-            Relationship relationship = ancestryService.calculateRelationship(heir, person);
-            log.info(String.format("%d %s (%s) received %.2f on %s", heir.getId(), heir.getName(),
-                    (relationship == null ? "no relation" : relationship.getName()), cashPerPerson, onDate));
+            log.info(String.format("%.2f was inherited by %s.", cashPerPerson,
+                    getLogMessageForHeirWithRelationship(heir, person)));
             heir.addCapital(cashPerPerson, onDate);
             SocialClass newSocialClass = WealthGenerator.getSocialClassForInheritance(heir.getSocialClass(), cashPerPerson);
             if (newSocialClass.getRank() > heir.getSocialClass().getRank()) {
@@ -109,18 +108,6 @@ public class InheritanceService {
         List<DwellingPlace> realEstate = person.getOwnedDwellingPlaces(onDate.minusDays(1));
         if (realEstate.isEmpty()) {
             return results;
-        }
-
-        boolean ownsEntailedProperty = realEstate.stream().anyMatch(DwellingPlace::isEntailed);
-        Person maleHeirForEntailments = null;
-        if (ownsEntailedProperty) {
-            maleHeirForEntailments = heirService.findMaleHeirForEntailments(person, onDate);
-            if (maleHeirForEntailments == null) {
-                log.info(String.format(
-                        "No male heir found for %s. Entailed dwelling place will go to random new person.",
-                        person.getName()));
-                maleHeirForEntailments = generateNewOwnerForEntailedDwelling(person, onDate);
-            }
         }
 
         List<DwellingPlace> entailedToTitlePlaces = realEstate.stream()
@@ -143,16 +130,21 @@ public class InheritanceService {
                 .collect(Collectors.toList());
 
         for (DwellingPlace dwelling : entailedToTitlePlaces) {
-            Person titleHolder = getHeirForRealEstateEntailedToTitle(dwelling.getEntailedTitle(), onDate);
+            Person titleHolder = getHeirForRealEstateEntailedToTitle(dwelling.getEntailedTitle(), dwelling, onDate);
 
             if (titleHolder != null && !dwelling.getOwners(onDate).contains(titleHolder)) {
-                log.info(String.format("%s is entailed to %s. Giving to title heir %d %s.", dwelling.getFriendlyName(),
-                        dwelling.getEntailedTitle().getName(), titleHolder.getId(), titleHolder.getName()));
+                String relationshipString = getLogMessageForHeirWithRelationship(titleHolder, person);
+                log.info(String.format("%s is entailed to %s. Giving to title heir %s.",
+                        dwelling.getFriendlyName(),
+                        dwelling.getEntailedTitle().getName(),
+                        relationshipString));
                 dwelling.addOwner(titleHolder, onDate, titleHolder.getDeathDate());
                 results.add(new PropertyTransferEvent(onDate, dwelling, dwelling.getOwners(onDate.minusDays(1))));
-                log.info(String.format("%d %s inherits %s %s on %s", titleHolder.getId(),
-                        titleHolder.getName(), dwelling.getType().getFriendlyName(),
-                        dwelling.getLocationString(), onDate));
+                log.info(String.format("%s %s is inherited by %s on %s",
+                        dwelling.getType().getFriendlyName(),
+                        dwelling.getLocationString(),
+                        relationshipString,
+                        onDate));
                 personService.save(titleHolder);
             }
             if (titleHolder != null && dwelling.getOwners(onDate).contains(titleHolder)) {
@@ -169,10 +161,26 @@ public class InheritanceService {
             // does not own it, proceed with inheritance as usual.
         }
 
+        boolean ownsEntailedProperty = !entailedPlaces.isEmpty();
+        Person maleHeirForEntailments = null;
+        String relationToMaleHeirForEntailments = null;
+        if (ownsEntailedProperty) {
+            maleHeirForEntailments = heirService.findMaleHeirForEntailments(person, onDate);
+            if (maleHeirForEntailments == null) {
+                log.info(String.format(
+                        "No male heir found for %s. Entailed dwelling place will go to random new person from elsewhere.",
+                        person.getName()));
+                maleHeirForEntailments = generateNewOwnerForEntailedDwelling(person, onDate);
+            }
+            relationToMaleHeirForEntailments = getLogMessageForHeirWithRelationship(maleHeirForEntailments, person);
+        }
+
         for (DwellingPlace dwelling : entailedPlaces) {
             if (dwelling.isEntailed() && maleHeirForEntailments != null) {
-                log.info(String.format("%s is entailed. Giving to male heir %d %s.", dwelling.getFriendlyName(),
-                        maleHeirForEntailments.getId(), maleHeirForEntailments.getName()));
+                log.info(String.format("%d %s is entailed. Giving to male heir %s.",
+                        dwelling.getId(),
+                        dwelling.getFriendlyName(),
+                        relationToMaleHeirForEntailments));
                 dwelling.addOwner(maleHeirForEntailments, onDate, maleHeirForEntailments.getDeathDate());
                 results.add(new PropertyTransferEvent(onDate, dwelling, dwelling.getOwners(onDate.minusDays(1))));
                 log.info(String.format("%d %s inherits %s %s on %s", maleHeirForEntailments.getId(),
@@ -206,17 +214,22 @@ public class InheritanceService {
                 }
                 heir = heirs.get(i++);
             }
+            String heirMessage = getLogMessageForHeirWithRelationship(heir, person);
             // Make him the owner of the estate as well as the given places.
             estateOrFarm.addOwner(heir, onDate, heir.getDeathDate());
             estateOrFarm = dwellingPlaceService.save(estateOrFarm);
             results.add(new PropertyTransferEvent(onDate, estateOrFarm, estateOrFarm.getOwners(onDate.minusDays(1))));
-            log.info(String.format("%d %s inherits %s %s on %s", heir.getId(), heir.getName(),
+            log.info(String.format("%s %s is inherited by %s on %s",
                     estateOrFarm.getType().getFriendlyName(),
-                    estateOrFarm.getLocationString(), onDate));
+                    estateOrFarm.getLocationString(),
+                    heirMessage,
+                    onDate));
             for (DwellingPlace estateBuilding : places) {
-                log.info(String.format("%d %s inherits %s %s on %s", heir.getId(), heir.getName(),
+                log.info(String.format("%s %s is inherited by %s on %s",
                         estateBuilding.getType().getFriendlyName(),
-                        estateBuilding.getLocationString(), onDate));
+                        estateBuilding.getLocationString(),
+                        heirMessage,
+                        onDate));
                 estateBuilding.addOwner(heir, onDate, heir.getDeathDate());
                 results.add(new PropertyTransferEvent(onDate, estateBuilding,
                         estateBuilding.getOwners(onDate.minusDays(1))));
@@ -242,9 +255,11 @@ public class InheritanceService {
                 }
                 heir = heirs.get(i++);
             }
-            log.info(String.format("%d %s inherits %s in %s on %s", heir.getId(), heir.getName(),
+            log.info(String.format("%s in %s is inherited by %s on %s",
                     house.getType().getFriendlyName(),
-                    house.getLocationString(), onDate));
+                    house.getLocationString(),
+                    getLogMessageForHeirWithRelationship(heir, person),
+                    onDate));
             house.addOwner(heir, onDate, heir.getDeathDate());
             results.add(new PropertyTransferEvent(onDate, house, house.getOwners(onDate.minusDays(1))));
             personService.save(heir);
@@ -359,18 +374,42 @@ public class InheritanceService {
     }
 
     @Nullable
-    private Person getHeirForRealEstateEntailedToTitle(@NonNull Title title, @NonNull LocalDate onDate) {
+    private Person getHeirForRealEstateEntailedToTitle(@NonNull Title title,
+                                                       @NonNull DwellingPlace dwelling,
+                                                       @NonNull LocalDate onDate) {
         Person titleHolder = title.getHolder(onDate);
-        if (titleHolder == null) {
-            Pair<LocalDate, List<Person>> titleHeirs = titleService.getTitleHeirs(title);
-            // Get the oldest living potential heir and make him the heir of the real estate.
-            if (titleHeirs != null && !titleHeirs.getSecond().isEmpty()) {
-                titleHolder = titleHeirs.getSecond().stream()
+        if (titleHolder != null) {
+            return titleHolder;
+        }
+
+        // Gets 0 or more heirs for a title that is either extinct or in abeyance.
+        Pair<LocalDate, List<Person>> titleHeirs = titleService.getTitleHeirs(title);
+        // Get the oldest living potential heir and make him the heir of the real estate.
+        if (titleHeirs != null && !titleHeirs.getSecond().isEmpty()) {
+            List<Person> allResidentsOfDwelling = dwelling.getAllResidents(onDate);
+            Person oldestHeirAlreadyLivingInPlace = titleHeirs.getSecond().stream()
+                    .filter(allResidentsOfDwelling::contains)
+                    .max(Comparator.comparing(Person::getBirthDate).reversed())
+                    .orElse(null);
+            if (oldestHeirAlreadyLivingInPlace != null) {
+                // An heir that is already living in the place gets priority, for the sake of continuity.
+                return oldestHeirAlreadyLivingInPlace;
+            } else {
+                // Otherwise take the oldest potential heir (may return null)
+                return titleHeirs.getSecond().stream()
                         .filter(p -> p.isLiving(onDate))
                         .max(Comparator.comparing(Person::getBirthDate).reversed())
                         .orElse(null);
             }
         }
-        return titleHolder;
+        return null;
+    }
+
+    private String getLogMessageForHeirWithRelationship(@NonNull Person heir, @NonNull Person deceased) {
+        Relationship relationship = ancestryService.calculateRelationship(heir, deceased, false);
+        return String.format("%d %s, %s %d %s",
+                heir.getId(), heir.getName(),
+                relationship == null ? "no relation to" : relationship.getName() + " of",
+                deceased.getId(), deceased.getName());
     }
 }

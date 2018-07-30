@@ -13,5 +13,5 @@ public interface TitleRepository extends PagingAndSortingRepository<Title, Long>
 
     List<Title> findAllByOrderByNameAsc();
 
-    List<Title> findAllByNextAbeyanceCheckDateIsLessThanEqual(@NonNull LocalDate date);
+    List<Title> findAllByNextAbeyanceCheckDateIsLessThanEqualAndExtinctIsFalse(@NonNull LocalDate date);
 }

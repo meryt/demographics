@@ -2,6 +2,7 @@ package com.meryt.demographics.controllers;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -205,6 +206,29 @@ public class PersonController {
 
         return new PersonDescendantResponse(person, minAge, bornBeforeDate, 0,
                 numGenerations == null ? 3 : numGenerations);
+    }
+
+    @RequestMapping(value = "/api/persons/{personId}/relatives", method = RequestMethod.GET)
+    public List<RelatedPersonResponse> getPersonRelatives(@PathVariable long personId,
+                                                          @RequestParam(value = "aliveOnDate", required = false)
+                                                                String aliveOnDate,
+                                                          @RequestParam(value = "maxDistance", required = false)
+                                                                Long maxDistance) {
+        Person person = controllerHelperService.loadPerson(personId);
+        LocalDate aliveOn = controllerHelperService.parseDate(aliveOnDate);
+
+        List<Person> relatedPersons;
+        if (aliveOn != null) {
+            relatedPersons = personService.findLivingRelatives(person, aliveOn, maxDistance);
+        } else {
+            relatedPersons = personService.findRelatives(person, maxDistance);
+        }
+
+        return relatedPersons.stream()
+                .map(rp -> new RelatedPersonResponse(rp, ancestryService.calculateRelationship(rp, person, true)))
+                .sorted(Comparator.comparing(RelatedPersonResponse::getDegreeOfSeparation)
+                        .thenComparing(Comparator.comparing(RelatedPersonResponse::getBirthDate).reversed()))
+                .collect(Collectors.toList());
     }
 
     @RequestMapping("/api/persons/{personId}/titles")

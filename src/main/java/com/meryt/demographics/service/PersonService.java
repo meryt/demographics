@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import lombok.NonNull;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Service;
 
 import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.family.AncestryRecord;
+import com.meryt.demographics.domain.family.LeastCommonAncestorRelationship;
 import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.PersonCapitalPeriod;
@@ -124,6 +126,64 @@ public class PersonService {
         } else {
             return descendants;
         }
+    }
+
+    @NonNull
+    public List<Person> findLivingRelatives(@NonNull Person person,
+                                            @NonNull LocalDate aliveOnDate,
+                                            @Nullable Long maxDistance) {
+        List<LeastCommonAncestorRelationship> relatives = ancestryService.getLivingRelatives(person.getId(),
+                aliveOnDate, maxDistance);
+        List<Long> relativeIds = relatives.stream()
+                .map(LeastCommonAncestorRelationship::getSubject2)
+                .collect(Collectors.toList());
+        List<Person> relativePersons = new ArrayList<>();
+        loadAll(relativeIds).forEach(relativePersons::add);
+        return relativePersons;
+    }
+
+    @NonNull
+    public List<Person> findRelatives(@NonNull Person person, @Nullable Long maxDistance) {
+        List<LeastCommonAncestorRelationship> relatives = ancestryService.getRelatives(person.getId(), maxDistance);
+        List<Long> relativeIds = relatives.stream()
+                .map(LeastCommonAncestorRelationship::getSubject2)
+                .collect(Collectors.toList());
+        List<Person> relativePersons = new ArrayList<>();
+        loadAll(relativeIds).forEach(relativePersons::add);
+        return relativePersons;
+    }
+
+    /**
+     * Finds all living persons related to the given person such that they share the lowest relationship distance
+     * from the person for any living person.  (E.g. if the closest relationship among any living relative is at
+     * distance 2, it will return all living persons at that distance: all living brothers & sisters,
+     * living grandparents and grandchildren, etc.)
+     *
+     * @param person the person whose relatives we want to find
+     * @param aliveOnDate the date to check for aliveness
+     * @param maxDistance the deepest we are willing to go to search for ancestors
+     * @return a list of persons, possibly empty, all of whom are at the same distance from the target
+     */
+    @NonNull
+    public List<Person> findClosestLivingRelatives(@NonNull Person person,
+                                                   @NonNull LocalDate aliveOnDate,
+                                                   @Nullable Long maxDistance) {
+        List<LeastCommonAncestorRelationship> relatives = ancestryService.getLivingRelatives(person.getId(),
+                aliveOnDate, maxDistance);
+        Integer minDistance = relatives.stream()
+                .map(LeastCommonAncestorRelationship::getDistance)
+                .min(Integer::compareTo).orElse(null);
+        if (minDistance == null) {
+            return Collections.emptyList();
+        }
+
+        List<Long> relativeIds = relatives.stream()
+                .filter(lca -> lca.getDistance() == minDistance)
+                .map(LeastCommonAncestorRelationship::getSubject2)
+                .collect(Collectors.toList());
+        List<Person> relativePersons = new ArrayList<>();
+        loadAll(relativeIds).forEach(relativePersons::add);
+        return relativePersons;
     }
 
     /**
@@ -263,6 +323,9 @@ public class PersonService {
 
         return personRepository.findPotentialSpouses(spouseGender, searchDate, minBirthDate,
                 maxBirthDate, null).stream()
+                // Keep people in the same social bracket
+                .filter(p -> (p.getSocialClass().getRank() >= person.getSocialClass().getRank() - 2) &&
+                              p.getSocialClass().getRank() <= person.getSocialClass().getRank() + 2)
                 // Filter out married people, women who were married more than once, and widows with children
                 .filter(p -> !p.isMarriedNowOrAfter(filterSearchDate) && !isWidowWithChildren(p, filterSearchDate))
                 // Convert to a data structure that includes the relationship
