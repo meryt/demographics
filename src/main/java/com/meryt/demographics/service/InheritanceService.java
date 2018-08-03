@@ -2,6 +2,7 @@ package com.meryt.demographics.service;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.family.Relationship;
+import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.PersonCapitalPeriod;
 import com.meryt.demographics.domain.person.SocialClass;
@@ -170,7 +172,7 @@ public class InheritanceService {
                 log.info(String.format(
                         "No male heir found for %s. Entailed dwelling place will go to random new person from elsewhere.",
                         person.getName()));
-                maleHeirForEntailments = generateNewOwnerForEntailedDwelling(person, onDate);
+                maleHeirForEntailments = findOrGenerateNewOwnerForEntailedDwelling(person, onDate);
             }
             relationToMaleHeirForEntailments = getLogMessageForHeirWithRelationship(maleHeirForEntailments, person);
         }
@@ -206,7 +208,7 @@ public class InheritanceService {
             if (heirs.isEmpty()) {
                 heir = heirService.findPossibleHeirForDwellingPlace(estateOrFarm, onDate.plusDays(1));
                 if (heir == null) {
-                    heir = generateNewOwnerForEntailedDwelling(person, onDate);
+                    heir = findOrGenerateNewOwnerForEntailedDwelling(person, onDate);
                 }
             } else {
                 if (i == heirs.size()) {
@@ -247,7 +249,7 @@ public class InheritanceService {
             if (heirs.isEmpty()) {
                 heir = heirService.findPossibleHeirForDwellingPlace(house, onDate.plusDays(1));
                 if (heir == null) {
-                    heir = generateNewOwnerForEntailedDwelling(person, onDate);
+                    heir = findOrGenerateNewOwnerForEntailedDwelling(person, onDate);
                 }
             } else {
                 if (i == heirs.size()) {
@@ -269,7 +271,27 @@ public class InheritanceService {
     }
 
     @NonNull
-    private Person generateNewOwnerForEntailedDwelling(@NonNull Person formerOwner, @NonNull LocalDate onDate) {
+    private Person findOrGenerateNewOwnerForEntailedDwelling(@NonNull Person formerOwner, @NonNull LocalDate onDate) {
+        List<Person> livingRelatives = personService.findLivingRelatives(formerOwner, onDate, 8L).stream()
+                .filter(p -> p.isMale()
+                        && p.getSocialClassRank() == formerOwner.getSocialClassRank()
+                        && p.getHouseholds().isEmpty())
+                .collect(Collectors.toList());
+
+        if (!livingRelatives.isEmpty()) {
+            Collections.shuffle(livingRelatives);
+            return livingRelatives.get(0);
+        }
+
+        List<Person> livingNonRelatives = personService.findBySocialClassAndGenderAndIsLiving(
+                formerOwner.getSocialClass(), Gender.MALE, onDate).stream()
+                .filter(p -> p.getHouseholds().isEmpty())
+                .collect(Collectors.toList());
+        if (!livingNonRelatives.isEmpty()) {
+            Collections.shuffle(livingNonRelatives);
+            return livingNonRelatives.get(0);
+        }
+
         RandomFamilyParameters familyParameters = new RandomFamilyParameters();
         familyParameters.setReferenceDate(onDate);
         familyParameters.setPercentMaleFounders(1.0);
@@ -314,7 +336,23 @@ public class InheritanceService {
             log.info(String.format("Moving household of %d %s into house", heir.getId(),
                     heir.getName()));
 
-            householdDwellingPlaceService.addHouseholdToDwellingPlaceOnDate(dwelling, heirsHousehold, onDate);
+            householdDwellingPlaceService.addHouseholdToDwellingPlaceOnDate(dwelling, heirsHousehold, heir, onDate,
+                    false);
+
+            if (heir.isMarried(onDate)) {
+                // If the family emigrated when they married, the father would have been set to null on the maternity.
+                // Since they are moving back to one of the parishes, set it to the father again so that checking may
+                // resume.
+                Person woman = heir.isFemale() ? heir : heir.getSpouse(onDate);
+                Person man = heir.isFemale() ? heir.getSpouse(onDate) : heir;
+                if (woman != null && woman.getMaternity() != null && woman.getMaternity().getFather() == null) {
+                    log.info(String.format("%d %s was married on %s but not having relations. " +
+                                    "Updating maternity since the couple has moved to a parish.",
+                            woman.getId(), woman.getName(), onDate));
+                    woman.getMaternity().setFather(man);
+                    personService.save(woman);
+                }
+            }
 
             Household oldHousehold = deceasedPerson.getHousehold(onDate.minusDays(1));
             if (oldHousehold == null) {

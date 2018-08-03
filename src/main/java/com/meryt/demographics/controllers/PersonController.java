@@ -148,7 +148,7 @@ public class PersonController {
             if (!person.isFemale()) {
                 throw new BadRequestException("cycleToDate applies only to women");
             }
-            fertilityService.cycleToDate(person, cycleToDate);
+            fertilityService.cycleToDate(person, cycleToDate, post.getAllowMaternalDeathOrDefault());
         }
         return person.getFertility();
     }

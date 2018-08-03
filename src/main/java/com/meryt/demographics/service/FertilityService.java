@@ -39,7 +39,9 @@ public class FertilityService {
         this.householdService = householdService;
     }
 
-    public List<CalendarDayEvent> cycleToDate(@NonNull Person woman, @NonNull LocalDate toDate) {
+    public List<CalendarDayEvent> cycleToDate(@NonNull Person woman,
+                                              @NonNull LocalDate toDate,
+                                              boolean allowMaternalDeath) {
         if (!woman.isFemale()) {
             throw new IllegalArgumentException("cycleToDate can only operate on women");
         }
@@ -77,7 +79,7 @@ public class FertilityService {
             family.setWife(woman);
         }
 
-        PregnancyChecker pregnancyChecker = new PregnancyChecker(personGenerator, family, true);
+        PregnancyChecker pregnancyChecker = new PregnancyChecker(personGenerator, family, allowMaternalDeath);
         results.addAll(pregnancyChecker.checkDateRange(maternity.getLastCheckDate(), toDate));
         // Save the woman which saves the maternity record
         maternity.setPerson(woman);

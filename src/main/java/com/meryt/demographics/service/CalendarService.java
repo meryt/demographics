@@ -179,7 +179,7 @@ public class CalendarService {
                 family.getWife().getMaternity().setHavingRelations(false);
                 // If the woman is randomly generated her last check date is in the past. Bring her up to yesterday so
                 // that in the next step when we advance maternities, she will start with her wedding night.
-                fertilityService.cycleToDate(family.getWife(), date.minusDays(1));
+                fertilityService.cycleToDate(family.getWife(), date.minusDays(1), false);
                 family.getWife().getMaternity().setHavingRelations(true);
                 personService.save(family.getWife());
 
@@ -197,7 +197,11 @@ public class CalendarService {
                             if (occupation.isFarmOwner()) {
                                 DwellingPlace dwellingPlace = person.getResidence(date);
                                 if (dwellingPlace != null && dwellingPlace.isHouse()
-                                        && !dwellingPlace.getParent().isFarm()) {
+                                        && !dwellingPlace.getParent().isFarm()
+                                        /* disallow putting a farm above a manor house (farm houses are also
+                                         * attached to their parents, but they are excluded in the previous line */
+                                        && !dwellingPlace.isAttachedToParent()
+                                        && !dwellingPlace.isEntailed()) {
                                     Farm farm = householdDwellingPlaceService.convertRuralHouseToFarm(
                                             (Dwelling) dwellingPlace, date, farmNames);
                                     if (farm != null) {
@@ -224,7 +228,10 @@ public class CalendarService {
         Map<LocalDate, List<CalendarDayEvent>> results = new TreeMap<>();
         boolean shouldRebuildAncestry = false;
         for (Person woman : women) {
-            List<CalendarDayEvent> daysResults = fertilityService.cycleToDate(woman, date);
+            // FIXME HACK we have inheritance problems with a woman dying before her expected death date. So don't
+            // allow her to die in (at least) these conditions.
+            boolean allowMaternalDeath = woman.getTitles().isEmpty() && woman.getOwnedDwellingPlaces().isEmpty();
+            List<CalendarDayEvent> daysResults = fertilityService.cycleToDate(woman, date, allowMaternalDeath);
             for (CalendarDayEvent result : daysResults) {
                 if (!results.containsKey(result.getDate())) {
                     results.put(result.getDate(), new ArrayList<>());
@@ -302,8 +309,14 @@ public class CalendarService {
         for (DwellingPlace parish :  dwellingPlaceService.loadByType(DwellingPlaceType.PARISH)) {
             double chance = nextDatePost.getChanceNewFamilyPerYear() / 365.0;
             if (new PercentDie().roll() < chance) {
-                dayResults.addAll(immigrationService.processImmigrantArrival((Parish) parish,
-                        nextDatePost.getFamilyParameters(), date));
+                // Someone might want to immigrate. But if the population density is such that it is exerting outward
+                // pressure, they will not come after all. So only come if the density is low enough or the roll is
+                // high enough.
+                double chanceOfEmigrating = ((Parish) parish).getChanceOfEmigrating(date);
+                if (new PercentDie().roll() > chanceOfEmigrating) {
+                    dayResults.addAll(immigrationService.processImmigrantArrival((Parish) parish,
+                            nextDatePost.getFamilyParameters(), date));
+                }
             }
         }
 

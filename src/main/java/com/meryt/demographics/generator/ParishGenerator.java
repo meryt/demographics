@@ -140,8 +140,9 @@ public class ParishGenerator {
                 lastPopulation = furtherTownPopulation(lastPopulation);
             }
 
-            // Don't add this town if it would take the remaining population below 0
-            if (lastPopulation > remainingRealmPopulation(parishParameters, currentPopulation)) {
+            // Don't add this town if it would take the remaining population below 0, or if it's too small to be a town
+            if (lastPopulation > remainingRealmPopulation(parishParameters, currentPopulation) ||
+                    lastPopulation < parishParameters.getMinTownPopulation()) {
                 break;
             }
 
@@ -253,9 +254,13 @@ public class ParishGenerator {
      * and M is equal to a random roll of 2d4+10
      */
     private long largestTownPopulation(long totalPopulation) {
-        double p = Math.sqrt(totalPopulation);
-        int m = d4.roll(2) + 10;
-        return Math.round(p * m);
+        if (totalPopulation > 1000) {
+            double p = Math.sqrt(totalPopulation);
+            int m = d4.roll(2) + 10;
+            return Math.round(p * m);
+        } else {
+            return Math.round(0.5 * totalPopulation);
+        }
     }
 
     /**

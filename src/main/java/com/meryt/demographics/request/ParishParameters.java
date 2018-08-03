@@ -2,8 +2,10 @@ package com.meryt.demographics.request;
 
 import java.util.List;
 import javax.annotation.Nullable;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.commons.lang3.tuple.Pair;
 
 import com.meryt.demographics.domain.place.Region;
 import com.meryt.demographics.generator.random.Die;
@@ -23,9 +25,17 @@ public class ParishParameters {
     private List<String> estateNames;
     private List<String> estateSuffixes;
     private RandomFamilyParameters familyParameters;
+    private int maxEstates = 2;
+    @JsonIgnore
+    private volatile int currentEstates = 0;
 
     public long getPopulation() {
         return Math.round(squareMiles * populationPerSquareMile);
+    }
+
+    @JsonIgnore
+    public int getRemainingEstates() {
+        return maxEstates - currentEstates;
     }
 
     /**
@@ -51,7 +61,7 @@ public class ParishParameters {
      * @return a string containing an estate name, or null if there was no data to use for generating one.
      */
     @Nullable
-    public String getAndRemoveRandomEstateName() {
+    public Pair<String, String> getAndRemoveRandomEstateName() {
         String baseName;
         if (getEstateNames() == null || getEstateNames().isEmpty()) {
             baseName = getAndRemoveRandomTownName();
@@ -60,15 +70,15 @@ public class ParishParameters {
         }
 
         if (estateSuffixes == null || estateSuffixes.isEmpty()) {
-            return baseName;
+            return Pair.of(baseName, null);
         }
 
         int index = new Die(getEstateSuffixes().size() + 2).roll() - 1;
         if (index >= getEstateSuffixes().size()) {
-            return baseName;
+            return Pair.of(baseName, null);
         }
         String suffix = estateSuffixes.get(index);
-        return baseName + " " + suffix;
+        return Pair.of(baseName, suffix);
     }
 
     /**

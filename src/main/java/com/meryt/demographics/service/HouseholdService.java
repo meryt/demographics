@@ -244,8 +244,8 @@ public class HouseholdService {
     }
 
     public List<Person> addStepchildrenToHousehold(@NonNull Person stepParent,
-                                           @NonNull Family stepParentsFamily,
-                                           @NonNull Household stepParentsHousehold) {
+                                                   @NonNull Family stepParentsFamily,
+                                                   @NonNull Household stepParentsHousehold) {
         List<Person> movedChildren = new ArrayList<>();
         Person spouse = stepParentsFamily.getHusband().equals(stepParent)
                 ? stepParentsFamily.getWife()

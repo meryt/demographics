@@ -12,6 +12,7 @@ import com.meryt.demographics.rest.BadRequestException;
 public class PersonFertilityPost {
 
     private String cycleToDate;
+    private Boolean allowMaternalDeath;
 
     public LocalDate getCycleToDateAsDate() {
         if (cycleToDate == null) {
@@ -22,6 +23,10 @@ public class PersonFertilityPost {
         } catch (DateTimeParseException e) {
             throw new BadRequestException("Invalid cycleToDate: " + e.getMessage());
         }
+    }
+
+    public boolean getAllowMaternalDeathOrDefault() {
+        return allowMaternalDeath == null ? true : allowMaternalDeath;
     }
 }
 

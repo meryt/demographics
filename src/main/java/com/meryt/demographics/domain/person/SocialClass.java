@@ -95,6 +95,10 @@ public enum SocialClass {
         return name().toLowerCase().replace("_", " ");
     }
 
+    public boolean isAtLeast(SocialClass other) {
+        return getRank() >= other.getRank();
+    }
+
     /**
      * Gets a random social class between an optional min and optional max.
      *

@@ -204,11 +204,25 @@ public class HeirService {
             heirs.addAll(potentialHeirs);
         }
 
+        // Look for any living descendants
+        if (heirs.isEmpty()) {
+            heirs.addAll(personService.findLivingRelatives(person, onDate, 8L).stream()
+                    .sorted(Comparator.comparing(Person::getBirthDate))
+                    .collect(Collectors.toList()));
+        }
+
         // Look for any living relatives
         if (heirs.isEmpty()) {
             List<Person> closestLiving = personService.findClosestLivingRelatives(person, onDate, 8L);
+            // All persons returned will be at same distance from the dead person. So we sort them randomly.
             Collections.shuffle(closestLiving);
-            heirs.addAll(closestLiving);
+            if (closestLiving.size() > 5) {
+                // For distant relationships there might be dozens of 3rd cousins, great-nieces, etc. Just pick
+                // 5 random people at that distance.
+                heirs.addAll(closestLiving.subList(0, 5));
+            } else {
+                heirs.addAll(closestLiving);
+            }
         }
 
         if (heirs.isEmpty()) {

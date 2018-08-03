@@ -12,11 +12,22 @@ import org.springframework.stereotype.Repository;
 
 import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.domain.person.SocialClass;
 
 @Repository
 public interface PersonRepository extends PagingAndSortingRepository<Person, Long> {
 
     List<Person> findByFounderTrueOrderByBirthDate();
+
+    @Query("SELECT p from Person p " +
+            "WHERE p.gender = :gender " +
+            "AND p.birthDate < :aliveOnDate " +
+            "AND p.deathDate > :aliveOnDate " +
+            "AND p.socialClass = :socialClass " +
+            "ORDER BY p.birthDate ")
+    List<Person> findBySocialClassAndGenderAndIsLiving(@Param("socialClass") @NonNull SocialClass socialClass,
+                                                       @Param("gender") @NonNull Gender gender,
+                                                       @Param("aliveOnDate") @NonNull LocalDate onDate);
 
     List<Person> findByDeathDate(LocalDate deathDate);
 

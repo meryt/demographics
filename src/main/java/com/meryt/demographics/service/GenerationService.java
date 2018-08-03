@@ -313,7 +313,7 @@ public class GenerationService {
             List<Person> foundersWithTitles = founders.stream()
                     .filter(p -> !p.getTitles().isEmpty())
                     .sorted(Comparator.comparing((Person p) -> p.getTitles().get(0).getTitle().isExtinct())
-                            .thenComparing((Person p) -> p.getTitles().get(0).getTitle().getName()))
+                            .thenComparing((Person p) -> p.getTitles().get(0).getTitle().getName().toLowerCase()))
                     .collect(Collectors.toList());
             for (Person founder : foundersWithTitles) {
                 Set<Long> alreadyWrittenPersons = new HashSet<>();
@@ -346,7 +346,7 @@ public class GenerationService {
                 person.isFinishedGeneration() ? "." : ""));
 
         for (Person child : person.getChildren().stream()
-                .filter(p -> p.getAgeInYears(p.getDeathDate()) > 13)
+                .filter(p -> p.getAgeInYears(p.getDeathDate()) > 13 || !p.getTitles().isEmpty())
                 .collect(Collectors.toList())) {
             if (person.isMale()
                     || !person.getTitles().isEmpty() // always write if person has a title

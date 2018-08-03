@@ -1,9 +1,11 @@
 package com.meryt.demographics.service;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import lombok.NonNull;
@@ -13,12 +15,14 @@ import org.springframework.stereotype.Service;
 
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.domain.place.Dwelling;
 import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.HouseholdLocationPeriod;
 import com.meryt.demographics.domain.place.Parish;
 import com.meryt.demographics.generator.WealthGenerator;
+import com.meryt.demographics.generator.random.PercentDie;
 import com.meryt.demographics.repository.FamilyRepository;
 
 @Service
@@ -113,15 +117,81 @@ public class FamilyService {
         // If a first-time bride has living parents, they should give her some money.
         applyMarriageSettlements(family.getWife(), weddingDate);
 
-        if (moveAwayIfHusbandNonResident && family.getHusband().getResidence(weddingDate) == null &&
-                family.getWife().getResidence(weddingDate) == null) {
+        Person husband = family.getHusband();
+        Person wife = family.getWife();
+        DwellingPlace husbandPlace = husband.getResidence(weddingDate);
+        DwellingPlace wifePlace = wife.getResidence(weddingDate);
+
+        if (moveAwayIfHusbandNonResident && husbandPlace == null && wifePlace == null) {
             log.info("Not creating household. Neither family member lives in the parishes.");
-        } else {
-            Household husbandsHousehold = moveWifeAndStepchildrenToHusbandsHousehold(family);
-            findResidenceForNewFamily(family, husbandsHousehold, moveAwayIfHusbandNonResident);
+            maybeDisableMaternityCheckingForNonResidentFamily(husband, wife);
+            return family;
         }
 
+        // If neither partner owns a place to live, they might move away.
+        if (moveAwayIfHusbandNonResident && husband.getOwnedDwellingPlaces(weddingDate).isEmpty() &&
+                wife.getOwnedDwellingPlaces(weddingDate).isEmpty() && husband.getLivingChildren(weddingDate).isEmpty()
+                && wife.getLivingChildren(weddingDate).isEmpty()) {
+            Parish parish = husbandPlace == null ? wifePlace.getParish() : husbandPlace.getParish();
+            if (parish != null) {
+                double popPerSquareMile = parish.getPopulationPerSquareMile(weddingDate);
+                // The chance of moving away is based on the population per square mile. This is a parabolic function
+                // that ranges from about 0 at 30 to about 1 at 100.
+                double chanceOfEmigrating = parish.getChanceOfEmigrating(weddingDate);
+                double roll = new PercentDie().roll();
+                if (roll < chanceOfEmigrating) {
+                    log.info(String.format(
+                            "Current population per square mile of %s on %s is %.2f. New family is emigrating.",
+                            parish.getName(),
+                            weddingDate,
+                            popPerSquareMile));
+
+                    emigrate(family, weddingDate);
+
+                    return family;
+                }
+            }
+        }
+
+        Household husbandsHousehold = moveWifeAndStepchildrenToHusbandsHousehold(family);
+        findResidenceForNewFamily(family, husbandsHousehold, moveAwayIfHusbandNonResident);
+
+
         return family;
+    }
+
+    private void emigrate(@NonNull Family family, @NonNull LocalDate onDate) {
+        Person husband = family.getHusband();
+        Person wife = family.getWife();
+        if (husband.getResidence(onDate) != null) {
+            husband = householdService.endPersonResidence(husband.getHousehold(onDate), husband, onDate);
+        }
+        if (wife.getResidence(onDate) != null) {
+            wife = householdService.endPersonResidence(wife.getHousehold(onDate), wife, onDate);
+        }
+        maybeDisableMaternityCheckingForNonResidentFamily(husband, wife);
+    }
+
+    /**
+     * Disables maternity checking by setting the father to null, if the woman is not pregnant and if neither has
+     * a social class of at least yeoman or merchant.
+     * @param husband
+     * @param wife
+     */
+    private void maybeDisableMaternityCheckingForNonResidentFamily(@NonNull Person husband, @NonNull Person wife) {
+        // Don't disable checking if she is actually pregnant
+        if (wife.getMaternity().getConceptionDate() != null) {
+            return;
+        }
+        if (husband.getSocialClassRank() < SocialClass.YEOMAN_OR_MERCHANT.getRank()
+                && wife.getSocialClassRank() < SocialClass.YEOMAN_OR_MERCHANT.getRank()) {
+            // If they move away and are not higher-class we do not want to track their families.
+            // Setting the father to null will cause the maternity checker to skip them.
+            log.info(String.format("Disabling maternity check for nonresident woman %d %s, married to %d %s",
+                    wife.getId(), wife.getName(), husband.getId(), husband.getName()));
+            wife.getMaternity().setFather(null);
+            personService.save(wife);
+        }
     }
 
     private void checkPersonAliveAndUnmarriedOnWeddingDate(@NonNull Person person, @NonNull LocalDate weddingDate) {
@@ -148,17 +218,31 @@ public class FamilyService {
     private Household moveWifeAndStepchildrenToHusbandsHousehold(@NonNull Family family) {
         LocalDate date = family.getWeddingDate();
         Person man = family.getHusband();
-        Person wife = family.getWife();
+        Person woman = family.getWife();
 
+        Household womansHousehold = woman.getHousehold(date);
         Household mansHousehold = man.getHousehold(date);
         if (mansHousehold == null || !man.equals(mansHousehold.getHead(date))) {
-            mansHousehold = new Household();
-            man = householdService.addPersonToHousehold(man, mansHousehold, date, true);
-            personService.save(man);
-            householdService.addChildrenToHousehold(man, mansHousehold, date).forEach(personService::save);
+            // If the man does not have a household or if he is not the head of a household, either create a new
+            // household for him, or use the wife's household if she is the head of it.
+            if (womansHousehold == null || !woman.equals(womansHousehold.getHead(date))) {
+                mansHousehold = new Household();
+                man = householdService.addPersonToHousehold(man, mansHousehold, date, true);
+                personService.save(man);
+                householdService.addChildrenToHousehold(man, mansHousehold, date).forEach(personService::save);
+            } else {
+                // If the wife is the head of her household, add the man to it but make him the head.
+                woman = householdService.addPersonToHousehold(woman, womansHousehold, date, false);
+                personService.save(woman);
+                man = householdService.addPersonToHousehold(man, womansHousehold, date, true);
+                personService.save(man);
+                // If the man had some children, add them to the wife's household.
+                householdService.addStepchildrenToHousehold(woman, family, womansHousehold);
+                return womansHousehold;
+            }
         }
-        wife = householdService.addPersonToHousehold(wife, mansHousehold, date, false);
-        personService.save(wife);
+        woman = householdService.addPersonToHousehold(woman, mansHousehold, date, false);
+        personService.save(woman);
 
         householdService.addStepchildrenToHousehold(man, family, mansHousehold).forEach(personService::save);
         return mansHousehold;
@@ -244,6 +328,32 @@ public class FamilyService {
         LocalDate date = family.getWeddingDate();
         Person man = family.getHusband();
         Person wife = family.getWife();
+
+        // First check for any houses they already own. Pick the best one -- manor houses first, then the most
+        // expensive.
+        List<DwellingPlace> ownedResidences = new ArrayList<>();
+        ownedResidences.addAll(wife.getOwnedDwellingPlaces(date));
+        ownedResidences.addAll(man.getOwnedDwellingPlaces(date));
+        List<Dwelling> ownedResidencesOnEstates = ownedResidences.stream()
+                .filter(r -> r.getParent().isEstate() && r.isAttachedToParent() && r.isHouse())
+                .map(r -> (Dwelling) r)
+                .sorted(Comparator.comparing(DwellingPlace::getValue).reversed())
+                .collect(Collectors.toList());
+        if (!ownedResidencesOnEstates.isEmpty()) {
+            return ownedResidencesOnEstates.get(0);
+        }
+
+        if (!ownedResidences.isEmpty()) {
+            Dwelling house = ownedResidences.stream()
+                    .filter(DwellingPlace::isHouse)
+                    .map(h -> (Dwelling) h)
+                    .max(Comparator.comparing(DwellingPlace::getValue).reversed())
+                    .orElse(null);
+            if (house != null) {
+                return house;
+            }
+        }
+
         // She has already moved to the husband's household so we need to get the house of the household she lived in
         // the day before her marriage.
         DwellingPlace wifesFormerHouse = wife.getResidence(date.minusDays(1));
@@ -291,8 +401,8 @@ public class FamilyService {
                     : family.getWife();
             double capital = richerSpouse.getCapitalNullSafe(date);
             List<Dwelling> emptyHouses = parish.getEmptyHouses(date);
-            Dwelling buyableHouse = emptyHouses.stream()
-                    .filter(h -> h.getNullSafeValueIncludingAttachedParent() < capital)
+            Dwelling buyableHouse = householdDwellingPlaceService.findBuyableHousesFarmsAndEstates(parish, date, capital)
+                    .stream()
                     .max(Comparator.comparing(Dwelling::getNullSafeValueIncludingAttachedParent))
                     .orElse(null);
 

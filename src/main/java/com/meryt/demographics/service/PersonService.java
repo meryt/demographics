@@ -21,6 +21,7 @@ import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.PersonCapitalPeriod;
 import com.meryt.demographics.domain.person.RelatedPerson;
+import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.HouseholdLocationPeriod;
 import com.meryt.demographics.generator.WealthGenerator;
@@ -82,6 +83,13 @@ public class PersonService {
     @NonNull
     List<Person> findWomenWithPendingMaternities(@NonNull LocalDate checkDate) {
         return personRepository.findWomenWithPendingMaternities(checkDate);
+    }
+
+    @NonNull
+    List<Person> findBySocialClassAndGenderAndIsLiving(@NonNull SocialClass socialClass,
+                                                       @NonNull Gender gender,
+                                                       @NonNull LocalDate onDate) {
+        return personRepository.findBySocialClassAndGenderAndIsLiving(socialClass, gender, onDate);
     }
 
     @NonNull
