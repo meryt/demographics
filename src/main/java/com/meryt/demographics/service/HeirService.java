@@ -206,7 +206,7 @@ public class HeirService {
 
         // Look for any living descendants
         if (heirs.isEmpty()) {
-            heirs.addAll(personService.findLivingRelatives(person, onDate, 8L).stream()
+            heirs.addAll(personService.findDescendants(person, onDate).stream()
                     .sorted(Comparator.comparing(Person::getBirthDate))
                     .collect(Collectors.toList()));
         }

@@ -7,10 +7,12 @@ import javax.persistence.Embeddable;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 
 @EqualsAndHashCode
 @Getter
 @Setter
+@ToString
 @Embeddable
 public class DwellingPlaceOwnerPK implements Serializable {
     @Column(name = "dwelling_place_id")

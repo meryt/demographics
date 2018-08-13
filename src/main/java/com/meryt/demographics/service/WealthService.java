@@ -76,7 +76,7 @@ public class WealthService {
         double individualRent = adjustedRent / owners.size();
         for (Person owner : owners) {
             owner.addCapital(individualRent, onDate);
-            log.info(String.format("%d %s received %.2f from rents on %d %s", owner.getId(), owner.getName(),
+            log.debug(String.format("%d %s received %.2f from rents on %d %s", owner.getId(), owner.getName(),
                     individualRent, estate.getId(), estate.getLocationString()));
             personService.save(owner);
         }
@@ -90,7 +90,7 @@ public class WealthService {
         int value = new BetweenDie().roll(range.getFirst(), range.getSecond());
         double adjustedWage = adjustForGoodOrBadYear(value, goodYearFactor);
         person.addCapital(adjustedWage, onDate);
-        log.info(String.format("%d %s received %.2f from his wages as a %s", person.getId(), person.getName(),
+        log.debug(String.format("%d %s received %.2f from his wages as a %s", person.getId(), person.getName(),
                 adjustedWage, occupation.getName()));
         personService.save(person);
     }
@@ -104,7 +104,7 @@ public class WealthService {
         double rateOfReturn = new BetweenDie().roll(-200, 400) * 0.0001;
         double interest = currentCapital * rateOfReturn;
         person.addCapital(interest, onDate);
-        log.info(String.format("%d %s received %.2f from interest on capital", person.getId(), person.getName(),
+        log.debug(String.format("%d %s received %.2f from interest on capital", person.getId(), person.getName(),
                 interest));
         personService.save(person);
     }

@@ -134,6 +134,14 @@ public class AncestryService {
     }
 
     /**
+     * Gets the least common ancestor relationship between the two people, or null if they are not related in any way
+     */
+    @Nullable
+    public LeastCommonAncestorRelationship getLeastCommonAncestor(@NonNull Person person1, @NonNull Person person2) {
+        return ancestryRepository.getLeastCommonAncestorInfo(person1.getId(), person2.getId());
+    }
+
+    /**
      * Determines a relationship based on least common ancestors, if any
      *
      * @param person1 subject person

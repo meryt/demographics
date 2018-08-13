@@ -156,7 +156,6 @@ public class FamilyService {
         Household husbandsHousehold = moveWifeAndStepchildrenToHusbandsHousehold(family);
         findResidenceForNewFamily(family, husbandsHousehold, moveAwayIfHusbandNonResident);
 
-
         return family;
     }
 
@@ -183,8 +182,8 @@ public class FamilyService {
         if (wife.getMaternity().getConceptionDate() != null) {
             return;
         }
-        if (husband.getSocialClassRank() < SocialClass.YEOMAN_OR_MERCHANT.getRank()
-                && wife.getSocialClassRank() < SocialClass.YEOMAN_OR_MERCHANT.getRank()) {
+        if (husband.getSocialClassRank() <= SocialClass.YEOMAN_OR_MERCHANT.getRank()
+                && wife.getSocialClassRank() <= SocialClass.YEOMAN_OR_MERCHANT.getRank()) {
             // If they move away and are not higher-class we do not want to track their families.
             // Setting the father to null will cause the maternity checker to skip them.
             log.info(String.format("Disabling maternity check for nonresident woman %d %s, married to %d %s",
@@ -276,6 +275,7 @@ public class FamilyService {
                 && wife.getOccupation(date) == null) {
             log.info("Moving new family away from the parishes, as the husband is not a resident, and the wife is " +
                     "unemployed and owns no property.");
+            maybeDisableMaternityCheckingForNonResidentFamily(man, wife);
             return;
         }
 

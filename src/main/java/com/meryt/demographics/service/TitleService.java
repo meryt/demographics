@@ -317,9 +317,10 @@ public class TitleService {
             }
         } else if (heirs.getSecond().size() > 1) {
             results.add(new TitleAbeyanceEvent(date, title, heirs.getSecond()));
+            Person nextToLastHeir = heirs.getSecond().get(heirs.getSecond().size() - 2);
             LocalDate nextCheck = heirMayBeBornOn == null
-                    ? heirs.getSecond().get(0).getDeathDate()
-                    : LocalDateComparator.min(heirMayBeBornOn, heirs.getSecond().get(0).getDeathDate());
+                    ? nextToLastHeir.getDeathDate()
+                    : LocalDateComparator.min(heirMayBeBornOn, nextToLastHeir.getDeathDate());
             title.setNextAbeyanceCheckDate(nextCheck);
             save(title);
         } else {

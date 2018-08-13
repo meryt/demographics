@@ -6,7 +6,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import javassist.NotFoundException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.util.Pair;
 import org.springframework.http.HttpStatus;
@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.meryt.demographics.domain.family.Family;
+import com.meryt.demographics.domain.family.LeastCommonAncestorRelationship;
 import com.meryt.demographics.domain.family.Relationship;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.PersonTitlePeriod;
@@ -37,7 +38,8 @@ import com.meryt.demographics.request.PersonHouseholdPost;
 import com.meryt.demographics.request.PersonParameters;
 import com.meryt.demographics.request.PersonTitlePost;
 import com.meryt.demographics.request.RandomFamilyParameters;
-import com.meryt.demographics.response.HouseholdResponse;
+import com.meryt.demographics.response.HouseholdResponseWithLocations;
+import com.meryt.demographics.response.LeastCommonAncestorResponse;
 import com.meryt.demographics.response.PersonDescendantResponse;
 import com.meryt.demographics.response.PersonDetailResponse;
 import com.meryt.demographics.response.PersonFamilyResponse;
@@ -56,11 +58,13 @@ import com.meryt.demographics.service.HouseholdService;
 import com.meryt.demographics.service.PersonService;
 import com.meryt.demographics.service.TitleService;
 
+@Slf4j
 @RestController
 public class PersonController {
 
     private static final String SOCIAL_CLASS = "socialClass";
     private static final String LAST_NAME = "lastName";
+    private static final String IS_LAST_NAME_RECURSIVE = "applyLastNameRecursively";
 
     private final PersonGenerator personGenerator;
 
@@ -154,14 +158,23 @@ public class PersonController {
     }
 
     @RequestMapping(value = "/api/persons/{personId}/households", method = RequestMethod.POST)
-    public HouseholdResponse addPersonToHousehold(@PathVariable long personId, @RequestBody PersonHouseholdPost post) {
+    public HouseholdResponseWithLocations addPersonToHousehold(@PathVariable long personId,
+                                                               @RequestBody PersonHouseholdPost post) {
         Person person = controllerHelperService.loadPerson(personId);
 
         if (post.getHouseholdId() == null) {
             throw new BadRequestException("householdId is required");
         }
-        if (post.getFromDate() == null) {
+        LocalDate fromDate;
+        String fromDateString = post.getFromDate();
+        if (fromDateString == null) {
             throw new BadRequestException("fromDate is required");
+        }
+
+        if (fromDateString.equals("birth")) {
+            fromDate = person.getBirthDate();
+        } else {
+            fromDate = controllerHelperService.parseDate("current");
         }
 
         Household household = householdService.load(post.getHouseholdId());
@@ -169,11 +182,11 @@ public class PersonController {
             throw new ResourceNotFoundException("No household exists for ID " + post.getHouseholdId());
         }
 
-        person = householdService.addPersonToHousehold(person, household, post.getFromDate(), post.isHead());
+        person = householdService.addPersonToHousehold(person, household, fromDate, post.isHead());
         if (post.isIncludeHomelessFamilyMembers()) {
-            household = householdService.addHomelessFamilyMembersToHousehold(person, household, post.getFromDate(), true);
+            household = householdService.addHomelessFamilyMembersToHousehold(person, household, fromDate, true);
         }
-        return new HouseholdResponse(household, post.getFromDate());
+        return new HouseholdResponseWithLocations(household, fromDate);
     }
 
     @RequestMapping(value = "/api/persons/{personId}/living-descendants", method = RequestMethod.GET)
@@ -230,6 +243,23 @@ public class PersonController {
                         .thenComparing(Comparator.comparing(RelatedPersonResponse::getBirthDate).reversed()))
                 .collect(Collectors.toList());
     }
+
+    @RequestMapping(value = "api/persons/{personId}/least-common-ancestor/{otherPersonId}", method = RequestMethod.GET)
+    public LeastCommonAncestorResponse getPersonLeastCommonAncestorWith(@PathVariable long personId,
+                                                                        @PathVariable long otherPersonId) {
+        Person person = controllerHelperService.loadPerson(personId);
+        Person otherPerson = controllerHelperService.loadPerson(otherPersonId);
+
+        LeastCommonAncestorRelationship lcaRelationship = ancestryService.getLeastCommonAncestor(person, otherPerson);
+
+        if (lcaRelationship == null) {
+            return null;
+        }
+        Relationship relationship = ancestryService.calculateRelationship(otherPerson, person, false);
+
+        return new LeastCommonAncestorResponse(person, otherPerson, lcaRelationship, relationship, personService);
+    }
+
 
     @RequestMapping("/api/persons/{personId}/titles")
     public List<PersonTitleResponse> getPersonTitles(@PathVariable long personId,
@@ -345,6 +375,16 @@ public class PersonController {
         if (updates.containsKey(LAST_NAME)) {
             person.setLastName((String) updates.get(LAST_NAME));
             updates.remove(LAST_NAME);
+
+            if (updates.containsKey(IS_LAST_NAME_RECURSIVE) && ((boolean)(updates.get(IS_LAST_NAME_RECURSIVE)))) {
+                for (Person child : person.getChildren()) {
+                    log.info(String.format("Setting last name of child %d %s from %s to %s", child.getId(),
+                            child.getName(), child.getLastName(), person.getLastName()));
+                    child.setLastName(person.getLastName());
+                    personService.save(child);
+                }
+                updates.remove(IS_LAST_NAME_RECURSIVE);
+            }
         }
 
         if (!updates.isEmpty()) {

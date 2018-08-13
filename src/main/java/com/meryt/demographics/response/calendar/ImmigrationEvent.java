@@ -6,16 +6,16 @@ import lombok.Getter;
 import lombok.NonNull;
 
 import com.meryt.demographics.domain.place.Household;
-import com.meryt.demographics.response.HouseholdResponse;
+import com.meryt.demographics.response.HouseholdResponseWithLocations;
 
 @Getter
 public class ImmigrationEvent extends CalendarDayEvent {
 
-    private final HouseholdResponse householdResponse;
+    private final HouseholdResponseWithLocations householdResponse;
 
     public ImmigrationEvent(@NonNull LocalDate date, @NonNull Household household) {
         super(date);
-        householdResponse = new HouseholdResponse(household, date);
+        householdResponse = new HouseholdResponseWithLocations(household, date);
         setType(CalendarEventType.IMMIGRATION);
     }
 }

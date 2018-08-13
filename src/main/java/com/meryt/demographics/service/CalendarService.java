@@ -135,10 +135,7 @@ public class CalendarService {
 
             if (date.getMonthValue() == nextDatePost.getFirstMonthOfYearOrDefault()
                     && date.getDayOfMonth() == nextDatePost.getFirstDayOfYearOrDefault()) {
-                double goodYearFactor = (new BetweenDie()).roll(-20, 20) * 0.01;
-                log.info(String.format("%d was a %s year with a factor of %s", date.getYear() - 1,
-                        goodYearFactor > 0 ? "good" : "bad", goodYearFactor));
-                wealthService.distributeCapital(date, goodYearFactor);
+                distributeCapital(date);
             }
             checkDateService.setCurrentDate(date);
             i++;
@@ -175,7 +172,7 @@ public class CalendarService {
                 familyService.save(family);
                 dayResults.add(new MarriageEvent(date, family));
                 logMarriage(family, date);
-                family = familyService.setupMarriage(family, family.getWeddingDate(), person.isMale());
+                family = familyService.setupMarriage(family, family.getWeddingDate(), true);
                 family.getWife().getMaternity().setHavingRelations(false);
                 // If the woman is randomly generated her last check date is in the past. Bring her up to yesterday so
                 // that in the next step when we advance maternities, she will start with her wedding night.
@@ -398,5 +395,12 @@ public class CalendarService {
                             .map(o -> o.getId() + " " + o.getName()).collect(Collectors.joining(", ")),
                     p.getParent().getId(), p.getParent().getFriendlyName(), p.getParent().getOwners(onDate).stream()
                             .map(o -> o.getId() + " " + o.getName()).collect(Collectors.joining(", ")))));
+    }
+
+    private void distributeCapital(@NonNull LocalDate date) {
+        double goodYearFactor = (new BetweenDie()).roll(-20, 20) * 0.01;
+        log.info(String.format("%d was a %s year with a factor of %s", date.getYear() - 1,
+                goodYearFactor > 0 ? "good" : "bad", goodYearFactor));
+        wealthService.distributeCapital(date, goodYearFactor);
     }
 }

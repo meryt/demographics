@@ -30,10 +30,25 @@ public class Parish extends DwellingPlace {
     /**
      * Calculate the chance of a newly married couple emigrating (depends on population density)
      *
-     * @return a chance between about 0.0 and 1.0
+     * @return a chance between about 0.0 and 1.0 (or greater than 1.0 for extremely high densities)
      */
     public double getChanceOfEmigrating(@NonNull LocalDate onDate) {
-        return 0.000003 * Math.pow((getPopulationPerSquareMile(onDate) - DESIRED_POPULATION_PER_SQUARE_MILE), 3);
+        double x = getPopulationPerSquareMile(onDate);
+
+        // https://mycurvefit.com/
+        /*
+                  0                0
+                 20                0
+                 30                0
+                 40                0.85
+                 50                0.95
+                 60                1
+                 35                0.5
+         */
+
+        // y = 0.963058 + (-0.0160843 - 0.963058)/(1 + (x/34.94572)^18.18451)
+        double value = 0.963058 + (-0.0160843 - 0.963058) / (1 + Math.pow(x /34.94572, 18.18451));
+        return value;
     }
 
     /**

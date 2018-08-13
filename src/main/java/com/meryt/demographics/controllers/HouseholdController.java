@@ -23,7 +23,7 @@ import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.Parish;
 import com.meryt.demographics.request.HouseholdPlacePost;
 import com.meryt.demographics.request.HouseholdPost;
-import com.meryt.demographics.response.HouseholdResponse;
+import com.meryt.demographics.response.HouseholdResponseWithLocations;
 import com.meryt.demographics.response.calendar.CalendarDayEvent;
 import com.meryt.demographics.rest.BadRequestException;
 import com.meryt.demographics.rest.ResourceNotFoundException;
@@ -56,8 +56,8 @@ public class HouseholdController {
     }
 
     @RequestMapping("/api/households/{householdId}")
-    public HouseholdResponse getHousehold(@PathVariable long householdId,
-                                          @RequestParam(value = "onDate", required = false) String onDate) {
+    public HouseholdResponseWithLocations getHousehold(@PathVariable long householdId,
+                                                       @RequestParam(value = "onDate", required = false) String onDate) {
         Household household = loadHousehold(householdId);
         LocalDate date;
         if (onDate != null) {
@@ -65,11 +65,11 @@ public class HouseholdController {
         } else {
             date = controllerHelperService.parseDate("current");
         }
-        return new HouseholdResponse(household, date);
+        return new HouseholdResponseWithLocations(household, date);
     }
 
     @RequestMapping("/api/households/homeless")
-    public List<HouseholdResponse> getHouseholdsWithoutHouses(@RequestParam(value = "onDate") String onDate) {
+    public List<HouseholdResponseWithLocations> getHouseholdsWithoutHouses(@RequestParam(value = "onDate") String onDate) {
         if (onDate == null) {
             throw new BadRequestException("onDate cannot be null");
         }
@@ -77,12 +77,12 @@ public class HouseholdController {
 
         return Stream.concat(householdService.loadHouseholdsWithoutHouses(date).stream(),
                 householdService.loadHouseholdsWithoutLocations(date).stream())
-                .map(h -> new HouseholdResponse(h, date))
+                .map(h -> new HouseholdResponseWithLocations(h, date))
                 .collect(Collectors.toList());
     }
 
     @RequestMapping(value = "/api/households", method = RequestMethod.POST)
-    public HouseholdResponse postHousehold(@RequestBody HouseholdPost householdPost) {
+    public HouseholdResponseWithLocations postHousehold(@RequestBody HouseholdPost householdPost) {
         if (householdPost.getAsOfDate() == null) {
             throw new BadRequestException("asOfDate cannot be null");
         }
@@ -104,7 +104,7 @@ public class HouseholdController {
 
         Household household = householdService.createHouseholdForHead(person, onDate,
                 householdPost.getIncludeHomelessFamilyMembers());
-        return new HouseholdResponse(household, onDate);
+        return new HouseholdResponseWithLocations(household, onDate);
     }
 
     /**
@@ -115,8 +115,8 @@ public class HouseholdController {
      * @return info about the household after the move
      */
     @RequestMapping(value = "/api/households/{householdId}/places", method = RequestMethod.POST)
-    public HouseholdResponse postHouseholdPlace(@RequestBody HouseholdPlacePost householdPlacePost,
-                                                @PathVariable long householdId) {
+    public HouseholdResponseWithLocations postHouseholdPlace(@RequestBody HouseholdPlacePost householdPlacePost,
+                                                             @PathVariable long householdId) {
         Household household = loadHousehold(householdId);
         if (householdPlacePost.getOnDate() == null) {
             throw new BadRequestException("onDate is required");
@@ -160,7 +160,7 @@ public class HouseholdController {
             throw new BadRequestException("dwellingPlaceId must be either a Parish, a Dwelling, or null");
         }
 
-        return new HouseholdResponse(household, onDate);
+        return new HouseholdResponseWithLocations(household, onDate);
     }
 
     @NonNull

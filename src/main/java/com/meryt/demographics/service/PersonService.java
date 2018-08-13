@@ -118,6 +118,13 @@ public class PersonService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Find all descendants of a person.
+     *
+     * @param person the person whose descendants we will find
+     * @param aliveOnDate if non-null, only descendants alive on this date will be returned
+     * @return a list of Persons, possibly empty
+     */
     @NonNull
     public List<Person> findDescendants(@NonNull Person person, @Nullable LocalDate aliveOnDate) {
         List<AncestryRecord> desc = ancestryService.getDescendants(person.getId());

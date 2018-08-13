@@ -31,8 +31,8 @@ public class PersonDetailResponse extends PersonResponse {
     private final List<PersonTitleResponse> titles;
     private final List<PersonFamilyResponse> families;
     private final List<PersonOccupationResponse> occupations;
-    private final HouseholdResponse household;
-    private final List<HouseholdResponse> households;
+    private final HouseholdResponseWithLocations household;
+    private final List<HouseholdResponseWithLocations> households;
     private final List<DwellingPlaceReference> ownedProperties;
     private final PersonParentsFamilyResponse family;
 
@@ -78,7 +78,7 @@ public class PersonDetailResponse extends PersonResponse {
 
             households = null;
             Household personHousehold = person.getHousehold(onDate);
-            household = personHousehold == null ? null : new HouseholdResponse(personHousehold, onDate);
+            household = personHousehold == null ? null : new HouseholdResponseWithLocations(personHousehold, onDate);
 
             List<DwellingPlaceReference> props = person.getOwnedDwellingPlaces(onDate).stream()
                 .map(DwellingPlaceReference::new)
@@ -95,7 +95,7 @@ public class PersonDetailResponse extends PersonResponse {
             household = null;
             households = new ArrayList<>();
             for (HouseholdInhabitantPeriod householdPeriod : person.getHouseholds()) {
-                households.add(new HouseholdResponse(householdPeriod.getHousehold()));
+                households.add(new HouseholdResponseWithLocations(householdPeriod.getHousehold()));
             }
 
             List<DwellingPlaceReference> props = person.getOwnedDwellingPlaces().stream()

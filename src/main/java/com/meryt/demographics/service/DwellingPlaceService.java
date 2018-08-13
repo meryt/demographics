@@ -97,9 +97,9 @@ public class DwellingPlaceService {
     }
 
     PropertyTransferEvent transferDwellingPlaceToPerson(@NonNull DwellingPlace place,
-                                                               @NonNull Person newOwner,
-                                                               @NonNull LocalDate onDate,
-                                                               boolean transferCapital) {
+                                                        @NonNull Person newOwner,
+                                                        @NonNull LocalDate onDate,
+                                                        boolean transferCapital) {
         if (!newOwner.isLiving(onDate)) {
             throw new IllegalArgumentException(String.format("%d %s cannot obtain %s %d because he is not alive on %s",
                     newOwner.getId(), newOwner.getName(), place.getType().getFriendlyName(), place.getId(), onDate));

@@ -16,6 +16,7 @@ class DwellingPlaceSummaryResponse extends DwellingPlaceReference {
 
     private Double settledAcres;
     private Double settledSquareMiles;
+    private Double populationPerSquareMile;
 
     DwellingPlaceSummaryResponse(@NonNull DwellingPlace dwellingPlace, @Nullable LocalDate onDate) {
         super(dwellingPlace);
@@ -29,6 +30,9 @@ class DwellingPlaceSummaryResponse extends DwellingPlaceReference {
             if (dwellingPlace instanceof Parish) {
                 settledAcres = Precision.round(((Parish) dwellingPlace).getSettledAcres(onDate), 1);
                 settledSquareMiles = Precision.round(((Parish) dwellingPlace).getSettledSquareMiles(onDate), 1);
+                if (getSquareMiles() != null && getSquareMiles() > 0) {
+                    populationPerSquareMile = Precision.round(totalPopulation / getSquareMiles(), 1);
+                }
             }
          }
     }
