@@ -13,4 +13,5 @@ public class EstatePost {
     private Long ownerId;
     private String ownerFromDate;
     private Long entailedTitleId;
+    private Boolean mustPurchase;
 }

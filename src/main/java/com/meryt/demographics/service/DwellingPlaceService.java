@@ -96,7 +96,7 @@ public class DwellingPlaceService {
 
     }
 
-    PropertyTransferEvent transferDwellingPlaceToPerson(@NonNull DwellingPlace place,
+    public PropertyTransferEvent transferDwellingPlaceToPerson(@NonNull DwellingPlace place,
                                                         @NonNull Person newOwner,
                                                         @NonNull LocalDate onDate,
                                                         boolean transferCapital) {

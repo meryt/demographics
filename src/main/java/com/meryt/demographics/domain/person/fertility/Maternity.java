@@ -86,6 +86,13 @@ public class Maternity extends Fertility {
                 highestBirthDate.plusDays(365 + new Die(365).roll())));
     }
 
+    /**
+     * Get the father ID (for JSON)
+     */
+    public Long getFatherId() {
+        return father == null ? null : father.getId();
+    }
+
     public void clearPregnancyFields() {
         setDueDate(null);
         setMiscarriageDate(null);

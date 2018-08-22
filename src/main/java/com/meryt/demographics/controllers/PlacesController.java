@@ -110,6 +110,11 @@ public class PlacesController {
             personService.save(owner);
         }
 
+        if (estatePost.getMustPurchase() != null && estatePost.getMustPurchase()) {
+            owner.addCapital(estate.getValue() * -1, onDate);
+            personService.save(owner);
+        }
+
         parishGenerator.populateEstateWithEmployees(estate, onDate);
 
         return new DwellingPlaceResponse(estate, onDate);

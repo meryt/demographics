@@ -131,16 +131,29 @@ public class InheritanceService {
                 .sorted(Comparator.comparing(DwellingPlace::getValue).reversed())
                 .collect(Collectors.toList());
 
+        Person unrelatedHeirForTitleEntailments = null;
         for (DwellingPlace dwelling : entailedToTitlePlaces) {
-            Person titleHolder = getHeirForRealEstateEntailedToTitle(dwelling.getEntailedTitle(), dwelling, onDate);
+            Title title = dwelling.getEntailedTitle();
+            Person titleHolder = getHeirForRealEstateEntailedToTitle(title, dwelling, onDate);
+
+            if (titleHolder == null && title.isExtinct()) {
+                if (unrelatedHeirForTitleEntailments == null) {
+                    unrelatedHeirForTitleEntailments = titleService.findNewOwnerForEntailedProperties(title, person, onDate);
+                }
+                titleHolder = unrelatedHeirForTitleEntailments;
+                dwelling.setEntailedTitle(null);
+                title.getEntailedProperties().remove(dwelling);
+                titleService.save(title);
+            }
 
             if (titleHolder != null && !dwelling.getOwners(onDate).contains(titleHolder)) {
                 String relationshipString = getLogMessageForHeirWithRelationship(titleHolder, person);
                 log.info(String.format("%s is entailed to %s. Giving to title heir %s.",
                         dwelling.getFriendlyName(),
-                        dwelling.getEntailedTitle().getName(),
+                        title.getName(),
                         relationshipString));
                 dwelling.addOwner(titleHolder, onDate, titleHolder.getDeathDate());
+                dwelling = dwellingPlaceService.save(dwelling);
                 results.add(new PropertyTransferEvent(onDate, dwelling, dwelling.getOwners(onDate.minusDays(1))));
                 log.info(String.format("%s %s is inherited by %s on %s",
                         dwelling.getType().getFriendlyName(),
@@ -184,6 +197,7 @@ public class InheritanceService {
                         dwelling.getFriendlyName(),
                         relationToMaleHeirForEntailments));
                 dwelling.addOwner(maleHeirForEntailments, onDate, maleHeirForEntailments.getDeathDate());
+                dwelling = dwellingPlaceService.save(dwelling);
                 results.add(new PropertyTransferEvent(onDate, dwelling, dwelling.getOwners(onDate.minusDays(1))));
                 log.info(String.format("%d %s inherits %s %s on %s", maleHeirForEntailments.getId(),
                         maleHeirForEntailments.getName(), dwelling.getType().getFriendlyName(),
@@ -263,6 +277,7 @@ public class InheritanceService {
                     getLogMessageForHeirWithRelationship(heir, person),
                     onDate));
             house.addOwner(heir, onDate, heir.getDeathDate());
+            house = dwellingPlaceService.save(house);
             results.add(new PropertyTransferEvent(onDate, house, house.getOwners(onDate.minusDays(1))));
             personService.save(heir);
             results.addAll(maybeMoveHeirIntoInheritedHouse(person, heir, onDate, (Dwelling) house));

@@ -137,7 +137,7 @@ public class Person {
     @OneToMany(mappedBy = "person", cascade = { CascadeType.MERGE })
     private List<HouseholdInhabitantPeriod> households = new ArrayList<>();
 
-    @OneToMany(mappedBy = "owner", cascade = { CascadeType.MERGE })
+    @OneToMany(mappedBy = "owner")
     private List<DwellingPlaceOwnerPeriod> ownedDwellingPlaces = new ArrayList<>();
 
     @OneToMany(mappedBy = "person", cascade = { CascadeType.MERGE })

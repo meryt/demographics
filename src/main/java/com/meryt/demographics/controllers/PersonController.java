@@ -26,6 +26,7 @@ import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.PersonTitlePeriod;
 import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.domain.person.fertility.Fertility;
+import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.title.Title;
 import com.meryt.demographics.domain.title.TitleInheritanceStyle;
@@ -51,6 +52,7 @@ import com.meryt.demographics.rest.BadRequestException;
 import com.meryt.demographics.rest.ResourceNotFoundException;
 import com.meryt.demographics.service.AncestryService;
 import com.meryt.demographics.service.ControllerHelperService;
+import com.meryt.demographics.service.DwellingPlaceService;
 import com.meryt.demographics.service.FamilyService;
 import com.meryt.demographics.service.FertilityService;
 import com.meryt.demographics.service.HeirService;
@@ -86,6 +88,8 @@ public class PersonController {
 
     private final HouseholdService householdService;
 
+    private final DwellingPlaceService dwellingPlaceService;
+
     public PersonController(@Autowired PersonGenerator personGenerator,
                             @Autowired PersonService personService,
                             @Autowired TitleService titleService,
@@ -95,7 +99,8 @@ public class PersonController {
                             @Autowired AncestryService ancestryService,
                             @Autowired HeirService heirService,
                             @Autowired ControllerHelperService controllerHelperService,
-                            @Autowired HouseholdService householdService) {
+                            @Autowired HouseholdService householdService,
+                            @Autowired DwellingPlaceService dwellingPlaceService) {
         this.personGenerator = personGenerator;
         this.personService = personService;
         this.titleService = titleService;
@@ -106,6 +111,7 @@ public class PersonController {
         this.heirService = heirService;
         this.controllerHelperService = controllerHelperService;
         this.householdService = householdService;
+        this.dwellingPlaceService = dwellingPlaceService;
     }
 
     @RequestMapping("/api/persons/random")
@@ -301,6 +307,11 @@ public class PersonController {
         person.addOrUpdateTitle(title, personTitlePost.getFromDate(), personTitlePost.getToDate());
 
         personService.save(person);
+
+
+        for (DwellingPlace place : title.getEntailedProperties()) {
+            dwellingPlaceService.transferDwellingPlaceToPerson(place, person, personTitlePost.getFromDate(), false);
+        }
 
         return getPersonTitles(personId, null);
     }

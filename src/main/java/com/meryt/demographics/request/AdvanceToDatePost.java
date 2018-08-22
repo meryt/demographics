@@ -27,6 +27,10 @@ public class AdvanceToDatePost {
      */
     private Integer maternityNumDays;
     /**
+     * Number of days between ancestry rebuilds, if set. If null, rebuilds whenever children are born.
+     */
+    private Integer daysBetweenAncestryRebuild;
+    /**
      * Percent chance, per year, that a new family will arrive in a parish. The check will be performed per day,
      * with this value divided by 365 to determine whether a new family moves into the parish.
      */

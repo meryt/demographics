@@ -2,8 +2,10 @@ package com.meryt.demographics.service;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -19,6 +21,7 @@ import com.meryt.demographics.domain.person.PersonCapitalPeriod;
 import com.meryt.demographics.domain.person.PersonTitlePeriod;
 import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.title.Title;
+import com.meryt.demographics.generator.random.PercentDie;
 import com.meryt.demographics.repository.TitleRepository;
 import com.meryt.demographics.response.calendar.CalendarDayEvent;
 import com.meryt.demographics.response.calendar.TitleAbeyanceEvent;
@@ -272,8 +275,7 @@ public class TitleService {
             singleTitleHeirs.addAll(result.stream()
                     .filter(TitleInheritanceEvent.class::isInstance)
                     .map(TitleInheritanceEvent.class::cast)
-                    .map(TitleInheritanceEvent::getPerson)
-                    .map(pr -> personService.load(pr.getId()))
+                    .map(TitleInheritanceEvent::getPersonRecord)
                     .collect(Collectors.toList()));
             results.addAll(result);
         }
@@ -339,6 +341,54 @@ public class TitleService {
             }
         }
         return results;
+    }
+
+    /**
+     * When a title goes extinct, and there were properties entailed to the title, we must find new owners for them.
+     *
+     * Maybe a grandson will be allowed to inherit. Or maybe a random nobleman will be chosen.
+     */
+    @Nullable
+    Person findNewOwnerForEntailedProperties(@NonNull Title extinctTitle,
+                                             @NonNull Person latestHolder,
+                                             @NonNull LocalDate date) {
+        Person heir = null;
+        if (new PercentDie().roll() < 0.5) {
+            // By definition the last holder has no male heirs. But perhaps a grandson can inherit the property.
+            List<Person> grandsons = latestHolder.getChildren().stream()
+                    .flatMap(p -> p.getChildren().stream())
+                    .filter(p -> p.isLiving(date) && p.isMale())
+                    .sorted(Comparator.comparing(Person::getBirthDate))
+                    .collect(Collectors.toList());
+            if (!grandsons.isEmpty()) {
+                heir = grandsons.get(0);
+                log.info(String.format("Grandson %d %s will inherit entailed property belonging to %d %s",
+                        heir.getId(), heir.getName(), latestHolder.getId(), latestHolder.getName()));
+            }
+        }
+        if (heir == null) {
+            // Find a person with a title of the same or a greater social class.
+            List<Person> personsWithTitles = findAllOrderByName().stream()
+                    .filter(t -> !t.isExtinct() && t.getNextAbeyanceCheckDate() == null
+                            && t.getSocialClass().getRank() >= extinctTitle.getSocialClass().getRank())
+                    .map(t -> t.getHolder(date))
+                    .filter(Objects::nonNull)
+                    .filter(p -> p.getResidence(date) == null)
+                    .collect(Collectors.toList());
+            if (!personsWithTitles.isEmpty()) {
+                Collections.shuffle(personsWithTitles);
+                heir = personsWithTitles.get(0);
+                log.info(String.format("%d %s, %s, will inherit entailed property belonging to %d %s",
+                        heir.getId(), heir.getName(),
+                        heir.getTitles(date).stream()
+                            .map(PersonTitlePeriod::getTitle)
+                            .map(Title::getName)
+                            .collect(Collectors.joining(", ")),
+                        latestHolder.getId(), latestHolder.getName()));
+            }
+        }
+
+        return heir;
     }
 
     /**
