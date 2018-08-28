@@ -15,7 +15,6 @@ import org.springframework.stereotype.Service;
 
 import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.family.Family;
-import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.place.Dwelling;
 import com.meryt.demographics.domain.place.DwellingPlace;
@@ -49,7 +48,6 @@ public class CalendarService {
     private final FertilityService fertilityService;
     private final FamilyService familyService;
     private final InheritanceService inheritanceService;
-    private final AncestryService ancestryService;
     private final OccupationService occupationService;
     private final WealthService wealthService;
     private final DwellingPlaceService dwellingPlaceService;
@@ -64,7 +62,6 @@ public class CalendarService {
                            @Autowired @NonNull FertilityService fertilityService,
                            @Autowired @NonNull FamilyService familyService,
                            @Autowired @NonNull InheritanceService inheritanceService,
-                           @Autowired @NonNull AncestryService ancestryService,
                            @Autowired @NonNull OccupationService occupationService,
                            @Autowired @NonNull WealthService wealthService,
                            @Autowired @NonNull DwellingPlaceService dwellingPlaceService,
@@ -78,7 +75,6 @@ public class CalendarService {
         this.fertilityService = fertilityService;
         this.familyService = familyService;
         this.inheritanceService = inheritanceService;
-        this.ancestryService = ancestryService;
         this.occupationService = occupationService;
         this.wealthService = wealthService;
         this.dwellingPlaceService = dwellingPlaceService;
@@ -105,7 +101,6 @@ public class CalendarService {
 
         Map<LocalDate, List<CalendarDayEvent>> results = new TreeMap<>();
         int i = 0;
-        LocalDate lastAncestryCheck = null;
         int matBatchSize = nextDatePost.getMaternityNumDaysOrDefault();
         if (matBatchSize <= 0) {
             throw new BadRequestException("maternityNumDays must be a positive integer (defaults to 1 if not specified)");
@@ -117,9 +112,6 @@ public class CalendarService {
                     nextDatePost.getFarmNamesOrDefault());
             results = mergeMaps(results, marriageEvents);
 
-            boolean allowMaternityAncestryRebuild = nextDatePost.getDaysBetweenAncestryRebuild() == null
-                    || nextDatePost.getDaysBetweenAncestryRebuild() > nextDatePost.getAdvanceDays();
-
             // Say the batch size is 7. If so, we don't check on the 0th through 5th date, but do on the 6th.
             // Or, in case the number of days is such that less than a full 7 days fits in at the end, we always
             // check on the last day of the iteration.
@@ -129,33 +121,14 @@ public class CalendarService {
                 // - the number of days to check is less than the number of days between rebuilds (e.g. we are only
                 //   checking one day at a time, we don't want to rebuild ancestry every time, we only want to do it
                 //   if there were births)
-                Map<LocalDate, List<CalendarDayEvent>> maternityEvents = advanceMaternitiesToDay(date,
-                        allowMaternityAncestryRebuild);
-                if (allowMaternityAncestryRebuild && maternityEvents.values().stream()
-                        .flatMap(List::stream)
-                        .anyMatch(e -> e.getType() == CalendarEventType.BIRTH)) {
-                    lastAncestryCheck = date;
-                }
+                Map<LocalDate, List<CalendarDayEvent>> maternityEvents = advanceMaternitiesToDay(date);
                 results = mergeMaps(results, maternityEvents);
-            }
-
-            if (!allowMaternityAncestryRebuild) {
-                // If maternity is not handling rebuild, we need to do it every so often.
-                int daysBetween = nextDatePost.getDaysBetweenAncestryRebuild();
-                if ((lastAncestryCheck == null && i >= daysBetween)
-                        || (lastAncestryCheck != null && lastAncestryCheck.plusDays(daysBetween).isBefore(date))) {
-                    ancestryService.updateAncestryTable();
-                    lastAncestryCheck = date;
-                }
             }
 
             Map<LocalDate, List<CalendarDayEvent>> deathEvents = processDeathsOnDay(date);
             results = mergeMaps(results, deathEvents);
 
             Map<LocalDate, List<CalendarDayEvent>> immigrantEvents = processImmigrants(date, nextDatePost);
-            if (!immigrantEvents.isEmpty()) {
-                lastAncestryCheck = date;
-            }
             results = mergeMaps(results, immigrantEvents);
 
             Map<LocalDate, List<CalendarDayEvent>> titleEvents = processTitlesInAbeyance(date);
@@ -244,12 +217,10 @@ public class CalendarService {
         return results;
     }
 
-    private Map<LocalDate, List<CalendarDayEvent>> advanceMaternitiesToDay(@NonNull LocalDate date,
-                                                                           boolean allowRebuildAncestry) {
+    private Map<LocalDate, List<CalendarDayEvent>> advanceMaternitiesToDay(@NonNull LocalDate date) {
         List<Person> women = personService.findWomenWithPendingMaternities(date);
         log.info(women.size() + " women need to be checked");
         Map<LocalDate, List<CalendarDayEvent>> results = new TreeMap<>();
-        boolean needToRebuildAncestry = false;
         for (Person woman : women) {
             // FIXME HACK we have inheritance problems with a woman dying before her expected death date. So don't
             // allow her to die in (at least) these conditions.
@@ -261,7 +232,6 @@ public class CalendarService {
                 }
                 results.get(result.getDate()).add(result);
                 if (result.getType() == CalendarEventType.BIRTH) {
-                    needToRebuildAncestry = true;
                     BirthEvent event = (BirthEvent) result;
                     // If the child died before the given date, process the death, since we will have already passed
                     // it by in the main loop due to the batching of maternity checks.
@@ -278,9 +248,6 @@ public class CalendarService {
                     results = mergeMaps(results, deathResults);
                 }
             }
-        }
-        if (allowRebuildAncestry && needToRebuildAncestry) {
-            ancestryService.updateAncestryTable();
         }
         return results;
     }

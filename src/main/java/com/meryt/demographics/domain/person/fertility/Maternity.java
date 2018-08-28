@@ -64,6 +64,13 @@ public class Maternity extends Fertility {
                 && (dueDate.isAfter(onDate) || dueDate.isEqual(onDate));
     }
 
+    public boolean mayGiveBirthBy(@NonNull LocalDate onDate) {
+        if (lastCheckDate == null || lastCheckDate.isAfter(onDate)) {
+            return false;
+        }
+        return isPregnant(lastCheckDate) && miscarriageDate == null;
+    }
+
     /**
      * Sets a random breastfeeding-till date from an array of 1 or more children.
      *

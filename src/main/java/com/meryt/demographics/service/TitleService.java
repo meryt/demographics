@@ -267,7 +267,9 @@ public class TitleService {
                 continue;
             }
             LocalDate heirMayBeBorn = null;
-            if (person.isMale() && person.getSpouse(date) != null && person.getSpouse(date).isPregnant(date) &&
+            if (person.isMale() && person.getSpouse(date) != null &&
+                    (person.getSpouse(date).isPregnant(date) ||
+                        person.getSpouse(date).mayGiveBirthBy(date)) &&
                     person.getSpouse(date).getMaternity().getMiscarriageDate() == null) {
                 heirMayBeBorn = person.getSpouse(date).getMaternity().getDueDate();
             }

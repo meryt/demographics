@@ -271,7 +271,7 @@ public class InheritanceService {
                 }
                 heir = heirs.get(i++);
             }
-            log.info(String.format("%s in %s is inherited by %s on %s",
+            log.info(String.format("%d %s in %s is inherited by %s on %s", house.getId(),
                     house.getType().getFriendlyName(),
                     house.getLocationString(),
                     getLogMessageForHeirWithRelationship(heir, person),

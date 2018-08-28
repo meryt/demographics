@@ -85,9 +85,6 @@ public class HouseholdGenerator {
             familyService.save(family);
             personService.save(family.getHusband());
             personService.save(family.getWife());
-            if (localParameters.isAllowExistingSpouse()) {
-                ancestryService.updateAncestryTable();
-            }
             addFamilyToHousehold(household, family, onDate);
             householdService.save(household);
             familyService.save(family);
@@ -112,9 +109,6 @@ public class HouseholdGenerator {
             if (secondFamily != null) {
                 personService.save(founder);
                 familyService.save(secondFamily);
-                if (localParameters.isAllowExistingSpouse()) {
-                    ancestryService.updateAncestryTable();
-                }
                 addFamilyToHousehold(household, secondFamily, onDate);
                 householdService.save(household);
                 familyService.save(secondFamily);

@@ -32,7 +32,7 @@ public class WealthGenerator {
         return (double) (BETWEEN_DIE.roll(range.getFirst(), range.getSecond()));
     }
 
-    private static Pair<Integer, Integer> getHouseValueRange(@NonNull SocialClass socialClass) {
+    public static Pair<Integer, Integer> getHouseValueRange(@NonNull SocialClass socialClass) {
         switch (socialClass) {
             case PAUPER:
                 return Pair.of(20, 80);
@@ -45,21 +45,21 @@ public class WealthGenerator {
             case GENTLEMAN:
                 return Pair.of(800, 4000);
             case BARONET:
-                return Pair.of(800, 4000);
+                return Pair.of(2000, 20_000);
             case BARON:
-                return Pair.of(2000, 10_000);
+                return Pair.of(4000, 40_000);
             case VISCOUNT:
-                return Pair.of(2000, 10_000);
+                return Pair.of(10_000, 80_000);
             case EARL:
-                return Pair.of(4000, 20_000);
+                return Pair.of(10_000, 100_000);
             case MARQUESS:
-                return Pair.of(5000, 20_000);
+                return Pair.of(20_00, 200_000);
             case DUKE:
-                return Pair.of(10_000, 30_000);
+                return Pair.of(30_000, 300_000);
             case PRINCE:
-                return Pair.of(10_000, 50_000);
+                return Pair.of(30_000, 400_000);
             case MONARCH:
-                return Pair.of(50_000, 500_000);
+                return Pair.of(500_000, 1_500_000);
             default:
                 throw new IllegalArgumentException("No value range defined for social class " + socialClass.name());
         }
@@ -78,21 +78,21 @@ public class WealthGenerator {
             case GENTLEMAN:
                 return Pair.of(800, 10_000);
             case BARONET:
-                return Pair.of(1000, 20_000);
-            case BARON:
-                return Pair.of(2000, 20_000);
-            case VISCOUNT:
-                return Pair.of(2000, 20_000);
-            case EARL:
-                return Pair.of(4000, 40_000);
-            case MARQUESS:
                 return Pair.of(5000, 50_000);
+            case BARON:
+                return Pair.of(20_000, 100_000);
+            case VISCOUNT:
+                return Pair.of(80_000, 500_000);
+            case EARL:
+                return Pair.of(100_000, 400_000);
+            case MARQUESS:
+                return Pair.of(300_000, 500_000);
             case DUKE:
-                return Pair.of(10_000, 50_000);
+                return Pair.of(300_000, 1_000_000);
             case PRINCE:
-                return Pair.of(20_000, 50_000);
+                return Pair.of(300_000, 1_000_000);
             case MONARCH:
-                return Pair.of(30_000, 50_000);
+                return Pair.of(300_000, 1_000_000);
             default:
                 throw new IllegalArgumentException("No value range defined for social class " + socialClass.name());
         }

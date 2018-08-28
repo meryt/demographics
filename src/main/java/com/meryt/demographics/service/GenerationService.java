@@ -113,7 +113,6 @@ public class GenerationService {
                 addRandomTitleToFounder(family.getHusband(), peerage);
             }
 
-            ancestryService.updateAncestryTable();
             result.add(family);
         }
 
@@ -215,7 +214,6 @@ public class GenerationService {
                     }
                     family = familyService.save(family);
                     results.add(family);
-                    ancestryService.updateAncestryTable();
                 }
             } while (shouldLoopUntilReferenceDate && !person.isFinishedGeneration() && personHadAFamilyInLastRound
                     && !person.isMarriedNowOrAfter(untilDate));

@@ -281,6 +281,12 @@ public class FamilyService {
 
         DwellingPlace residence = selectResidenceForNewFamily(family, mansHousehold);
         if (residence == null) {
+            HouseholdLocationPeriod hp;
+            if ((hp = mansHousehold.getHouseholdLocationPeriod(date)) != null) {
+                hp.setToDate(date);
+                householdService.save(mansHousehold);
+            }
+            maybeDisableMaternityCheckingForNonResidentFamily(man, wife);
             return;
         }
 
@@ -400,9 +406,15 @@ public class FamilyService {
                     ? family.getHusband()
                     : family.getWife();
             double capital = richerSpouse.getCapitalNullSafe(date);
+            SocialClass maxSocialClass = SocialClass.fromRank(Math.max(man.getSocialClassRank(), wife.getSocialClassRank()));
+            double minAcceptableValue = WealthGenerator.getHouseValueRange(maxSocialClass).getFirst();
+
             List<Dwelling> emptyHouses = parish.getEmptyHouses(date);
+            // Couple will buy the most expensive house they can afford, assuming they can afford any corresponding to
+            // their taste, which depends on social class.
             Dwelling buyableHouse = householdDwellingPlaceService.findBuyableHousesFarmsAndEstates(parish, date, capital)
                     .stream()
+                    .filter(d -> d.getValue() >= minAcceptableValue)
                     .max(Comparator.comparing(Dwelling::getNullSafeValueIncludingAttachedParent))
                     .orElse(null);
 
@@ -418,7 +430,15 @@ public class FamilyService {
                 return buyableHouse;
             }
 
-            double randomNewHouseValue = WealthGenerator.getRandomHouseValue(richerSpouse.getSocialClass());
+            // If no buyable house could be found, and the rank of the family is high, they will move away rather
+            // than settle for a cheap house.
+            if (maxSocialClass.getRank() >= SocialClass.GENTLEMAN.getRank()) {
+                log.info(String.format("No house could be found suitable for a %s; couple will move away",
+                        maxSocialClass.getFriendlyName()));
+                return null;
+            }
+
+            double randomNewHouseValue = WealthGenerator.getRandomHouseValue(maxSocialClass);
             if (capital > randomNewHouseValue) {
                 DwellingPlace placeToBuildHouse = residence.getTownOrParish();
                 if (placeToBuildHouse != null) {

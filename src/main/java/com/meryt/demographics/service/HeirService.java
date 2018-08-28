@@ -231,7 +231,11 @@ public class HeirService {
 
             DwellingPlace dwelling = person.getResidence(onDate.minusDays(1));
             if (dwelling != null) {
-                List<Person> dwellingResidents = dwelling.getAllResidents(onDate);
+                // In case a person is erroneously listed as still living in the household after death, filter out
+                // the dead.
+                List<Person> dwellingResidents = dwelling.getAllResidents(onDate).stream()
+                        .filter(p -> p.isLiving(onDate))
+                        .collect(Collectors.toList());
                 if (!dwellingResidents.isEmpty()) {
                     Collections.shuffle(dwellingResidents);
                     heirs.add(dwellingResidents.get(0));
