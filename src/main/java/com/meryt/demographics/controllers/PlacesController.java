@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.domain.person.PersonCapitalPeriod;
 import com.meryt.demographics.domain.person.PersonTitlePeriod;
 import com.meryt.demographics.domain.place.Dwelling;
 import com.meryt.demographics.domain.place.DwellingPlace;
@@ -105,13 +106,14 @@ public class PlacesController {
         if (owner.getCapitalPeriods().isEmpty()) {
             double capital = WealthGenerator.getRandomStartingCapital(owner.getSocialClass(),
                     owner.getOccupation(onDate) != null);
-            owner.addCapital(capital, onDate);
+            owner.addCapital(capital, onDate, PersonCapitalPeriod.Reason.startingCapitalMessage());
             log.info(String.format("%d %s got starting capital of %.2f", owner.getId(), owner.getName(), capital));
             personService.save(owner);
         }
 
         if (estatePost.getMustPurchase() != null && estatePost.getMustPurchase()) {
-            owner.addCapital(estate.getValue() * -1, onDate);
+            owner.addCapital(estate.getValue() * -1, onDate,
+                    PersonCapitalPeriod.Reason.builtNewDwellingPlaceMessage(estate));
             personService.save(owner);
         }
 

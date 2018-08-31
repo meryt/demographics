@@ -92,8 +92,8 @@ public class InheritanceService {
         double cashPerPerson = cash / heirs.size();
         for (Person heir : heirs) {
             log.info(String.format("%.2f was inherited by %s.", cashPerPerson,
-                    getLogMessageForHeirWithRelationship(heir, person)));
-            heir.addCapital(cashPerPerson, onDate);
+                    ancestryService.getLogMessageForHeirWithRelationship(heir, person)));
+            heir.addCapital(cashPerPerson, onDate, ancestryService.getCapitalReasonMessageForHeirWithRelationship(heir, person));
             SocialClass newSocialClass = WealthGenerator.getSocialClassForInheritance(heir.getSocialClass(), cashPerPerson);
             if (newSocialClass.getRank() > heir.getSocialClass().getRank()) {
                 log.info(String.format("%d %s has increased in rank from %s to %s", heir.getId(), heir.getName(),
@@ -147,7 +147,7 @@ public class InheritanceService {
             }
 
             if (titleHolder != null && !dwelling.getOwners(onDate).contains(titleHolder)) {
-                String relationshipString = getLogMessageForHeirWithRelationship(titleHolder, person);
+                String relationshipString = ancestryService.getLogMessageForHeirWithRelationship(titleHolder, person);
                 log.info(String.format("%s is entailed to %s. Giving to title heir %s.",
                         dwelling.getFriendlyName(),
                         title.getName(),
@@ -187,7 +187,7 @@ public class InheritanceService {
                         person.getName()));
                 maleHeirForEntailments = findOrGenerateNewOwnerForEntailedDwelling(person, onDate);
             }
-            relationToMaleHeirForEntailments = getLogMessageForHeirWithRelationship(maleHeirForEntailments, person);
+            relationToMaleHeirForEntailments = ancestryService.getLogMessageForHeirWithRelationship(maleHeirForEntailments, person);
         }
 
         for (DwellingPlace dwelling : entailedPlaces) {
@@ -230,7 +230,7 @@ public class InheritanceService {
                 }
                 heir = heirs.get(i++);
             }
-            String heirMessage = getLogMessageForHeirWithRelationship(heir, person);
+            String heirMessage = ancestryService.getLogMessageForHeirWithRelationship(heir, person);
             // Make him the owner of the estate as well as the given places.
             estateOrFarm.addOwner(heir, onDate, heir.getDeathDate());
             estateOrFarm = dwellingPlaceService.save(estateOrFarm);
@@ -274,7 +274,7 @@ public class InheritanceService {
             log.info(String.format("%d %s in %s is inherited by %s on %s", house.getId(),
                     house.getType().getFriendlyName(),
                     house.getLocationString(),
-                    getLogMessageForHeirWithRelationship(heir, person),
+                    ancestryService.getLogMessageForHeirWithRelationship(heir, person),
                     onDate));
             house.addOwner(heir, onDate, heir.getDeathDate());
             house = dwellingPlaceService.save(house);
@@ -437,32 +437,42 @@ public class InheritanceService {
 
         // Gets 0 or more heirs for a title that is either extinct or in abeyance.
         Pair<LocalDate, List<Person>> titleHeirs = titleService.getTitleHeirs(title);
-        // Get the oldest living potential heir and make him the heir of the real estate.
-        if (titleHeirs != null && !titleHeirs.getSecond().isEmpty()) {
-            List<Person> allResidentsOfDwelling = dwelling.getAllResidents(onDate);
-            Person oldestHeirAlreadyLivingInPlace = titleHeirs.getSecond().stream()
-                    .filter(allResidentsOfDwelling::contains)
-                    .max(Comparator.comparing(Person::getBirthDate).reversed())
-                    .orElse(null);
-            if (oldestHeirAlreadyLivingInPlace != null) {
-                // An heir that is already living in the place gets priority, for the sake of continuity.
-                return oldestHeirAlreadyLivingInPlace;
-            } else {
-                // Otherwise take the oldest potential heir (may return null)
-                return titleHeirs.getSecond().stream()
-                        .filter(p -> p.isLiving(onDate))
-                        .max(Comparator.comparing(Person::getBirthDate).reversed())
-                        .orElse(null);
+        if (titleHeirs == null || titleHeirs.getSecond().isEmpty()) {
+            return null;
+        }
+        if (titleHeirs.getSecond().size() == 1) {
+            // Should never happen because we only call this method when there are 0 or more than 1 heirs.
+            return titleHeirs.getSecond().get(0);
+        }
+
+        // First see whether the current owner has a living child who is a possible heir. If so, this person inherits.
+        List<Person> currentOwner = dwelling.getOwners(onDate.minusDays(1));
+        if (!currentOwner.isEmpty()) {
+            Person owner = currentOwner.get(0);
+            List<Person> children = owner.getLivingChildren(onDate).stream()
+                    .filter(p -> titleHeirs.getSecond().contains(p))
+                    .sorted(Comparator.comparing(Person::getBirthDate))
+                    .collect(Collectors.toList());
+            if (!children.isEmpty()) {
+                return children.get(0);
             }
         }
-        return null;
-    }
 
-    private String getLogMessageForHeirWithRelationship(@NonNull Person heir, @NonNull Person deceased) {
-        Relationship relationship = ancestryService.calculateRelationship(heir, deceased, false);
-        return String.format("%d %s, %s %d %s",
-                heir.getId(), heir.getName(),
-                relationship == null ? "no relation to" : relationship.getName() + " of",
-                deceased.getId(), deceased.getName());
+        // Get the oldest living potential heir and make him the heir of the real estate.
+        List<Person> allResidentsOfDwelling = dwelling.getAllResidents(onDate);
+        Person oldestHeirAlreadyLivingInPlace = titleHeirs.getSecond().stream()
+                .filter(allResidentsOfDwelling::contains)
+                .max(Comparator.comparing(Person::getBirthDate).reversed())
+                .orElse(null);
+        if (oldestHeirAlreadyLivingInPlace != null) {
+            // An heir that is already living in the place gets priority, for the sake of continuity.
+            return oldestHeirAlreadyLivingInPlace;
+        } else {
+            // Otherwise take the oldest potential heir (may return null)
+            return titleHeirs.getSecond().stream()
+                    .filter(p -> p.isLiving(onDate))
+                    .max(Comparator.comparing(Person::getBirthDate).reversed())
+                    .orElse(null);
+        }
     }
 }

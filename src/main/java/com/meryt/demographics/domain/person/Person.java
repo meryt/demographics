@@ -695,13 +695,14 @@ public class Person {
      * @param capital the new amount of money he should have
      * @param asOfDate the date as of which this amount should take effect
      */
-    public void setCapital(double capital, @NonNull LocalDate asOfDate) {
+    public void setCapital(double capital, @NonNull LocalDate asOfDate, @Nullable String reason) {
         PersonCapitalPeriod newPeriod = new PersonCapitalPeriod();
         newPeriod.setCapital(capital);
         newPeriod.setPerson(this);
         newPeriod.setPersonId(getId());
         newPeriod.setFromDate(asOfDate);
         newPeriod.setToDate(null);
+        newPeriod.setReason(reason);
         List<PersonCapitalPeriod> existingPeriods = getCapitalPeriods().stream()
                 .filter(p -> p.contains(asOfDate) || p.getFromDate().isAfter(asOfDate))
                 .distinct()
@@ -737,10 +738,10 @@ public class Person {
         }
     }
 
-    public void addCapital(double capital, @NonNull LocalDate onDate) {
+    public void addCapital(double capital, @NonNull LocalDate onDate, @Nullable String reason) {
         Double currentCapital = getCapital(onDate);
 
-        setCapital((currentCapital == null ? 0 : currentCapital) + capital, onDate);
+        setCapital((currentCapital == null ? 0 : currentCapital) + capital, onDate, reason);
     }
 
     /**

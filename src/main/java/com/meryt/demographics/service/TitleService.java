@@ -37,15 +37,18 @@ public class TitleService {
     private final PersonService personService;
     private final HeirService heirService;
     private final DwellingPlaceService dwellingPlaceService;
+    private final AncestryService ancestryService;
 
     public TitleService(@Autowired @NonNull TitleRepository titleRepository,
                         @Autowired @NonNull PersonService personService,
                         @Autowired @NonNull HeirService heirService,
-                        @Autowired @NonNull DwellingPlaceService dwellingPlaceService) {
+                        @Autowired @NonNull DwellingPlaceService dwellingPlaceService,
+                        @Autowired @NonNull AncestryService ancestryService) {
         this.titleRepository = titleRepository;
         this.personService = personService;
         this.heirService = heirService;
         this.dwellingPlaceService = dwellingPlaceService;
+        this.ancestryService = ancestryService;
     }
 
     @Nullable
@@ -287,9 +290,10 @@ public class TitleService {
             if (capital != null) {
                 double portion = capital / singleTitleHeirs.size();
                 for (Person heir : singleTitleHeirs) {
-                    heir.addCapital(portion, date);
-                    log.info(String.format("%d %s inherited %.2f from %d %s on %s", heir.getId(), heir.getName(),
-                            portion, person.getId(), person.getName(), date));
+                    heir.addCapital(portion, date,
+                            ancestryService.getCapitalReasonMessageForHeirWithRelationship(heir, person));
+                    log.info(String.format("%.2f is inherited by %s on %s",
+                            portion, ancestryService.getLogMessageForHeirWithRelationship(heir, person), date));
                     personService.save(heir);
                 }
                 PersonCapitalPeriod period = person.getCapitalPeriod(date);

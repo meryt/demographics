@@ -42,7 +42,7 @@ import com.meryt.demographics.rest.BadRequestException;
 @Service
 public class CalendarService {
 
-    private final CheckDateService checkDateService;
+    private final ConfigurationService configurationService;
     private final PersonService personService;
     private final FamilyGenerator familyGenerator;
     private final FertilityService fertilityService;
@@ -56,7 +56,7 @@ public class CalendarService {
     private final TitleService titleService;
     private final HouseholdService householdService;
 
-    public CalendarService(@Autowired @NonNull CheckDateService checkDateService,
+    public CalendarService(@Autowired @NonNull ConfigurationService configurationService,
                            @Autowired @NonNull PersonService personService,
                            @Autowired @NonNull FamilyGenerator familyGenerator,
                            @Autowired @NonNull FertilityService fertilityService,
@@ -69,7 +69,7 @@ public class CalendarService {
                            @Autowired @NonNull HouseholdDwellingPlaceService householdDwellingPlaceService,
                            @Autowired @NonNull TitleService titleService,
                            @Autowired @NonNull HouseholdService householdService) {
-        this.checkDateService = checkDateService;
+        this.configurationService = configurationService;
         this.personService = personService;
         this.familyGenerator = familyGenerator;
         this.fertilityService = fertilityService;
@@ -92,10 +92,12 @@ public class CalendarService {
      */
     public Map<LocalDate, List<CalendarDayEvent>> advanceToDay(@NonNull LocalDate toDate,
                                                                @NonNull AdvanceToDatePost nextDatePost) {
-        LocalDate currentDate = checkDateService.getCurrentDate();
+        LocalDate currentDate = configurationService.getCurrentDate();
         if (currentDate == null) {
             throw new IllegalStateException("Current date is null");
         }
+
+        configurationService.unpauseCheck();
 
         RandomFamilyParameters familyParameters = nextDatePost.getFamilyParameters();
 
@@ -107,6 +109,11 @@ public class CalendarService {
         }
         for (LocalDate date = currentDate.plusDays(1); !date.isAfter(toDate); date = date.plusDays(1)) {
             log.debug(String.format("Checking for events on %s", date));
+
+            if (configurationService.isPauseCheck()) {
+                log.info("Checking is paused; exiting loop.");
+                break;
+            }
 
             Map<LocalDate, List<CalendarDayEvent>> marriageEvents = generateMarriagesToDate(date, familyParameters,
                     nextDatePost.getFarmNamesOrDefault());
@@ -138,11 +145,11 @@ public class CalendarService {
                     && date.getDayOfMonth() == nextDatePost.getFirstDayOfYearOrDefault()) {
                 distributeCapital(date);
             }
-            checkDateService.setCurrentDate(date);
+            configurationService.setCurrentDate(date);
             i++;
         }
 
-        checkForErrors(toDate);
+        checkForErrors(configurationService.getCurrentDate());
 
         filterOutEventTypes(results, nextDatePost);
 

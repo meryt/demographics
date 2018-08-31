@@ -60,7 +60,7 @@ public class PersonService {
     }
 
     @NonNull
-    public Iterable<Person> loadAll(List<Long> ids) {
+    Iterable<Person> loadAll(List<Long> ids) {
         return personRepository.findAllById(ids);
     }
 
@@ -179,9 +179,9 @@ public class PersonService {
      * @return a list of persons, possibly empty, all of whom are at the same distance from the target
      */
     @NonNull
-    public List<Person> findClosestLivingRelatives(@NonNull Person person,
-                                                   @NonNull LocalDate aliveOnDate,
-                                                   @Nullable Long maxDistance) {
+    List<Person> findClosestLivingRelatives(@NonNull Person person,
+                                            @NonNull LocalDate aliveOnDate,
+                                            @Nullable Long maxDistance) {
         List<LeastCommonAncestorRelationship> relatives = ancestryService.getLivingRelatives(person.getId(),
                 aliveOnDate, maxDistance);
         Integer minDistance = relatives.stream()
@@ -384,6 +384,7 @@ public class PersonService {
         period.setFromDate(onDate);
         period.setToDate(founder.getDeathDate());
         period.setCapital(startingWealth);
+        period.setReason(PersonCapitalPeriod.Reason.startingCapitalMessage());
         founder.getCapitalPeriods().add(period);
         save(founder);
     }

@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import lombok.NonNull;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -18,20 +19,21 @@ import com.meryt.demographics.response.calendar.CalendarDayEvent;
 import com.meryt.demographics.rest.BadRequestException;
 import com.meryt.demographics.rest.ConflictException;
 import com.meryt.demographics.service.CalendarService;
-import com.meryt.demographics.service.CheckDateService;
+import com.meryt.demographics.service.ConfigurationService;
 import com.meryt.demographics.service.ControllerHelperService;
 
+@Slf4j
 @RestController
 public class CalendarController {
 
-    private final CheckDateService checkDateService;
+    private final ConfigurationService configurationService;
     private final CalendarService calendarService;
     private final ControllerHelperService controllerHelperService;
 
-    public CalendarController(@Autowired @NonNull CheckDateService checkDateService,
+    public CalendarController(@Autowired @NonNull ConfigurationService configurationService,
                               @Autowired @NonNull CalendarService calendarService,
                               @Autowired @NonNull ControllerHelperService controllerHelperService) {
-        this.checkDateService = checkDateService;
+        this.configurationService = configurationService;
         this.calendarService = calendarService;
         this.controllerHelperService = controllerHelperService;
     }
@@ -45,7 +47,7 @@ public class CalendarController {
 
     @RequestMapping(value = "/api/calendar/currentDate", method = RequestMethod.GET)
     public LocalDate getCurrentDate() {
-        return checkDateService.getCurrentDate();
+        return configurationService.getCurrentDate();
     }
 
     /**
@@ -62,9 +64,17 @@ public class CalendarController {
         return calendarService.processSingleDeath(person, person.getDeathDate());
     }
 
+    @RequestMapping(value = "/api/calendar/pause", method = RequestMethod.POST)
+    public LocalDate pauseCheck() {
+        LocalDate currentDate = configurationService.getCurrentDate();
+        log.info(String.format("Pausing calendar check; last fully completed date is %s", currentDate));
+        configurationService.pauseCheck();
+        return currentDate;
+    }
+
     @RequestMapping(value = "/api/calendar/currentDate", method = RequestMethod.POST)
     public Map<LocalDate, List<CalendarDayEvent>> advanceToDate(@RequestBody AdvanceToDatePost nextDatePost) {
-        LocalDate currentDate = checkDateService.getCurrentDate();
+        LocalDate currentDate = configurationService.getCurrentDate();
 
         nextDatePost.validate();
 

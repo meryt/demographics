@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import lombok.NonNull;
@@ -15,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.domain.person.PersonCapitalPeriod;
 import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.domain.place.Dwelling;
 import com.meryt.demographics.domain.place.DwellingPlace;
@@ -444,7 +444,8 @@ public class FamilyService {
                 if (placeToBuildHouse != null) {
                     Dwelling house = householdDwellingPlaceService.moveFamilyIntoNewHouse(placeToBuildHouse, mansHousehold,
                             date, randomNewHouseValue);
-                    richerSpouse.addCapital(-1.0 * randomNewHouseValue, date);
+                    richerSpouse.addCapital(-1.0 * randomNewHouseValue, date,
+                            PersonCapitalPeriod.Reason.builtNewDwellingPlaceMessage(house));
                     personService.save(richerSpouse);
                     log.info(String.format("%d %s's new family built a new house in %s, worth %.2f",
                             family.getHusband().getId(), family.getHusband().getName(),
@@ -496,7 +497,8 @@ public class FamilyService {
         if (brideCapital == null) {
             brideCapital = 0.0;
         }
-        wife.setCapital(brideCapital + settlement, weddingDate);
+        wife.setCapital(brideCapital + settlement, weddingDate,
+                PersonCapitalPeriod.Reason.receivedMarriageSettlementMessage());
         personService.save(wife);
     }
 
@@ -534,7 +536,8 @@ public class FamilyService {
         // one half of her share of the parent's cash.
         double bridesSettlement = parentCapital / (2 * numPeopleWithShares);
 
-        parent.setCapital(parentCapital - bridesSettlement, date);
+        parent.setCapital(parentCapital - bridesSettlement, date,
+                PersonCapitalPeriod.Reason.providedMarriageSettlementMessage(daughter));
 
         personService.save(parent);
         log.info(String.format("%d %s received a marriage settlement of %.2f from her parent %d %s",

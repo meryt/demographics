@@ -15,6 +15,7 @@ import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.family.LeastCommonAncestorRelationship;
 import com.meryt.demographics.domain.family.Relationship;
 import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.domain.person.PersonCapitalPeriod;
 import com.meryt.demographics.repository.AncestryRepository;
 
 @Slf4j
@@ -326,5 +327,18 @@ public class AncestryService {
             default: ord = "";
         }
         return ord;
+    }
+
+    String getLogMessageForHeirWithRelationship(@NonNull Person heir, @NonNull Person deceased) {
+        Relationship relationship = calculateRelationship(heir, deceased, false);
+        return String.format("%d %s, %s %d %s",
+                heir.getId(), heir.getName(),
+                relationship == null ? "no relation to" : relationship.getName() + " of",
+                deceased.getId(), deceased.getName());
+    }
+
+    String getCapitalReasonMessageForHeirWithRelationship(@NonNull Person heir, @NonNull Person deceased) {
+        Relationship relationship = calculateRelationship(deceased, heir, false);
+        return PersonCapitalPeriod.Reason.inheritedCapitalMessage(deceased, relationship);
     }
 }

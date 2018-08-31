@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.domain.person.PersonCapitalPeriod;
 import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.DwellingPlaceType;
@@ -75,7 +76,7 @@ public class WealthService {
 
         double individualRent = adjustedRent / owners.size();
         for (Person owner : owners) {
-            owner.addCapital(individualRent, onDate);
+            owner.addCapital(individualRent, onDate, PersonCapitalPeriod.Reason.rentsWagesInterestMessage());
             log.debug(String.format("%d %s received %.2f from rents on %d %s", owner.getId(), owner.getName(),
                     individualRent, estate.getId(), estate.getLocationString()));
             personService.save(owner);
@@ -89,7 +90,7 @@ public class WealthService {
         Pair<Integer, Integer> range = WealthGenerator.getYearlyIncomeValueRange(person.getSocialClass());
         int value = new BetweenDie().roll(range.getFirst(), range.getSecond());
         double adjustedWage = adjustForGoodOrBadYear(value, goodYearFactor);
-        person.addCapital(adjustedWage, onDate);
+        person.addCapital(adjustedWage, onDate, PersonCapitalPeriod.Reason.rentsWagesInterestMessage());
         log.debug(String.format("%d %s received %.2f from his wages as a %s", person.getId(), person.getName(),
                 adjustedWage, occupation.getName()));
         personService.save(person);
@@ -103,7 +104,7 @@ public class WealthService {
 
         double rateOfReturn = new BetweenDie().roll(-200, 400) * 0.0001;
         double interest = currentCapital * rateOfReturn;
-        person.addCapital(interest, onDate);
+        person.addCapital(interest, onDate, PersonCapitalPeriod.Reason.rentsWagesInterestMessage());
         log.debug(String.format("%d %s received %.2f from interest on capital", person.getId(), person.getName(),
                 interest));
         personService.save(person);

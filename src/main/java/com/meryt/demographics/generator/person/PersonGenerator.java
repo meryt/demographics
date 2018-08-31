@@ -36,6 +36,7 @@ public class PersonGenerator {
     private static final double RAND_TRAIT_BETA               = 1.8;
 
     private static final int LAST_NAME_BEGINNING_YEAR         = 1400;
+    private static final int LAST_NAME_START_ADOPTING_YEAR    = 1550;
 
     private static final double AVG_ADULT_MALE_HEIGHT = 69.6850394;  // abt. 5'10" (177cm)
     private static final double AVG_ADULT_FEMALE_HEIGHT = 64.3700787;  // abt. 5'4.3" (163.5cm)
@@ -129,9 +130,19 @@ public class PersonGenerator {
                                                    @NonNull LocalDate birthDate,
                                                    boolean includeIdenticalTwin,
                                                    boolean includeFraternalTwin) {
-        if (family.getHusband() == null || family.getWife() == null) {
-            throw new IllegalStateException("Cannot generate children without both parents");
+        if (family.getHusband() == null && family.getWife() == null) {
+            throw new IllegalStateException(String.format(
+                    "Cannot generate children for family %d because neither parent is present.", family.getId()));
+        } else if (family.getHusband() == null) {
+            throw new IllegalStateException(String.format(
+                    "Cannot generate children for family %d without both parents. %d %s is present but the other parent is not.",
+                    family.getId(), family.getWife().getId(), family.getWife().getName()));
+        } else if (family.getWife() == null) {
+            throw new IllegalStateException(String.format(
+                    "Cannot generate children for family %d without both parents. %d %s is present but the other parent is not.",
+                    family.getId(), family.getHusband().getId(), family.getHusband().getName()));
         }
+
         PersonParameters personParameters = new PersonParameters();
         personParameters.setBirthDate(birthDate);
         if (family.isMarriage()) {
@@ -140,8 +151,14 @@ public class PersonGenerator {
             personParameters.setLastName(family.getWife().getLastName(birthDate));
         }
         if (personParameters.getLastName() == null) {
-            // If there is no last name from the parents, do not invent last names for the children.
-            personParameters.setLastName(PersonParameters.NO_LAST_NAME);
+            if (family.getWife().getLastName() != null &&
+                    birthDate.isAfter(LocalDate.of(LAST_NAME_START_ADOPTING_YEAR, 1, 1))) {
+                // When the date starts getting late, use the mother's last name if she has one and the father does not
+                personParameters.setLastName(family.getWife().getLastName());
+            } else {
+                // If there is no last name from the parents, do not invent last names for the children.
+                personParameters.setLastName(PersonParameters.NO_LAST_NAME);
+            }
         }
 
         // Don't name kids after other kids already born and not yet dead

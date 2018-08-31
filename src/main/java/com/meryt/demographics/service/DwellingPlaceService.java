@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.domain.person.PersonCapitalPeriod;
 import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.DwellingPlaceOwnerPeriod;
 import com.meryt.demographics.domain.place.DwellingPlaceType;
@@ -44,7 +45,7 @@ public class DwellingPlaceService {
         return dwellingPlaceRepository.findByType(type);
     }
 
-    public List<DwellingPlace> loadByName(@NonNull String name) {
+    List<DwellingPlace> loadByName(@NonNull String name) {
         return dwellingPlaceRepository.findByName(name);
     }
 
@@ -97,9 +98,9 @@ public class DwellingPlaceService {
     }
 
     public PropertyTransferEvent transferDwellingPlaceToPerson(@NonNull DwellingPlace place,
-                                                        @NonNull Person newOwner,
-                                                        @NonNull LocalDate onDate,
-                                                        boolean transferCapital) {
+                                                               @NonNull Person newOwner,
+                                                               @NonNull LocalDate onDate,
+                                                               boolean transferCapital) {
         if (!newOwner.isLiving(onDate)) {
             throw new IllegalArgumentException(String.format("%d %s cannot obtain %s %d because he is not alive on %s",
                     newOwner.getId(), newOwner.getName(), place.getType().getFriendlyName(), place.getId(), onDate));
@@ -116,11 +117,13 @@ public class DwellingPlaceService {
 
         if (transferCapital) {
             for (Person previousOwner : currentOwners) {
-                previousOwner.addCapital(place.getValue() / currentOwners.size(), onDate);
+                previousOwner.addCapital(place.getValue() / currentOwners.size(), onDate,
+                        PersonCapitalPeriod.Reason.soldPropertyMessage(place, newOwner));
                 personService.save(previousOwner);
             }
 
-            newOwner.addCapital(place.getValue() * -1, onDate);
+            newOwner.addCapital(place.getValue() * -1, onDate, PersonCapitalPeriod.Reason.purchasedPropertyMessage(place,
+                    currentOwners.isEmpty() ? null : currentOwners.get(0)));
             personService.save(newOwner);
         }
 

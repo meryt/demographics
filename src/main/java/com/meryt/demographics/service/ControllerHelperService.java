@@ -16,12 +16,12 @@ import com.meryt.demographics.rest.ResourceNotFoundException;
 @Service
 public class ControllerHelperService {
 
-    private final CheckDateService checkDateService;
+    private final ConfigurationService configurationService;
     private final PersonService personService;
 
-    public ControllerHelperService(@NonNull @Autowired CheckDateService checkDateService,
+    public ControllerHelperService(@NonNull @Autowired ConfigurationService configurationService,
                                    @NonNull @Autowired PersonService personService) {
-        this.checkDateService = checkDateService;
+        this.configurationService = configurationService;
         this.personService = personService;
     }
 
@@ -31,7 +31,7 @@ public class ControllerHelperService {
             return null;
         }
         if (date.equalsIgnoreCase("current")) {
-            LocalDate currentDate = checkDateService.getCurrentDate();
+            LocalDate currentDate = configurationService.getCurrentDate();
             if (currentDate == null) {
                 throw new ConflictException("Unable to use current date: No current date is set in the database");
             }

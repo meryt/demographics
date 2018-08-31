@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.domain.person.PersonCapitalPeriod;
 import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.domain.place.Dwelling;
 import com.meryt.demographics.domain.place.DwellingPlace;
@@ -552,7 +553,7 @@ public class HouseholdDwellingPlaceService {
         }
         double value = WealthGenerator.getRandomLandValue(farmer.getSocialClass());
         farm.setValue(value);
-        farmer.addCapital(value * -1, onDate);
+        farmer.addCapital(value * -1, onDate, PersonCapitalPeriod.Reason.builtNewDwellingPlaceMessage(farm));
         personService.save(farmer);
 
         dwellingPlaceService.save(farm);
