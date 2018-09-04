@@ -6,10 +6,8 @@ buildscript {
         guavaVersion = '24.0-jre'
         hibernateVersion = '5.2.15.Final'
         lombokVersion = '1.16.20'
-        nodePluginVersion = '0.12'
         postgresqlVersion = '42.2.1'
         springBootVersion = '2.0.0.RELEASE'
-        springDataRestVersion = '3.0.5.RELEASE'
     }
     repositories {
         mavenCentral()
@@ -19,7 +17,6 @@ buildscript {
     }
     dependencies {
         classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
-        classpath("com.moowork.gradle:gradle-node-plugin:${nodePluginVersion}")
     }
 }
 
@@ -28,7 +25,6 @@ apply plugin: 'eclipse'
 apply plugin: 'org.springframework.boot'
 apply plugin: 'io.spring.dependency-management'
 apply plugin: 'jacoco'
-apply plugin: 'com.moowork.node'
 
 group = 'com.meryt'
 version = '0.0.1-SNAPSHOT'
@@ -50,7 +46,7 @@ dependencies {
     compile("org.springframework.boot:spring-boot-starter-web")
 
     compile("org.springframework.boot:spring-boot-starter-data-jpa")
-    compile("org.springframework.boot:spring-boot-starter-data-rest")
+    compile("org.springframework.boot:spring-boot-starter-jetty")
     compile("org.springframework.boot:spring-boot-starter-jetty")
     compile("org.springframework.boot:spring-boot-starter-jdbc")
     compile("org.springframework.boot:spring-boot-starter-thymeleaf")
@@ -70,21 +66,6 @@ dependencies {
     testCompileOnly("org.projectlombok:lombok:${lombokVersion}")
 }
 
-task webpack(type: NodeTask, dependsOn: 'npmInstall') {
-    def osName = System.getProperty("os.name").toLowerCase();
-    if (osName.contains("windows")) {
-        script = project.file('node_modules/webpack/bin/webpack.js')
-    } else {
-        script = project.file('node_modules/.bin/webpack')
-        args = ['--mode=development']
-    }
-}
-
-processResources.dependsOn 'webpack'
-
-clean.delete << file('node_modules')
-clean.delete << file('src/main/webapp/dist')
-
 test {
     jvmArgs '-noverify'
     outputs.upToDateWhen { false }
@@ -93,4 +74,3 @@ test {
         showStandardStreams = true
     }
 }
-
