@@ -1,5 +1,6 @@
 package com.meryt.demographics.response;
 
+import java.time.LocalDate;
 import lombok.Getter;
 import lombok.NonNull;
 
@@ -14,6 +15,7 @@ public class DwellingPlaceReference extends DwellingPlacePointer {
     private final Double squareMiles;
     private final String location;
     private final DwellingPlacePointer parent;
+    private LocalDate foundedDate;
 
     public DwellingPlaceReference(@NonNull DwellingPlace dwellingPlace) {
         super(dwellingPlace);
@@ -21,6 +23,7 @@ public class DwellingPlaceReference extends DwellingPlacePointer {
         squareMiles = dwellingPlace.getSquareMiles();
         value = dwellingPlace.getValue();
         entailed = dwellingPlace.isEntailed() ? true : null;
+        foundedDate = dwellingPlace.getFoundedDate();
 
         if (dwellingPlace.getParent() == null) {
             location = null;

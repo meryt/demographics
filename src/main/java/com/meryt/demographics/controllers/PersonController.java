@@ -27,6 +27,7 @@ import com.meryt.demographics.domain.person.PersonTitlePeriod;
 import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.domain.person.fertility.Fertility;
 import com.meryt.demographics.domain.place.DwellingPlace;
+import com.meryt.demographics.domain.place.DwellingPlaceOwnerPeriod;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.title.Title;
 import com.meryt.demographics.domain.title.TitleInheritanceStyle;
@@ -308,9 +309,9 @@ public class PersonController {
 
         personService.save(person);
 
-
         for (DwellingPlace place : title.getEntailedProperties()) {
-            dwellingPlaceService.transferDwellingPlaceToPerson(place, person, personTitlePost.getFromDate(), false);
+            dwellingPlaceService.transferDwellingPlaceToPerson(place, person, personTitlePost.getFromDate(), false,
+                    DwellingPlaceOwnerPeriod.Reason.inheritedAsTitleHolderMessage(title));
         }
 
         return getPersonTitles(personId, null);
@@ -321,7 +322,7 @@ public class PersonController {
         Person person = controllerHelperService.loadPerson(personId);
         List<PersonFamilyResponse> families = new ArrayList<>();
         for (Family family : person.getFamilies()) {
-            families.add(new PersonFamilyResponse(person, family));
+            families.add(new PersonFamilyResponse(person, family, null));
         }
         return families;
     }
@@ -365,7 +366,8 @@ public class PersonController {
             Relationship relationship = ancestryService.calculateRelationship(person, person.isMale()
                     ? family.getWife() : family.getHusband(), true);
 
-            return new ResponseEntity<>(new PersonFamilyResponse(person, family, relationship),
+            return new ResponseEntity<>(new PersonFamilyResponse(person, family, relationship,
+                    familyParameters.getReferenceDate()),
                     personFamilyPost.isPersist()
                             ? HttpStatus.CREATED
                             : HttpStatus.OK);
@@ -387,12 +389,14 @@ public class PersonController {
             person.setLastName((String) updates.get(LAST_NAME));
             updates.remove(LAST_NAME);
 
-            if (updates.containsKey(IS_LAST_NAME_RECURSIVE) && ((boolean)(updates.get(IS_LAST_NAME_RECURSIVE)))) {
-                for (Person child : person.getChildren()) {
-                    log.info(String.format("Setting last name of child %d %s from %s to %s", child.getId(),
-                            child.getName(), child.getLastName(), person.getLastName()));
-                    child.setLastName(person.getLastName());
-                    personService.save(child);
+            if (updates.containsKey(IS_LAST_NAME_RECURSIVE)) {
+                if ((boolean)(updates.get(IS_LAST_NAME_RECURSIVE))) {
+                    for (Person child : person.getChildren()) {
+                        log.info(String.format("Setting last name of child %d %s from %s to %s", child.getId(),
+                                child.getName(), child.getLastName(), person.getLastName()));
+                        child.setLastName(person.getLastName());
+                        personService.save(child);
+                    }
                 }
                 updates.remove(IS_LAST_NAME_RECURSIVE);
             }

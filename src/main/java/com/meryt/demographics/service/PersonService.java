@@ -21,6 +21,7 @@ import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.PersonCapitalPeriod;
 import com.meryt.demographics.domain.person.RelatedPerson;
 import com.meryt.demographics.domain.person.SocialClass;
+import com.meryt.demographics.domain.place.Estate;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.HouseholdLocationPeriod;
 import com.meryt.demographics.generator.WealthGenerator;
@@ -387,5 +388,31 @@ public class PersonService {
         period.setReason(PersonCapitalPeriod.Reason.startingCapitalMessage());
         founder.getCapitalPeriods().add(period);
         save(founder);
+    }
+
+    /**
+     * If a person becomes owner of an estate and he has no last name, he gets a new last name of "of [Estate Name]".
+     * If he has living children without a last name, they also get the new name.
+     *
+     * @param person the new owner
+     * @param estate the estate he bought or inherited
+     * @param date the date on which the property transfer occurred, so that the name can be applied to his living
+     *             children
+     */
+    void maybeUpdateLastNameForNewOwnerOfEstate(@NonNull Person person, @NonNull Estate estate, @NonNull LocalDate date) {
+        if (person.getLastName() == null) {
+            person.setLastName("of " + estate.getName());
+            log.info(String.format("Resetting last name of buyer purchasing estate from %d %s to %d %s",
+                    person.getId(), person.getFirstName(), person.getId(), person.getName()));
+            save(person);
+            for (Person child : person.getLivingChildren(date)) {
+                if (child.getLastName() == null) {
+                    log.info(String.format("Setting last name of child %d %s from %s to %s", child.getId(),
+                            child.getName(), child.getLastName(), person.getLastName()));
+                    child.setLastName(person.getLastName());
+                    save(child);
+                }
+            }
+        }
     }
 }

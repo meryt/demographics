@@ -3,6 +3,7 @@ package com.meryt.demographics.response;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import javax.annotation.Nullable;
 import lombok.Getter;
 import lombok.NonNull;
 
@@ -26,6 +27,7 @@ public class PersonResponse {
     private final LocalDate birthDate;
     private final String birthPlace;
     private final LocalDate deathDate;
+    private final String age;
     private final String deathPlace;
     private final String ageAtDeath;
     private final SocialClass socialClass;
@@ -44,6 +46,10 @@ public class PersonResponse {
     private final List<String> traits;
 
     public PersonResponse(@NonNull Person person) {
+        this(person, null);
+    }
+
+    public PersonResponse(@NonNull Person person, @Nullable LocalDate onDate) {
         id = person.getId();
         firstName = person.getFirstName();
         middleName = person.getMiddleNames();
@@ -74,6 +80,12 @@ public class PersonResponse {
             for (Trait t : person.getTraits()) {
                 traits.add(t.getName());
             }
+        }
+
+        if (onDate != null && person.isLiving(onDate)) {
+            age = person.getAge(onDate);
+        } else {
+            age = null;
         }
     }
 

@@ -28,6 +28,7 @@ import javax.persistence.OneToMany;
 import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
 import javax.validation.constraints.NotNull;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NonNull;
@@ -37,6 +38,7 @@ import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.domain.title.Title;
+import com.meryt.demographics.time.LocalDateComparator;
 
 @Getter
 @Setter
@@ -90,6 +92,8 @@ public abstract class DwellingPlace {
      */
     private boolean attachedToParent;
 
+    private LocalDate foundedDate;
+
     @ManyToOne
     private Title entailedTitle;
 
@@ -123,6 +127,11 @@ public abstract class DwellingPlace {
 
     public double getNullSafeValue() {
         return value == null ? 0.0 : value;
+    }
+
+    @JsonIgnore
+    public long getParentIdOrZero() {
+        return parent == null ? 0 : parent.getId();
     }
 
     public double getNullSafeValueIncludingAttachedParent() {
@@ -283,7 +292,7 @@ public abstract class DwellingPlace {
      * @param fromDate the start date
      * @param toDate the end date (may be null)
      */
-    public void addOwner(@NonNull Person person, @NonNull LocalDate fromDate, LocalDate toDate) {
+    public void addOwner(@NonNull Person person, @NonNull LocalDate fromDate, LocalDate toDate, @NonNull String reason) {
         for (DwellingPlaceOwnerPeriod period : getOwnerPeriods()) {
             if (period.contains(fromDate)) {
                 period.setToDate(fromDate);
@@ -292,6 +301,7 @@ public abstract class DwellingPlace {
 
         DwellingPlaceOwnerPeriod newPeriod = new DwellingPlaceOwnerPeriod();
         newPeriod.setDwellingPlaceId(getId());
+        newPeriod.setReason(reason);
         newPeriod.setDwellingPlace(this);
         newPeriod.setPersonId(person.getId());
         newPeriod.setOwner(person);
@@ -312,7 +322,8 @@ public abstract class DwellingPlace {
     @NonNull
     public List<Dwelling> getEmptyHouses(@NonNull LocalDate onDate) {
         return getRecursiveDwellingPlaces(DwellingPlaceType.DWELLING).stream()
-                .filter(h -> h.getAllResidents(onDate).isEmpty())
+                .filter(h -> LocalDateComparator.firstIsOnOrBeforeSecond(h.getFoundedDate(), onDate)
+                        && h.getAllResidents(onDate).isEmpty())
                 .sorted(Comparator.comparing(DwellingPlace::getNullSafeValue).reversed())
                 .map(d -> (Dwelling) d)
                 .collect(Collectors.toList());
@@ -321,6 +332,7 @@ public abstract class DwellingPlace {
     @NonNull
     public List<DwellingPlace> getUnownedHousesEstatesAndFarms(@NonNull LocalDate onDate) {
         return getRecursiveDwellingPlaces().stream()
+                .filter(p -> LocalDateComparator.firstIsOnOrBeforeSecond(p.getFoundedDate(), onDate))
                 .filter(p -> p.isHouse() || p.isEstateOrFarm())
                 .filter(h -> h.getOwners(onDate).isEmpty())
                 .sorted(Comparator.comparing(DwellingPlace::getNullSafeValue).reversed())

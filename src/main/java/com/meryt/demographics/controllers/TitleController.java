@@ -27,6 +27,7 @@ import com.meryt.demographics.response.TitleResponse;
 import com.meryt.demographics.rest.BadRequestException;
 import com.meryt.demographics.rest.ResourceNotFoundException;
 import com.meryt.demographics.service.AncestryService;
+import com.meryt.demographics.service.ControllerHelperService;
 import com.meryt.demographics.service.PersonService;
 import com.meryt.demographics.service.TitleService;
 
@@ -40,18 +41,22 @@ public class TitleController {
     private final TitleService titleService;
     private final PersonService personService;
     private final AncestryService ancestryService;
+    private final ControllerHelperService controllerHelperService;
 
     public TitleController(@Autowired @NonNull TitleService titleService,
                            @Autowired @NonNull PersonService personService,
-                           @Autowired @NonNull AncestryService ancestryService) {
+                           @Autowired @NonNull AncestryService ancestryService,
+                           @Autowired @NonNull ControllerHelperService controllerHelperService) {
         this.titleService = titleService;
         this.personService = personService;
         this.ancestryService = ancestryService;
+        this.controllerHelperService = controllerHelperService;
     }
 
     @RequestMapping("/api/titles")
-    public List<TitleReference> getTitles(@RequestParam(value = "extinct", required = false)
-                                                      String isExtinct) {
+    public List<TitleReference> getTitles(@RequestParam(value = "extinct", required = false) String isExtinct,
+                                          @RequestParam(value = "onDate", required = false) String onDate) {
+        final LocalDate date = controllerHelperService.parseDate(onDate);
         Boolean extinct = null;
         if (!StringUtils.isEmpty(isExtinct)) {
             try {
@@ -64,24 +69,25 @@ public class TitleController {
         Iterable<Title> titles = titleService.findAllOrderByName();
         return StreamSupport.stream(titles.spliterator(), false)
                 .filter(t -> filterExtinct == null || filterExtinct.equals(t.isExtinct()))
-                .map(TitleReference::new)
+                .map(t -> new TitleReference(t, date))
                 .collect(Collectors.toList());
     }
 
     @RequestMapping("/api/titles/{titleId}")
     public TitleResponse getTitle(@PathVariable long titleId) {
         Title title = loadTitle(titleId);
-        return new TitleResponse(title);
+        List<RelatedPersonResponse> heirs = getTitleHeirs(title);
+        return new TitleResponse(title, ancestryService, heirs);
     }
 
     @RequestMapping(value = "/api/titles", method = RequestMethod.POST)
     public TitleResponse createTitle(@RequestBody TitlePost titlePost) {
         Title title = titlePost.toTitle(personService);
-        return new TitleResponse(titleService.save(title));
+        return new TitleResponse(titleService.save(title), ancestryService, null);
     }
 
     @RequestMapping(value = "/api/titles/{titleId}", method = RequestMethod.PATCH)
-    public TitleResponse patchTitle(@PathVariable long titleId, @RequestBody Map<String, Object> updates) {
+    public TitleReference patchTitle(@PathVariable long titleId, @RequestBody Map<String, Object> updates) {
         Title title = loadTitle(titleId);
         if (updates.containsKey(INHERITANCE_ROOT)) {
             if (updates.get(INHERITANCE_ROOT) == null) {
@@ -117,12 +123,16 @@ public class TitleController {
             throw new BadRequestException("No support for PATCHing key(s): " + String.join(", ", updates.keySet()));
         }
 
-        return new TitleResponse(titleService.save(title));
+        return new TitleReference(titleService.save(title));
     }
 
     @RequestMapping(value = "api/titles/{titleId}/heirs", method = RequestMethod.GET)
     public List<RelatedPersonResponse> getTitleHeirs(@PathVariable long titleId) {
         Title title = loadTitle(titleId);
+        return getTitleHeirs(title);
+    }
+
+    private List<RelatedPersonResponse> getTitleHeirs(@NonNull Title title) {
         Pair<LocalDate, List<Person>> heirs = titleService.getTitleHeirs(title);
         if (heirs == null || heirs.getSecond().isEmpty()) {
             return new ArrayList<>();
@@ -137,7 +147,7 @@ public class TitleController {
     public TitleResponse postTitleHeirs(@PathVariable long titleId) {
         Title title = loadTitle(titleId);
         titleService.updateTitleHeirs(title);
-        return new TitleResponse(title);
+        return new TitleResponse(title, ancestryService, getTitleHeirs(title));
     }
 
     @NonNull

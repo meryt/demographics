@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.place.Dwelling;
 import com.meryt.demographics.domain.place.DwellingPlace;
+import com.meryt.demographics.domain.place.DwellingPlaceOwnerPeriod;
 import com.meryt.demographics.domain.place.DwellingPlaceType;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.Parish;
@@ -143,13 +144,14 @@ public class HouseholdController {
         }
 
         if (specificPlace instanceof Parish) {
-            householdDwellingPlaceService.buyOrCreateOrMoveIntoEmptyHouseForHousehold((Parish) specificPlace, household, onDate);
+            householdDwellingPlaceService.buyOrCreateOrMoveIntoEmptyHouse((Parish) specificPlace, household,
+                    onDate, DwellingPlaceOwnerPeriod.ReasonToPurchase.MOVE_TO_PARISH);
         } else if (specificPlace instanceof Dwelling) {
             Parish parish = specificPlace.getParish();
             if (householdPlacePost.getEvictCurrentResidents()) {
                 for (Household evictedHousehold : specificPlace.getHouseholds(onDate)) {
-                    List<CalendarDayEvent> events = householdDwellingPlaceService.buyOrCreateOrMoveIntoEmptyHouseForHousehold(parish,
-                            evictedHousehold, onDate);
+                    List<CalendarDayEvent> events = householdDwellingPlaceService.buyOrCreateOrMoveIntoEmptyHouse(parish,
+                            evictedHousehold, onDate, DwellingPlaceOwnerPeriod.ReasonToPurchase.EVICTION);
                     if (!events.isEmpty()) {
                         events.forEach(e -> log.info(e.toLogMessage()));
                     }

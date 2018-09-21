@@ -14,7 +14,7 @@ public class FamilyResponse extends AbstractFamilyResponse {
     private final PersonResponse wife;
 
     public FamilyResponse(@NonNull Family family) {
-        super(family);
+        super(family, null);
         husband = family.getHusband() == null ? null : new PersonResponse(family.getHusband());
         wife = family.getWife() == null ? null : new PersonResponse(family.getWife());
     }

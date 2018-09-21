@@ -46,7 +46,7 @@ public class PersonCapitalPeriod implements DateRange {
         }
 
         public static String purchasedPropertyMessage(@NonNull DwellingPlace property, @Nullable Person seller) {
-            return String.format("Purchased %s %d%s from %s", property.getType().getFriendlyName(), property.getId(),
+            return String.format("Purchased %s %d %s from %s", property.getType().getFriendlyName(), property.getId(),
                     property.getName() == null ? "" : property.getName(),
                     seller == null ? "unidentified person" : seller.getId() + " " + seller.getName());
         }
@@ -62,8 +62,16 @@ public class PersonCapitalPeriod implements DateRange {
                     relationship == null ? "no relation" : relationship.getName());
         }
 
-        public static String rentsWagesInterestMessage() {
-            return "Rents, wages, and/or interest";
+        public static String rentsMessage() {
+            return "Rents";
+        }
+
+        public static String wagesMessage() {
+            return "Wages";
+        }
+
+        public static String interestMessage() {
+            return "Interest";
         }
     }
 

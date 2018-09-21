@@ -18,6 +18,7 @@ import com.meryt.demographics.domain.person.PersonCapitalPeriod;
 import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.domain.place.Dwelling;
 import com.meryt.demographics.domain.place.DwellingPlace;
+import com.meryt.demographics.domain.place.DwellingPlaceOwnerPeriod;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.HouseholdLocationPeriod;
 import com.meryt.demographics.domain.place.Parish;
@@ -174,10 +175,10 @@ public class FamilyService {
     /**
      * Disables maternity checking by setting the father to null, if the woman is not pregnant and if neither has
      * a social class of at least yeoman or merchant.
-     * @param husband
-     * @param wife
+     * @param husband the husband of the family
+     * @param wife the wife of the family
      */
-    private void maybeDisableMaternityCheckingForNonResidentFamily(@NonNull Person husband, @NonNull Person wife) {
+    void maybeDisableMaternityCheckingForNonResidentFamily(@NonNull Person husband, @NonNull Person wife) {
         // Don't disable checking if she is actually pregnant
         if (wife.getMaternity().getConceptionDate() != null) {
             return;
@@ -219,32 +220,32 @@ public class FamilyService {
         Person man = family.getHusband();
         Person woman = family.getWife();
 
-        Household womansHousehold = woman.getHousehold(date);
-        Household mansHousehold = man.getHousehold(date);
-        if (mansHousehold == null || !man.equals(mansHousehold.getHead(date))) {
+        Household womanHousehold = woman.getHousehold(date);
+        Household manHousehold = man.getHousehold(date);
+        if (manHousehold == null || !man.equals(manHousehold.getHead(date))) {
             // If the man does not have a household or if he is not the head of a household, either create a new
             // household for him, or use the wife's household if she is the head of it.
-            if (womansHousehold == null || !woman.equals(womansHousehold.getHead(date))) {
-                mansHousehold = new Household();
-                man = householdService.addPersonToHousehold(man, mansHousehold, date, true);
+            if (womanHousehold == null || !woman.equals(womanHousehold.getHead(date))) {
+                manHousehold = new Household();
+                man = householdService.addPersonToHousehold(man, manHousehold, date, true);
                 personService.save(man);
-                householdService.addChildrenToHousehold(man, mansHousehold, date).forEach(personService::save);
+                householdService.addChildrenToHousehold(man, manHousehold, date).forEach(personService::save);
             } else {
                 // If the wife is the head of her household, add the man to it but make him the head.
-                woman = householdService.addPersonToHousehold(woman, womansHousehold, date, false);
+                woman = householdService.addPersonToHousehold(woman, womanHousehold, date, false);
                 personService.save(woman);
-                man = householdService.addPersonToHousehold(man, womansHousehold, date, true);
+                man = householdService.addPersonToHousehold(man, womanHousehold, date, true);
                 personService.save(man);
                 // If the man had some children, add them to the wife's household.
-                householdService.addStepchildrenToHousehold(woman, family, womansHousehold);
-                return womansHousehold;
+                householdService.addStepchildrenToHousehold(woman, family, womanHousehold);
+                return womanHousehold;
             }
         }
-        woman = householdService.addPersonToHousehold(woman, mansHousehold, date, false);
+        woman = householdService.addPersonToHousehold(woman, manHousehold, date, false);
         personService.save(woman);
 
-        householdService.addStepchildrenToHousehold(man, family, mansHousehold).forEach(personService::save);
-        return mansHousehold;
+        householdService.addStepchildrenToHousehold(man, family, manHousehold).forEach(personService::save);
+        return manHousehold;
     }
 
     /**
@@ -265,12 +266,12 @@ public class FamilyService {
 
         // She has already moved to the husband's household so we need to get the house of the household she lived in
         // the day before her marriage.
-        DwellingPlace wifesFormerHouse = wife.getResidence(date.minusDays(1));
-        DwellingPlace husbandsFormerHouse = man.getResidence(date.minusDays(1));
+        DwellingPlace wifeFormerHouse = wife.getResidence(date.minusDays(1));
+        DwellingPlace husbandFormerHouse = man.getResidence(date.minusDays(1));
 
         // If the man is not a resident of the parishes, and the wife does not own a house or have a job, move the
         // household away from the parishes.
-        if (husbandsFormerHouse == null && moveAwayIfHusbandNonResident &&
+        if (husbandFormerHouse == null && moveAwayIfHusbandNonResident &&
                 wife.getOwnedDwellingPlaces(date).isEmpty()
                 && wife.getOccupation(date) == null) {
             log.info("Moving new family away from the parishes, as the husband is not a resident, and the wife is " +
@@ -297,9 +298,9 @@ public class FamilyService {
 
         // If one of the couple moved out of a dwelling place, it might be empty now, or contain only minors, or require
         // a new head of household.
-        DwellingPlace possiblyEmptyResidence = residence.equals(husbandsFormerHouse)
-                ? wifesFormerHouse
-                : husbandsFormerHouse;
+        DwellingPlace possiblyEmptyResidence = residence.equals(husbandFormerHouse)
+                ? wifeFormerHouse
+                : husbandFormerHouse;
         if (possiblyEmptyResidence == null || possiblyEmptyResidence.equals(residence)) {
             return;
         }
@@ -362,34 +363,34 @@ public class FamilyService {
 
         // She has already moved to the husband's household so we need to get the house of the household she lived in
         // the day before her marriage.
-        DwellingPlace wifesFormerHouse = wife.getResidence(date.minusDays(1));
-        DwellingPlace husbandsCurrentHouse = man.getResidence(date);
+        DwellingPlace wifeFormerHouse = wife.getResidence(date.minusDays(1));
+        DwellingPlace husbandCurrentHouse = man.getResidence(date);
         DwellingPlace residence;
         // If one of the residences is null, they will live in the one that is not.
-        if (wifesFormerHouse == null && husbandsCurrentHouse != null) {
-            residence = husbandsCurrentHouse;
-        } else if (wifesFormerHouse != null && husbandsCurrentHouse == null) {
-            residence = wifesFormerHouse;
-        } else if (wifesFormerHouse == null) {
+        if (wifeFormerHouse == null && husbandCurrentHouse != null) {
+            residence = husbandCurrentHouse;
+        } else if (wifeFormerHouse != null && husbandCurrentHouse == null) {
+            residence = wifeFormerHouse;
+        } else if (wifeFormerHouse == null) {
             // Neither lives anywhere. Do nothing.
             return null;
         } else {
             // Both residences are non-null. Figure out which one they will live in.
             // First, if one lives in a house and the other is homeless, they move into the house.
-            if (!(wifesFormerHouse instanceof Dwelling) && husbandsCurrentHouse instanceof Dwelling) {
-                residence = husbandsCurrentHouse;
-            } else if (wifesFormerHouse instanceof Dwelling && !(husbandsCurrentHouse instanceof Dwelling)) {
-                residence = wifesFormerHouse;
-            } else if (!wifesFormerHouse.getOwners(date).contains(family.getWife())) {
+            if (!(wifeFormerHouse instanceof Dwelling) && husbandCurrentHouse instanceof Dwelling) {
+                residence = husbandCurrentHouse;
+            } else if (wifeFormerHouse instanceof Dwelling && !(husbandCurrentHouse instanceof Dwelling)) {
+                residence = wifeFormerHouse;
+            } else if (!wifeFormerHouse.getOwners(date).contains(family.getWife())) {
                 // If the wife lives in a house but does not own it, she will move into the husband's house
                 // regardless of how nice it is.
-                residence = husbandsCurrentHouse;
+                residence = husbandCurrentHouse;
             } else {
                 // If both man and wife own a house, they will move into the wife's house only if it is of significantly
                 // higher value.
-                residence = wifesFormerHouse.getValue() > (1.2 * husbandsCurrentHouse.getValue())
-                        ? wifesFormerHouse
-                        : husbandsCurrentHouse;
+                residence = wifeFormerHouse.getValue() > (1.2 * husbandCurrentHouse.getValue())
+                        ? wifeFormerHouse
+                        : husbandCurrentHouse;
             }
         }
 
@@ -426,7 +427,8 @@ public class FamilyService {
             if (buyableHouse != null) {
                 log.info(String.format("%d %s is buying a house %d in %s on %s", richerSpouse.getId(),
                         richerSpouse.getName(), buyableHouse.getId(), buyableHouse.getLocationString(), date));
-                householdDwellingPlaceService.buyAndMoveIntoHouse(buyableHouse, richerSpouse, date);
+                householdDwellingPlaceService.buyAndMoveIntoHouse(buyableHouse, richerSpouse, date,
+                        DwellingPlaceOwnerPeriod.ReasonToPurchase.MARRIAGE.getMessage());
                 return buyableHouse;
             }
 
@@ -443,7 +445,7 @@ public class FamilyService {
                 DwellingPlace placeToBuildHouse = residence.getTownOrParish();
                 if (placeToBuildHouse != null) {
                     Dwelling house = householdDwellingPlaceService.moveFamilyIntoNewHouse(placeToBuildHouse, mansHousehold,
-                            date, randomNewHouseValue);
+                            date, randomNewHouseValue, DwellingPlaceOwnerPeriod.ReasonToPurchase.MARRIAGE.getMessage());
                     richerSpouse.addCapital(-1.0 * randomNewHouseValue, date,
                             PersonCapitalPeriod.Reason.builtNewDwellingPlaceMessage(house));
                     personService.save(richerSpouse);
@@ -469,7 +471,7 @@ public class FamilyService {
             }
 
             log.info(String.format("No empty houses are available in %s; new family will stay in %s",
-                    parish.getName(), (wifesFormerHouse == residence ? "wife's house" : "husband's house")));
+                    parish.getName(), (wifeFormerHouse == residence ? "wife's house" : "husband's house")));
         }
 
         return residence;
@@ -503,9 +505,9 @@ public class FamilyService {
     }
 
     /**
-     * Caculates the marriage settlement from a particular parent, if any. Removes that much capital from their wealth
+     * Calculates the marriage settlement from a particular parent, if any. Removes that much capital from their wealth
      * and saves the parent. Does not affect the daughter's current wealth, but does return the amount that was
-     * transferred away from theparent.
+     * transferred away from the parent.
      *
      * @param parent the parent (possibly null, in which case 0.0 is returned0
      * @param daughter the daughter getting married. She gets no settlement if she has been married before.

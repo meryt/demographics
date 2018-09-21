@@ -57,7 +57,7 @@ public class PersonDetailResponse extends PersonResponse {
         } else {
             families = new ArrayList<>();
             for (Family fam : person.getFamilies()) {
-                families.add(new PersonFamilyResponse(person, fam));
+                families.add(new PersonFamilyResponse(person, fam, onDate));
             }
         }
 

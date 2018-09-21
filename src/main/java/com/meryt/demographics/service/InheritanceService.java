@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import lombok.NonNull;
@@ -12,20 +13,25 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 
+import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.family.Relationship;
 import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.PersonCapitalPeriod;
+import com.meryt.demographics.domain.person.PersonOccupationPeriod;
 import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.domain.place.Dwelling;
 import com.meryt.demographics.domain.place.DwellingPlace;
+import com.meryt.demographics.domain.place.DwellingPlaceOwnerPeriod;
 import com.meryt.demographics.domain.place.DwellingPlaceType;
+import com.meryt.demographics.domain.place.Estate;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.Parish;
 import com.meryt.demographics.domain.title.Title;
 import com.meryt.demographics.generator.WealthGenerator;
 import com.meryt.demographics.generator.family.FamilyGenerator;
+import com.meryt.demographics.generator.random.PercentDie;
 import com.meryt.demographics.request.RandomFamilyParameters;
 import com.meryt.demographics.response.calendar.CalendarDayEvent;
 import com.meryt.demographics.response.calendar.PropertyTransferEvent;
@@ -66,8 +72,10 @@ public class InheritanceService {
 
     List<CalendarDayEvent> processDeath(@NonNull Person person) {
         LocalDate date = person.getDeathDate();
+        List<CalendarDayEvent> events = new ArrayList<>(distributeRealEstateToHeirs(person, date));
+        // Do cash after real estate, since a person inheriting cash might want to move
         distributeCashToHeirs(person, date);
-        return new ArrayList<>(distributeRealEstateToHeirs(person, date));
+        return events;
     }
 
 
@@ -99,9 +107,121 @@ public class InheritanceService {
                 log.info(String.format("%d %s has increased in rank from %s to %s", heir.getId(), heir.getName(),
                         heir.getSocialClass().getFriendlyName(), newSocialClass.getFriendlyName()));
                 heir.setSocialClass(newSocialClass);
+                maybeQuitJob(heir, onDate);
             }
-
             personService.save(heir);
+
+            maybeMoveCashHeirToBetterHouse(heir, person, onDate, cashPerPerson);
+        }
+    }
+
+    /**
+     * After an inheritance that may change social rank, check the person's occupation to ensure it is still
+     * compatible with his social class, and quite if not.
+     */
+    private void maybeQuitJob(@NonNull Person person, @NonNull LocalDate onDate) {
+        Occupation occupation = person.getOccupation(onDate);
+        if (occupation == null) {
+            return;
+        }
+        if (occupation.getMaxClass().getRank() < person.getSocialClassRank()) {
+            List<PersonOccupationPeriod> periods = person.getOccupations().stream()
+                    .filter(p -> p.contains(onDate)
+                            && p.getOccupation().getMaxClass().getRank() < person.getSocialClassRank())
+                    .collect(Collectors.toList());
+            for (PersonOccupationPeriod period : periods) {
+                log.info(String.format("%d %s is quitting job as %s as their social class of %s is too high",
+                        person.getId(), person.getName(), occupation.getName(), person.getSocialClass().getFriendlyName()));
+                period.setToDate(onDate);
+            }
+        }
+    }
+
+    /**
+     * When a person receives an inheritance, he might want to use the money to get a new and better house.
+     *
+     * @param heir a person who just received cash
+     * @param onDate the date he received the cash
+     */
+    private void maybeMoveCashHeirToBetterHouse(@NonNull Person heir,
+                                                @NonNull Person deceased,
+                                                @NonNull LocalDate onDate,
+                                                double inheritedCapital) {
+        if (heir.getAgeInYears(onDate) < 16) {
+            // Youngsters don't get to move
+            return;
+        }
+        DwellingPlace currentDwelling = heir.getResidence(onDate);
+        // If he doesn't live in the parish, or if he owns his dwelling and it's entailed, don't move away from it.
+        if (currentDwelling == null || (currentDwelling.isEntailed() && currentDwelling.getOwners(onDate).contains(heir))) {
+            return;
+        }
+
+        // If the person has enough money to buy an estate, he will try to, or maybe move away
+        SocialClass pretension = WealthGenerator.getSocialClassForWealth(heir.getCapital(onDate));
+        double minAcceptableHouseValue = WealthGenerator.getHouseValueRange(pretension).getFirst();
+        double capital = heir.getCapital(onDate);
+
+        if (currentDwelling.getValue() > minAcceptableHouseValue || inheritedCapital < minAcceptableHouseValue) {
+            // His house is already nice enough for him, or he can't afford to move anyway.
+            return;
+        }
+
+        DwellingPlace bestOwnedPlace = heir.getOwnedDwellingPlaces(onDate).stream()
+                .filter(d -> d.isHouse() && d.getNullSafeValueIncludingAttachedParent() >= minAcceptableHouseValue)
+                .max(Comparator.comparing(DwellingPlace::getValue)).orElse(null);
+        if (bestOwnedPlace == null) {
+            // He doesn't currently own any house. He might buy one, build one, or move away.
+
+            Dwelling bestBuyablePlace = householdDwellingPlaceService.findBestBuyableHouseFarmOrEstate(
+                    currentDwelling.getParish(), onDate, capital, minAcceptableHouseValue);
+            if (bestBuyablePlace != null) {
+                log.info(String.format("%d %s can afford to buy and move to a better house, %d %s",
+                        heir.getId(), heir.getName(), bestBuyablePlace.getId(), bestBuyablePlace.getFriendlyName()));
+                householdDwellingPlaceService.buyAndMoveIntoHouse(bestBuyablePlace, heir, onDate,
+                        ancestryService.getPurchasedHouseUponInheritanceWithRelationshipMessage(heir, deceased));
+            } else {
+                // A gentleman or less may build a new house of appropriate value, with a 5% chance
+                if (pretension.getRank() <= SocialClass.GENTLEMAN.getRank() && new PercentDie().roll() <= 0.05) {
+                    double randomNewHouseValue = WealthGenerator.getRandomHouseValue(pretension);
+                    if (capital > randomNewHouseValue) {
+                        DwellingPlace placeToBuildHouse = currentDwelling.getTownOrParish();
+                        if (placeToBuildHouse != null) {
+                            Dwelling house = householdDwellingPlaceService.moveFamilyIntoNewHouse(
+                                    placeToBuildHouse, heir.getHousehold(onDate),
+                                    onDate, randomNewHouseValue,
+                                    ancestryService.getNewHouseUponInheritanceMessageWithRelationship(heir, deceased));
+                            heir.addCapital(-1.0 * randomNewHouseValue, onDate,
+                                    PersonCapitalPeriod.Reason.builtNewDwellingPlaceMessage(house));
+                            personService.save(heir);
+                            log.info(String.format("%d %s built a new house in %s, worth %.2f",
+                                    heir.getId(), heir.getName(), placeToBuildHouse.getFriendlyName(),
+                                    randomNewHouseValue));
+                        }
+                    }
+                // If no buyable house could be found, and the rank of the family is high, they will move away
+                // rather than settle for a cheap house.
+                } else if (pretension.getRank() >= SocialClass.GENTLEMAN.getRank()) {
+                    log.info(String.format("No house could be found suitable for a %s; heir will move away",
+                            pretension.getFriendlyName()));
+                    householdDwellingPlaceService.moveAway(heir, onDate);
+                    if (heir.isMarried(onDate)) {
+                        Person husband = heir.isMale() ? heir : heir.getSpouse(onDate);
+                        Person wife = heir.isFemale() ? heir : heir.getSpouse(onDate);
+                        familyService.maybeDisableMaternityCheckingForNonResidentFamily(husband, wife);
+                    }
+                }
+            }
+        } else if (!(currentDwelling.equals(bestOwnedPlace) || currentDwelling.getParent().equals(bestOwnedPlace))
+                && bestOwnedPlace.isHouse()) {
+            // If he's not already living in the best place that he owns, and assuming the best owned place is a house,
+            // move there.
+            Household hh = heir.getHousehold(onDate);
+            if (hh != null) {
+                log.info(String.format("Moving %d %s and household to a better house that they own, %d %s",
+                        heir.getId(), heir.getName(), bestOwnedPlace.getId(), bestOwnedPlace.getFriendlyName()));
+                householdDwellingPlaceService.addToDwellingPlace(heir.getHousehold(onDate), bestOwnedPlace, onDate, null);
+            }
         }
     }
 
@@ -152,7 +272,8 @@ public class InheritanceService {
                         dwelling.getFriendlyName(),
                         title.getName(),
                         relationshipString));
-                dwelling.addOwner(titleHolder, onDate, titleHolder.getDeathDate());
+                dwelling.addOwner(titleHolder, onDate, titleHolder.getDeathDate(),
+                        ancestryService.getDwellingPlaceReasonForHeirWithRelationship(titleHolder, person));
                 dwelling = dwellingPlaceService.save(dwelling);
                 results.add(new PropertyTransferEvent(onDate, dwelling, dwelling.getOwners(onDate.minusDays(1))));
                 log.info(String.format("%s %s is inherited by %s on %s",
@@ -196,12 +317,16 @@ public class InheritanceService {
                         dwelling.getId(),
                         dwelling.getFriendlyName(),
                         relationToMaleHeirForEntailments));
-                dwelling.addOwner(maleHeirForEntailments, onDate, maleHeirForEntailments.getDeathDate());
+                dwelling.addOwner(maleHeirForEntailments, onDate, maleHeirForEntailments.getDeathDate(),
+                        ancestryService.getDwellingPlaceReasonForHeirWithRelationship(maleHeirForEntailments, person));
                 dwelling = dwellingPlaceService.save(dwelling);
                 results.add(new PropertyTransferEvent(onDate, dwelling, dwelling.getOwners(onDate.minusDays(1))));
                 log.info(String.format("%d %s inherits %s %s on %s", maleHeirForEntailments.getId(),
                         maleHeirForEntailments.getName(), dwelling.getType().getFriendlyName(),
                         dwelling.getLocationString(), onDate));
+                if (dwelling instanceof Estate) {
+                    personService.maybeUpdateLastNameForNewOwnerOfEstate(maleHeirForEntailments, (Estate) dwelling, onDate);
+                }
                 if (dwelling instanceof Dwelling) {
                     results.addAll(maybeMoveHeirIntoInheritedHouse(person, maleHeirForEntailments,
                             onDate, (Dwelling) dwelling));
@@ -232,9 +357,13 @@ public class InheritanceService {
             }
             String heirMessage = ancestryService.getLogMessageForHeirWithRelationship(heir, person);
             // Make him the owner of the estate as well as the given places.
-            estateOrFarm.addOwner(heir, onDate, heir.getDeathDate());
+            estateOrFarm.addOwner(heir, onDate, heir.getDeathDate(),
+                    ancestryService.getDwellingPlaceReasonForHeirWithRelationship(heir, person));
             estateOrFarm = dwellingPlaceService.save(estateOrFarm);
             results.add(new PropertyTransferEvent(onDate, estateOrFarm, estateOrFarm.getOwners(onDate.minusDays(1))));
+            if (estateOrFarm instanceof Estate) {
+                personService.maybeUpdateLastNameForNewOwnerOfEstate(heir, (Estate) estateOrFarm, onDate);
+            }
             log.info(String.format("%s %s is inherited by %s on %s",
                     estateOrFarm.getType().getFriendlyName(),
                     estateOrFarm.getLocationString(),
@@ -246,7 +375,8 @@ public class InheritanceService {
                         estateBuilding.getLocationString(),
                         heirMessage,
                         onDate));
-                estateBuilding.addOwner(heir, onDate, heir.getDeathDate());
+                estateBuilding.addOwner(heir, onDate, heir.getDeathDate(),
+                        ancestryService.getDwellingPlaceReasonForHeirWithRelationship(heir, person));
                 results.add(new PropertyTransferEvent(onDate, estateBuilding,
                         estateBuilding.getOwners(onDate.minusDays(1))));
                 estateBuilding = dwellingPlaceService.save(estateBuilding);
@@ -276,7 +406,8 @@ public class InheritanceService {
                     house.getLocationString(),
                     ancestryService.getLogMessageForHeirWithRelationship(heir, person),
                     onDate));
-            house.addOwner(heir, onDate, heir.getDeathDate());
+            house.addOwner(heir, onDate, heir.getDeathDate(),
+                    ancestryService.getDwellingPlaceReasonForHeirWithRelationship(heir, person));
             house = dwellingPlaceService.save(house);
             results.add(new PropertyTransferEvent(onDate, house, house.getOwners(onDate.minusDays(1))));
             personService.save(heir);
@@ -351,8 +482,7 @@ public class InheritanceService {
             log.info(String.format("Moving household of %d %s into house", heir.getId(),
                     heir.getName()));
 
-            householdDwellingPlaceService.addHouseholdToDwellingPlaceOnDate(dwelling, heirsHousehold, heir, onDate,
-                    false);
+            householdDwellingPlaceService.addToDwellingPlace(heirsHousehold, dwelling, onDate, null);
 
             if (heir.isMarried(onDate)) {
                 // If the family emigrated when they married, the father would have been set to null on the maternity.
@@ -419,8 +549,8 @@ public class InheritanceService {
                 log.info(String.format("%d %s is evicting current household from house", newOwner.getId(),
                         newOwner.getName()));
 
-                return householdDwellingPlaceService.buyOrCreateOrMoveIntoEmptyHouseForHousehold((Parish) parish,
-                        oldHousehold, onDate);
+                return householdDwellingPlaceService.buyOrCreateOrMoveIntoEmptyHouse((Parish) parish,
+                        oldHousehold, onDate, DwellingPlaceOwnerPeriod.ReasonToPurchase.EVICTION);
             }
         }
         return new ArrayList<>();
@@ -460,19 +590,14 @@ public class InheritanceService {
 
         // Get the oldest living potential heir and make him the heir of the real estate.
         List<Person> allResidentsOfDwelling = dwelling.getAllResidents(onDate);
-        Person oldestHeirAlreadyLivingInPlace = titleHeirs.getSecond().stream()
+        Optional<Person> oldestHeirAlreadyLivingInPlace = titleHeirs.getSecond().stream()
                 .filter(allResidentsOfDwelling::contains)
+                .max(Comparator.comparing(Person::getBirthDate).reversed());
+        // An heir that is already living in the place gets priority, for the sake of continuity.
+        // Otherwise take the oldest potential heir (may return null)
+        return oldestHeirAlreadyLivingInPlace.orElseGet(() -> titleHeirs.getSecond().stream()
+                .filter(p -> p.isLiving(onDate))
                 .max(Comparator.comparing(Person::getBirthDate).reversed())
-                .orElse(null);
-        if (oldestHeirAlreadyLivingInPlace != null) {
-            // An heir that is already living in the place gets priority, for the sake of continuity.
-            return oldestHeirAlreadyLivingInPlace;
-        } else {
-            // Otherwise take the oldest potential heir (may return null)
-            return titleHeirs.getSecond().stream()
-                    .filter(p -> p.isLiving(onDate))
-                    .max(Comparator.comparing(Person::getBirthDate).reversed())
-                    .orElse(null);
-        }
+                .orElse(null));
     }
 }

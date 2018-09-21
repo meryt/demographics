@@ -1,5 +1,6 @@
 package com.meryt.demographics.response;
 
+import java.time.LocalDate;
 import javax.annotation.Nullable;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import lombok.Getter;
@@ -24,19 +25,20 @@ public class PersonFamilyResponse extends AbstractFamilyResponse {
 
     public PersonFamilyResponse(@NonNull Person person,
                                 @NonNull Family family,
-                                @Nullable Relationship relationshipBetweenSpouses) {
-        super(family);
+                                @Nullable Relationship relationshipBetweenSpouses,
+                                @Nullable LocalDate onDate) {
+        super(family, onDate);
 
         if (person.isMale() && family.getWife() != null) {
-            spouse = new PersonResponse(family.getWife());
+            spouse = new PersonResponse(family.getWife(), onDate);
         } else if (person.isFemale() && family.getHusband() != null) {
-            spouse = new PersonResponse(family.getHusband());
+            spouse = new PersonResponse(family.getHusband(), onDate);
         }
         this.relationshipBetweenSpouses = relationshipBetweenSpouses == null ? null : relationshipBetweenSpouses.getName();
     }
 
-    public PersonFamilyResponse(@NonNull Person person, @NonNull Family family) {
-        this(person, family, null);
+    public PersonFamilyResponse(@NonNull Person person, @NonNull Family family, @Nullable LocalDate onDate) {
+        this(person, family, null, onDate);
     }
 
 }

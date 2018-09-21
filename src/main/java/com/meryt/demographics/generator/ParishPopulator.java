@@ -1,6 +1,8 @@
 package com.meryt.demographics.generator;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -15,7 +17,10 @@ import org.apache.commons.lang3.tuple.Pair;
 import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.domain.person.SocialClass;
+import com.meryt.demographics.domain.place.Dwelling;
 import com.meryt.demographics.domain.place.DwellingPlace;
+import com.meryt.demographics.domain.place.DwellingPlaceOwnerPeriod;
 import com.meryt.demographics.domain.place.DwellingPlaceType;
 import com.meryt.demographics.domain.place.Estate;
 import com.meryt.demographics.domain.place.Farm;
@@ -169,13 +174,107 @@ class ParishPopulator {
         person.addOccupation(occupation, getJobStartDate(person));
         personService.generateStartingCapitalForFounder(person, familyParameters.getReferenceDate());
 
-        DwellingPlace newHouse = householdDwellingPlaceService.addHouseholdToDwellingPlaceOnDate(town, household,
+        DwellingPlace newHouse = addHouseholdToDwellingPlaceOnDate(town, household,
                 person, getMoveInDate(person, familyParameters.getReferenceDate()), mayCreateNewEstate(town));
         maybeRenameNewEstateOrFarm(newHouse);
 
         dwellingPlaceService.save(town);
         householdService.save(household);
         return household;
+    }
+
+    /**
+     * Adds the household to a class- and occupation-appropriate dwelling place on the given date. The dwelling place
+     * given is used as-is if it is a house, but if it is a town or parish, a house or farm is found or created as
+     * appropriate.
+     *
+     * @param dwellingPlace The place where the household should move. If it is a house, they move into the house; if
+     *                      it is any other type of dwelling place, a house, estate, or farm may be found, purchased,
+     *                      or created, as appropriate.
+     * @param household The household to move.
+     * @param headOrOccupationHolder If non-null, this person will be used as the effective head of the household in
+     *                               terms of using their occupation or social class to find an appropriate place to
+     *                               live
+     * @param moveInDate The date to move them in.
+     * @return the dwelling place they have moved into. If it is a Farm or Estate, this will be returned; otherwise
+     * it will be a Dwelling.
+     */
+    public DwellingPlace addHouseholdToDwellingPlaceOnDate(@NonNull DwellingPlace dwellingPlace,
+                                                           @NonNull Household household,
+                                                           @Nullable Person headOrOccupationHolder,
+                                                           @NonNull LocalDate moveInDate,
+                                                           boolean mayCreateNewEstate) {
+        if (dwellingPlace.getId() <= 0) {
+            throw new IllegalStateException(String.format("%s %s should be saved before calling this method",
+                    dwellingPlace.getType().name(), dwellingPlace.getName()));
+        }
+
+        // No further checks need to be done i
+        if (dwellingPlace instanceof Dwelling) {
+            return householdDwellingPlaceService.addToDwellingPlace(household, dwellingPlace, moveInDate, null);
+        }
+
+        Person headOfHousehold = headOrOccupationHolder == null
+                ? household.getHead(moveInDate)
+                : headOrOccupationHolder;
+
+        if (headOfHousehold == null) {
+            return householdDwellingPlaceService.addToDwellingPlace(household, dwellingPlace, moveInDate, null);
+        }
+
+        Occupation occupationOnDate = headOfHousehold.getOccupation(moveInDate);
+        if (headOfHousehold.getSocialClass().isAtLeast(SocialClass.GENTLEMAN)
+                && headOfHousehold.getOccupations().isEmpty() && mayCreateNewEstate) {
+            // An unemployed gentleman or better moves into an estate rather than directly into the town or parish.
+            return householdDwellingPlaceService.moveGentlemanIntoEstate(dwellingPlace, headOfHousehold, household,
+                    moveInDate, DwellingPlaceOwnerPeriod.ReasonToPurchase.MOVE_TO_PARISH.getMessage());
+
+        } else if (headOfHousehold.getSocialClass().isAtLeast(SocialClass.YEOMAN_OR_MERCHANT)
+                || (occupationOnDate != null &&
+                occupationOnDate.getMinClass().isAtLeast(SocialClass.YEOMAN_OR_MERCHANT))) {
+            // An employed gentleman or a yeoman/merchant moves into a house
+            return householdDwellingPlaceService.moveFamilyIntoNewHouse(dwellingPlace, household, moveInDate, null,
+                    DwellingPlaceOwnerPeriod.ReasonToPurchase.MOVE_TO_PARISH.getMessage());
+
+        } else if (occupationOnDate != null && occupationOnDate.isFarmOwner()) {
+            log.info("Moving farmer onto farm");
+            // Farm-owners move into a house on a farm
+            return moveFarmerOntoFarm(dwellingPlace, headOfHousehold, household, moveInDate);
+        } else if (occupationOnDate != null && occupationOnDate.isRural()) {
+            // Rural non-farm-owners get a house on an existing farm or estate, if possible, otherwise just a house in
+            // the area.
+            return moveRuralLaborerOntoEstateOrFarm(dwellingPlace, headOfHousehold, household, moveInDate);
+        } else {
+            return householdDwellingPlaceService.addToDwellingPlace(household, dwellingPlace, moveInDate, null);
+        }
+    }
+
+    private DwellingPlace moveFarmerOntoFarm(@NonNull DwellingPlace dwellingPlace,
+                                            @NonNull Person headOfHousehold,
+                                            @NonNull Household household,
+                                            @NonNull LocalDate moveInDate) {
+        Farm farm = new Farm();
+        farm.setFoundedDate(moveInDate);
+        farm.setName(headOfHousehold.getLastName() + " Farm");
+        farm.setValue(WealthGenerator.getRandomLandValue(headOfHousehold.getSocialClass()));
+        dwellingPlaceService.save(farm);
+        farm.addOwner(headOfHousehold, moveInDate, headOfHousehold.getDeathDate(),
+                DwellingPlaceOwnerPeriod.ReasonToPurchase.MOVE_TO_PARISH.getMessage());
+        dwellingPlace.addDwellingPlace(farm);
+        dwellingPlaceService.save(dwellingPlace);
+        Dwelling farmHouse = new Dwelling();
+        farmHouse.setFoundedDate(moveInDate);
+        farmHouse.setAttachedToParent(true);
+        farmHouse.setValue(WealthGenerator.getRandomHouseValue(headOfHousehold.getSocialClass()));
+        farm.addDwellingPlace(farmHouse);
+        dwellingPlaceService.save(farmHouse);
+        dwellingPlaceService.save(farm);
+        farmHouse.addOwner(headOfHousehold, moveInDate, headOfHousehold.getDeathDate(),
+                DwellingPlaceOwnerPeriod.ReasonToPurchase.MOVE_TO_PARISH.getMessage());
+        farmHouse = (Dwelling) householdDwellingPlaceService.addToDwellingPlace(household, farmHouse, moveInDate, null);
+        householdService.save(household);
+        log.info(String.format("Created %s in %s", farm.getName(), dwellingPlace.getFriendlyName()));
+        return farmHouse;
     }
 
     private boolean mayCreateNewEstate(@NonNull DwellingPlace town) {
@@ -204,9 +303,8 @@ class ParishPopulator {
 
         if (!placedInTown) {
             if (parishTemplate.hasRuralPopulationRemaining(onDate)) {
-                maybeRenameNewEstateOrFarm(householdDwellingPlaceService.addHouseholdToDwellingPlaceOnDate(
-                        parishTemplate.getParish(), household, person, getMoveInDate(person, onDate),
-                        mayCreateNewEstate(parishTemplate.getParish())));
+                maybeRenameNewEstateOrFarm(addHouseholdToDwellingPlaceOnDate(parishTemplate.getParish(), household,
+                        person, getMoveInDate(person, onDate), mayCreateNewEstate(parishTemplate.getParish())));
             } else {
                 // Add to a random town even without a job. First try to fill out any towns that have room left but
                 // no more jobs.
@@ -216,9 +314,8 @@ class ParishPopulator {
                 int size = townsWithNoOccupationsLeft.size();
                 if (size > 0) {
                     TownTemplate townTemplate = townsWithNoOccupationsLeft.get(new Die(size).roll() - 1);
-                    maybeRenameNewEstateOrFarm(householdDwellingPlaceService.addHouseholdToDwellingPlaceOnDate(
-                            townTemplate.getTown(), household, person, getMoveInDate(person, onDate),
-                            mayCreateNewEstate(parishTemplate.getParish())));
+                    maybeRenameNewEstateOrFarm(addHouseholdToDwellingPlaceOnDate(townTemplate.getTown(), household,
+                            person, getMoveInDate(person, onDate), mayCreateNewEstate(parishTemplate.getParish())));
                     return;
                 }
 
@@ -230,16 +327,14 @@ class ParishPopulator {
                 size = townsWithPopulationLeft.size();
                 if (size > 0) {
                     TownTemplate townTemplate = townsWithPopulationLeft.get(new Die(size).roll() - 1);
-                    maybeRenameNewEstateOrFarm(householdDwellingPlaceService.addHouseholdToDwellingPlaceOnDate(
-                            townTemplate.getTown(), household, person, getMoveInDate(person, onDate),
-                            mayCreateNewEstate(parishTemplate.getParish())));
+                    maybeRenameNewEstateOrFarm(addHouseholdToDwellingPlaceOnDate(townTemplate.getTown(), household,
+                            person, getMoveInDate(person, onDate), mayCreateNewEstate(parishTemplate.getParish())));
                     return;
                 }
 
                 log.info("There was no room in the parish nor in any town. Adding household to parish");
-                maybeRenameNewEstateOrFarm(householdDwellingPlaceService.addHouseholdToDwellingPlaceOnDate(
-                        parishTemplate.getParish(), household, person, getMoveInDate(person, onDate),
-                        mayCreateNewEstate(parishTemplate.getParish())));
+                maybeRenameNewEstateOrFarm(addHouseholdToDwellingPlaceOnDate(parishTemplate.getParish(), household,
+                        person, getMoveInDate(person, onDate), mayCreateNewEstate(parishTemplate.getParish())));
             }
         }
     }
@@ -298,9 +393,8 @@ class ParishPopulator {
                     "There are no more jobs in %s but there is still population space remaining. " +
                             "%d %s (%s) will move in but not take a job.", townTemplate.getTown().getName(),
                     person.getId(), person.getName(), person.getSocialClass().getFriendlyName()));
-            maybeRenameNewEstateOrFarm(householdDwellingPlaceService.addHouseholdToDwellingPlaceOnDate(
-                    townTemplate.getTown(), household, person, getMoveInDate(person, onDate),
-                    mayCreateNewEstate(townTemplate.getTown().getParish())));
+            maybeRenameNewEstateOrFarm(addHouseholdToDwellingPlaceOnDate(townTemplate.getTown(), household, person,
+                    getMoveInDate(person, onDate), mayCreateNewEstate(townTemplate.getTown().getParish())));
             return true;
         }
         return false;
@@ -337,12 +431,11 @@ class ParishPopulator {
                 }
                 // If it's a rural occupation, move to the parish rather than the town.
                 if (occupation.isRural()) {
-                    maybeRenameNewEstateOrFarm(householdDwellingPlaceService.addHouseholdToDwellingPlaceOnDate(
-                            parish, household, person, getMoveInDate(person, onDate), mayCreateNewEstate(parish)));
+                    maybeRenameNewEstateOrFarm(addHouseholdToDwellingPlaceOnDate(parish, household, person,
+                            getMoveInDate(person, onDate), mayCreateNewEstate(parish)));
                 } else {
-                    maybeRenameNewEstateOrFarm(householdDwellingPlaceService.addHouseholdToDwellingPlaceOnDate(
-                            townTemplate.getTown(), household, person, getMoveInDate(person, onDate),
-                            mayCreateNewEstate(parish)));
+                    maybeRenameNewEstateOrFarm(addHouseholdToDwellingPlaceOnDate(townTemplate.getTown(), household,
+                            person, getMoveInDate(person, onDate), mayCreateNewEstate(parish)));
                 }
 
                 return true;
@@ -543,7 +636,8 @@ class ParishPopulator {
         List<Household> households = householdService.loadHouseholdsWithoutHouses(onDate);
         for (Household household : households) {
             householdDwellingPlaceService.moveHomelessHouseholdIntoHouse(household, onDate,
-                    householdDwellingPlaceService.getMoveInDate(household, onDate));
+                    householdDwellingPlaceService.getMoveInDate(household, onDate),
+                    DwellingPlaceOwnerPeriod.ReasonToPurchase.MOVE_TO_PARISH);
         }
     }
 
@@ -598,6 +692,40 @@ class ParishPopulator {
 
         farm.setName(parishParameters.getAndRemoveRandomFarmName());
         dwellingPlaceService.save(farm);
+    }
+
+    private DwellingPlace moveRuralLaborerOntoEstateOrFarm(@NonNull DwellingPlace dwellingPlace,
+                                                          @NonNull Person headOfHousehold,
+                                                          @NonNull Household household,
+                                                          @NonNull LocalDate moveInDate) {
+        List<DwellingPlace> farmsInPlace = new ArrayList<>(dwellingPlace.getRecursiveDwellingPlaces(
+                DwellingPlaceType.FARM));
+        farmsInPlace.addAll(dwellingPlace.getRecursiveDwellingPlaces(DwellingPlaceType.ESTATE));
+
+        Dwelling house = new Dwelling();
+        house.setFoundedDate(moveInDate);
+        house.setValue(WealthGenerator.getRandomHouseValue(headOfHousehold.getSocialClass()));
+        house = (Dwelling) dwellingPlaceService.save(house);
+        house = (Dwelling) householdDwellingPlaceService.addToDwellingPlace(household, house, moveInDate, null);
+        house.addOwner(headOfHousehold, moveInDate, headOfHousehold.getDeathDate(),
+                DwellingPlaceOwnerPeriod.ReasonToPurchase.MOVE_TO_PARISH.getMessage());
+
+        if (farmsInPlace.isEmpty()) {
+            dwellingPlace.addDwellingPlace(house);
+            dwellingPlaceService.save(dwellingPlace);
+            house = (Dwelling) dwellingPlaceService.save(house);
+            log.info(String.format("%s could not find a farm so moved into a new house in %s",
+                    household.getFriendlyName(moveInDate), dwellingPlace.getFriendlyName()));
+        } else {
+            Collections.shuffle(farmsInPlace);
+            DwellingPlace farmOrEstate = farmsInPlace.get(0);
+            farmOrEstate.addDwellingPlace(house);
+            dwellingPlaceService.save(farmOrEstate);
+            house = (Dwelling) dwellingPlaceService.save(house);
+            log.info(String.format("Moved %s into new house on %s", household.getFriendlyName(moveInDate),
+                    farmOrEstate.getFriendlyName()));
+        }
+        return house;
     }
 
     /**

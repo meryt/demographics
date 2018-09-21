@@ -16,6 +16,7 @@ import com.meryt.demographics.domain.family.LeastCommonAncestorRelationship;
 import com.meryt.demographics.domain.family.Relationship;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.PersonCapitalPeriod;
+import com.meryt.demographics.domain.place.DwellingPlaceOwnerPeriod;
 import com.meryt.demographics.repository.AncestryRepository;
 
 @Slf4j
@@ -340,5 +341,20 @@ public class AncestryService {
     String getCapitalReasonMessageForHeirWithRelationship(@NonNull Person heir, @NonNull Person deceased) {
         Relationship relationship = calculateRelationship(deceased, heir, false);
         return PersonCapitalPeriod.Reason.inheritedCapitalMessage(deceased, relationship);
+    }
+
+    String getDwellingPlaceReasonForHeirWithRelationship(@NonNull Person heir, @NonNull Person deceased) {
+        Relationship relationship = calculateRelationship(deceased, heir, false);
+        return DwellingPlaceOwnerPeriod.Reason.inheritedReason(deceased, relationship);
+    }
+
+    String getNewHouseUponInheritanceMessageWithRelationship(@NonNull Person heir, @NonNull Person deceased) {
+        Relationship relationship = calculateRelationship(deceased, heir, false);
+        return DwellingPlaceOwnerPeriod.Reason.builtNewHouseUponInheritanceMessage(deceased, relationship);
+    }
+
+    String getPurchasedHouseUponInheritanceWithRelationshipMessage(@NonNull Person heir, @NonNull Person deceased) {
+        Relationship relationship = calculateRelationship(deceased, heir, false);
+        return DwellingPlaceOwnerPeriod.Reason.purchasedHouseUponInheritanceMessage(deceased, relationship);
     }
 }

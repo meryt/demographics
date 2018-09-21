@@ -158,6 +158,22 @@ public class WealthGenerator {
         return currentSocialClass;
     }
 
+    /**
+     * Get the social class a person would have based on his wealth, not considering blood. Finds the highest social
+     * class such that twice the upper bound of the social class's starting wealth is less than the given wealth.
+     */
+    public static SocialClass getSocialClassForWealth(double wealth) {
+        for (int i = SocialClass.MONARCH.getRank(); i > 0; i--) {
+            SocialClass socialClass = SocialClass.fromRank(i);
+            // You have to have two times the highest value of the social class's upper bound. E.g. if a viscount can
+            // start with up to 200,000 then you need at least 800,000 to rise closer to the level of a viscount.
+            if (wealth >= (getStartingCapitalValueRange(socialClass).getSecond() * 2)) {
+                return socialClass;
+            }
+        }
+        return SocialClass.PAUPER;
+    }
+
     public static Pair<Integer, Integer> getYearlyIncomeValueRange(@NonNull SocialClass socialClass) {
         switch (socialClass) {
             case PAUPER:

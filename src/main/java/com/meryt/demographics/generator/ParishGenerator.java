@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.place.DwellingPlace;
+import com.meryt.demographics.domain.place.DwellingPlaceOwnerPeriod;
 import com.meryt.demographics.domain.place.DwellingPlaceType;
 import com.meryt.demographics.domain.place.Estate;
 import com.meryt.demographics.domain.place.Household;
@@ -101,6 +102,7 @@ public class ParishGenerator {
         parishParameters.getFamilyParameters().setPersist(parishParameters.isPersist());
 
         Parish parish = new Parish();
+        parish.setFoundedDate(parishParameters.getFamilyParameters().getReferenceDate());
         parish.setAcres(parishParameters.getSquareMiles() * ACRES_PER_SQUARE_MILE);
         if (parishParameters.getParishName() != null) {
             parish.setName(parishParameters.getParishName());
@@ -128,7 +130,8 @@ public class ParishGenerator {
         currentPopulation += lastPopulation;
         List<TownTemplate> towns = new ArrayList<>();
         String name = randomTownName(parishParameters, 1);
-        TownTemplate town1 = createTown(name, lastPopulation, parishParameters.isPersist());
+        TownTemplate town1 = createTown(name, lastPopulation, parishParameters.isPersist(),
+                parishParameters.getFamilyParameters().getReferenceDate());
         towns.add(town1);
         parish.addDwellingPlace(town1.getTown());
 
@@ -149,7 +152,8 @@ public class ParishGenerator {
             currentPopulation += lastPopulation;
 
             name = randomTownName(parishParameters, townIndex++);
-            TownTemplate town = createTown(name, lastPopulation, parishParameters.isPersist());
+            TownTemplate town = createTown(name, lastPopulation, parishParameters.isPersist(),
+                    parishParameters.getFamilyParameters().getReferenceDate());
             parish.addDwellingPlace(town.getTown());
             towns.add(town);
         }
@@ -202,7 +206,8 @@ public class ParishGenerator {
             if (household != null) {
                 DwellingPlace currentPlace = household.getDwellingPlace(onDate);
                 if (currentPlace != null && !currentPlace.isHouse()) {
-                    householdDwellingPlaceService.moveHomelessHouseholdIntoHouse(household, onDate, onDate);
+                    householdDwellingPlaceService.moveHomelessHouseholdIntoHouse(household, onDate, onDate,
+                            DwellingPlaceOwnerPeriod.ReasonToPurchase.MOVE_TO_PARISH);
                 }
             }
             household = populator.createHouseholdToFillOccupation(parameters, estate,
@@ -210,15 +215,17 @@ public class ParishGenerator {
             if (household != null) {
                 DwellingPlace currentPlace = household.getDwellingPlace(onDate);
                 if (currentPlace != null && !currentPlace.isHouse()) {
-                    householdDwellingPlaceService.moveHomelessHouseholdIntoHouse(household, onDate, onDate);
+                    householdDwellingPlaceService.moveHomelessHouseholdIntoHouse(household, onDate, onDate,
+                            DwellingPlaceOwnerPeriod.ReasonToPurchase.MOVE_TO_PARISH);
                 }
             }
         }
     }
 
-    private TownTemplate createTown(String name, long population, boolean persist) {
+    private TownTemplate createTown(String name, long population, boolean persist, @NonNull LocalDate foundedDate) {
         Town town = new Town();
         town.setName(name);
+        town.setFoundedDate(foundedDate);
 
         if (persist) {
             town = (Town) dwellingPlaceService.save(town);

@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.domain.place.DwellingPlaceOwnerPeriod;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.Parish;
 import com.meryt.demographics.generator.family.HouseholdGenerator;
@@ -86,8 +87,8 @@ public class ImmigrationService {
             dayResults.add(new EmploymentEvent(date, man, occupation));
         }
 
-        List<CalendarDayEvent> results = householdDwellingPlaceService.buyOrCreateOrMoveIntoEmptyHouseForHousehold(
-                parish, household, date);
+        List<CalendarDayEvent> results = householdDwellingPlaceService.buyOrCreateOrMoveIntoEmptyHouse(
+                parish, household, date, DwellingPlaceOwnerPeriod.ReasonToPurchase.MOVE_TO_PARISH);
 
         dayResults.addAll(results);
 

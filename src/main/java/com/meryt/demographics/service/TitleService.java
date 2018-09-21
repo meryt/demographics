@@ -20,10 +20,12 @@ import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.PersonCapitalPeriod;
 import com.meryt.demographics.domain.person.PersonTitlePeriod;
 import com.meryt.demographics.domain.place.DwellingPlace;
+import com.meryt.demographics.domain.place.DwellingPlaceOwnerPeriod;
 import com.meryt.demographics.domain.title.Title;
 import com.meryt.demographics.generator.random.PercentDie;
 import com.meryt.demographics.repository.TitleRepository;
 import com.meryt.demographics.response.calendar.CalendarDayEvent;
+import com.meryt.demographics.response.calendar.PropertyTransferEvent;
 import com.meryt.demographics.response.calendar.TitleAbeyanceEvent;
 import com.meryt.demographics.response.calendar.TitleExtinctionEvent;
 import com.meryt.demographics.response.calendar.TitleInheritanceEvent;
@@ -232,7 +234,11 @@ public class TitleService {
         results.add(new TitleInheritanceEvent(dateObtained, title, person));
 
         for (DwellingPlace place : title.getEntailedProperties()) {
-            results.add(dwellingPlaceService.transferDwellingPlaceToPerson(place, person, dateObtained, false));
+            PropertyTransferEvent event = dwellingPlaceService.transferDwellingPlaceToPerson(place, person, dateObtained, false,
+                    DwellingPlaceOwnerPeriod.Reason.inheritedAsTitleHolderMessage(title));
+            if (event != null) {
+                results.add(event);
+            }
         }
 
         return Pair.of(dateObtained, results);

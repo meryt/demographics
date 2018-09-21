@@ -45,4 +45,8 @@ public class LocalDateComparator {
     public static long daysBetween(@NonNull LocalDate fromDate, @NonNull LocalDate toDate) {
         return fromDate.until(toDate, ChronoUnit.DAYS);
     }
+
+    public static boolean firstIsOnOrBeforeSecond(@NonNull LocalDate first, @NonNull LocalDate second) {
+        return first.isEqual(second) || first.isBefore(second);
+    }
 }

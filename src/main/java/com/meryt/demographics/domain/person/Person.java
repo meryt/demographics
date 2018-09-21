@@ -715,6 +715,11 @@ public class Person {
                 // start. (If this occurs, there will be no entry that contains the asOfDate, since they are
                 // sorted by fromDate)
                 newPeriod.setToDate(existingPeriod.getFromDate());
+            } else if (existingPeriod.getFromDate().equals(asOfDate) && existingPeriod.getToDate() == null) {
+                // It's the same period. Just update the capital and the reason.
+                existingPeriod.setReason(existingPeriod.getReason() + ", " + reason);
+                existingPeriod.setCapital(capital);
+                return;
             } else {
                 // The first entry contains the new entry. So cap the existing entry.
                 existingPeriod.setToDate(asOfDate);

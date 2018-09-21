@@ -2,9 +2,12 @@
 
 BEGIN;
 
+TRUNCATE TABLE ancestry;
+TRUNCATE TABLE person_capital;
+TRUNCATE TABLE household_inhabitants;
+
 DELETE FROM families;
 DELETE FROM dwelling_places;
-DELETE FROM household_inhabitants;
 DELETE FROM households;
 DELETE FROM persons;
 DELETE FROM titles;

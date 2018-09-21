@@ -6,6 +6,7 @@ import java.util.Comparator;
 import java.util.List;
 import javax.annotation.Nullable;
 import lombok.NonNull;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -18,6 +19,7 @@ import com.meryt.demographics.repository.DwellingPlaceRepository;
 import com.meryt.demographics.response.calendar.PropertyTransferEvent;
 
 @Service
+@Slf4j
 public class DwellingPlaceService {
 
     private final DwellingPlaceRepository dwellingPlaceRepository;
@@ -83,7 +85,10 @@ public class DwellingPlaceService {
      * @param buyer the buyer (must be alive and have enough capital to buy)
      * @param onDate the date on which the transfer of property and money takes place
      */
-    void buyDwellingPlace(@NonNull DwellingPlace place, @NonNull Person buyer, @NonNull LocalDate onDate) {
+    void buyDwellingPlace(@NonNull DwellingPlace place,
+                          @NonNull Person buyer,
+                          @NonNull LocalDate onDate,
+                          @NonNull String reason) {
         if (!buyer.isLiving(onDate)) {
             throw new IllegalArgumentException(String.format("%d %s cannot buy %s %d because he is not alive on %s",
                     buyer.getId(), buyer.getName(), place.getType().getFriendlyName(), place.getId(), onDate));
@@ -93,17 +98,24 @@ public class DwellingPlaceService {
                     buyer.getId(), buyer.getName(), place.getType().getFriendlyName(), place.getId()));
         }
 
-        transferDwellingPlaceToPerson(place, buyer, onDate, true);
+        transferDwellingPlaceToPerson(place, buyer, onDate, true, reason);
 
     }
 
     public PropertyTransferEvent transferDwellingPlaceToPerson(@NonNull DwellingPlace place,
                                                                @NonNull Person newOwner,
                                                                @NonNull LocalDate onDate,
-                                                               boolean transferCapital) {
+                                                               boolean transferCapital,
+                                                               @NonNull String reason) {
         if (!newOwner.isLiving(onDate)) {
             throw new IllegalArgumentException(String.format("%d %s cannot obtain %s %d because he is not alive on %s",
                     newOwner.getId(), newOwner.getName(), place.getType().getFriendlyName(), place.getId(), onDate));
+        }
+
+        if (place.getOwners(onDate).contains(newOwner)) {
+            log.info(String.format("%d %s already owns %d %s, not transferring property", newOwner.getId(),
+                    newOwner.getName(), place.getId(), place.getFriendlyName()));
+            return null;
         }
 
         List<Person> currentOwners = place.getOwners(onDate);
@@ -112,7 +124,7 @@ public class DwellingPlaceService {
                 period.setToDate(onDate);
             }
         }
-        place.addOwner(newOwner, onDate, newOwner.getDeathDate());
+        place.addOwner(newOwner, onDate, newOwner.getDeathDate(), reason);
         save(place);
 
         if (transferCapital) {

@@ -6,6 +6,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import javax.annotation.Nullable;
 import lombok.Getter;
 import lombok.NonNull;
 
@@ -23,7 +24,7 @@ abstract class AbstractFamilyResponse {
 
     private final List<PersonResponse> children;
 
-    AbstractFamilyResponse(@NonNull Family family) {
+    AbstractFamilyResponse(@NonNull Family family, @Nullable LocalDate onDate) {
         id = family.getId();
         weddingDate = family.getWeddingDate();
         husbandAgeAtMarriage = family.getHusbandAgeAtMarriage();
@@ -35,7 +36,7 @@ abstract class AbstractFamilyResponse {
         if (!sortedChildren.isEmpty()) {
             children = new ArrayList<>();
             for (Person child : sortedChildren) {
-                children.add(new PersonResponse(child));
+                children.add(new PersonResponse(child, onDate));
             }
         } else {
             children = null;

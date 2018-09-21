@@ -17,7 +17,9 @@ import com.meryt.demographics.domain.person.Person;
  * himself from the siblings list.
  */
 @Getter
-public class PersonParentsFamilyResponse {
+class PersonParentsFamilyResponse {
+
+    private static final int NUM_GENERATIONS = 2;
 
     private final long id;
     private final PersonReference father;
@@ -25,10 +27,10 @@ public class PersonParentsFamilyResponse {
     private final LocalDate weddingDate;
     private final List<PersonReference> siblings;
 
-    public PersonParentsFamilyResponse(@NonNull Family family, @NonNull Person person) {
+    PersonParentsFamilyResponse(@NonNull Family family, @NonNull Person person) {
         id = family.getId();
-        father = family.getHusband() == null ? null : new PersonReference(family.getHusband());
-        mother = family.getWife() == null ? null : new PersonReference(family.getWife());
+        father = family.getHusband() == null ? null : new PersonParentsResponse(family.getHusband(), NUM_GENERATIONS);
+        mother = family.getWife() == null ? null : new PersonParentsResponse(family.getWife(), NUM_GENERATIONS);
         weddingDate = family.getWeddingDate();
 
         List<Person> sortedChildren = family.getChildren().stream()

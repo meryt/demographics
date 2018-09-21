@@ -2,6 +2,7 @@ package com.meryt.demographics.controllers;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +19,7 @@ import com.meryt.demographics.domain.person.PersonCapitalPeriod;
 import com.meryt.demographics.domain.person.PersonTitlePeriod;
 import com.meryt.demographics.domain.place.Dwelling;
 import com.meryt.demographics.domain.place.DwellingPlace;
+import com.meryt.demographics.domain.place.DwellingPlaceOwnerPeriod;
 import com.meryt.demographics.domain.place.DwellingPlaceType;
 import com.meryt.demographics.domain.place.Estate;
 import com.meryt.demographics.domain.place.Household;
@@ -25,6 +27,8 @@ import com.meryt.demographics.domain.title.Title;
 import com.meryt.demographics.generator.ParishGenerator;
 import com.meryt.demographics.generator.WealthGenerator;
 import com.meryt.demographics.request.EstatePost;
+import com.meryt.demographics.response.DwellingPlaceOwnerResponse;
+import com.meryt.demographics.response.DwellingPlaceReference;
 import com.meryt.demographics.response.DwellingPlaceResponse;
 import com.meryt.demographics.rest.BadRequestException;
 import com.meryt.demographics.rest.ResourceNotFoundException;
@@ -32,6 +36,7 @@ import com.meryt.demographics.service.ControllerHelperService;
 import com.meryt.demographics.service.DwellingPlaceService;
 import com.meryt.demographics.service.HouseholdDwellingPlaceService;
 import com.meryt.demographics.service.PersonService;
+import com.meryt.demographics.service.TitleService;
 
 @Slf4j
 @RestController
@@ -40,6 +45,7 @@ public class PlacesController {
     private final DwellingPlaceService dwellingPlaceService;
     private final ControllerHelperService controllerHelperService;
     private final HouseholdDwellingPlaceService householdDwellingPlaceService;
+    private final TitleService titleService;
     private final PersonService personService;
     private final ParishGenerator parishGenerator;
 
@@ -47,12 +53,14 @@ public class PlacesController {
                             @Autowired ControllerHelperService controllerHelperService,
                             @Autowired HouseholdDwellingPlaceService householdDwellingPlaceService,
                             @Autowired PersonService personService,
-                            @Autowired ParishGenerator parishGenerator) {
+                            @Autowired ParishGenerator parishGenerator,
+                            @Autowired TitleService titleService) {
         this.dwellingPlaceService = dwellingPlaceService;
         this.controllerHelperService = controllerHelperService;
         this.householdDwellingPlaceService = householdDwellingPlaceService;
         this.personService = personService;
         this.parishGenerator = parishGenerator;
+        this.titleService = titleService;
     }
 
     @RequestMapping("/api/places/{placeId}")
@@ -66,6 +74,21 @@ public class PlacesController {
             LocalDate date = controllerHelperService.parseDate(onDate);
             return new DwellingPlaceResponse(place, date);
         }
+    }
+
+    @RequestMapping("/api/places/{placeId}/owners")
+    public List<DwellingPlaceOwnerResponse> getPlaceOwners(@PathVariable long placeId) {
+        DwellingPlace place = dwellingPlaceService.load(placeId);
+
+        if (place == null) {
+            throw new ResourceNotFoundException("No place found for ID " + placeId);
+        }
+
+        return place.getOwnerPeriods().stream()
+                .sorted(Comparator.comparing(DwellingPlaceOwnerPeriod::getFromDate)
+                        .thenComparing(DwellingPlaceOwnerPeriod::getPersonId))
+                .map(DwellingPlaceOwnerResponse::new)
+                .collect(Collectors.toList());
     }
 
     @RequestMapping(value = "/api/places", method = RequestMethod.POST)
@@ -90,14 +113,7 @@ public class PlacesController {
 
         Title entailedTitle = null;
         if (estatePost.getEntailedTitleId() != null) {
-            entailedTitle = owner.getTitles(onDate).stream()
-                    .map(PersonTitlePeriod::getTitle)
-                    .filter(t -> t.getId() == estatePost.getEntailedTitleId())
-                    .findFirst().orElse(null);
-            if (entailedTitle == null) {
-                throw new BadRequestException(String.format("%d %s does not have the title %d on date %s",
-                        owner.getId(), owner.getName(), estatePost.getEntailedTitleId(), onDate));
-            }
+            entailedTitle = titleService.load(estatePost.getEntailedTitleId());
         }
 
         Estate estate = householdDwellingPlaceService.createEstateForHousehold(place, estatePost.getName(),
@@ -123,11 +139,17 @@ public class PlacesController {
     }
 
     @RequestMapping("/api/places/estates")
-    public List<DwellingPlaceResponse> getEstates(@RequestParam(value = "onDate", required = false) String onDate) {
+    public List<DwellingPlaceReference> getEstates(@RequestParam(value = "onDate", required = false) String onDate) {
         final LocalDate date = controllerHelperService.parseDate(onDate);
 
-        List<DwellingPlace> estates = dwellingPlaceService.loadByType(DwellingPlaceType.ESTATE);
-        return estates.stream().map(e -> new DwellingPlaceResponse(e, date)).collect(Collectors.toList());
+        List<DwellingPlace> estates = dwellingPlaceService.loadByType(DwellingPlaceType.ESTATE).stream()
+                .sorted(Comparator.comparing(DwellingPlace::getParentIdOrZero).thenComparing(DwellingPlace::getName))
+                .collect(Collectors.toList());
+        if (date != null) {
+            return estates.stream().map(e -> new DwellingPlaceResponse(e, date)).collect(Collectors.toList());
+        } else {
+            return estates.stream().map(DwellingPlaceReference::new).collect(Collectors.toList());
+        }
     }
 
     @RequestMapping("/api/places/parishes")
