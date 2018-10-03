@@ -31,16 +31,19 @@ public class ImmigrationService {
     private final HouseholdDwellingPlaceService householdDwellingPlaceService;
     private final PersonService personService;
     private final OccupationService occupationService;
+    private final AncestryService ancestryService;
 
     public ImmigrationService(@Autowired @NonNull HouseholdDwellingPlaceService householdDwellingPlaceService,
                               @Autowired @NonNull HouseholdGenerator householdGenerator,
                               @Autowired @NonNull PersonService personService,
-                              @Autowired @NonNull OccupationService occupationService) {
+                              @Autowired @NonNull OccupationService occupationService,
+                              @Autowired @NonNull AncestryService ancestryService) {
 
         this.householdDwellingPlaceService = householdDwellingPlaceService;
         this.householdGenerator = householdGenerator;
         this.personService = personService;
         this.occupationService = occupationService;
+        this.ancestryService = ancestryService;
     }
 
     /**
@@ -75,7 +78,7 @@ public class ImmigrationService {
             log.warn(String.format("No male head of immigrant household as of %s; skipping", date));
             return dayResults;
         }
-        dayResults.add(new ImmigrationEvent(date, household));
+        dayResults.add(new ImmigrationEvent(date, household, ancestryService));
 
         personService.generateStartingCapitalForFounder(man, date);
 

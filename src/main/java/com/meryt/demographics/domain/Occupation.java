@@ -1,5 +1,8 @@
 package com.meryt.demographics.domain;
 
+import java.util.ArrayList;
+import java.util.List;
+import javax.annotation.Nullable;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
@@ -12,6 +15,7 @@ import javax.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
+import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.SocialClass;
 
 @Getter
@@ -47,5 +51,24 @@ public class Occupation {
     @Override
     public String toString() {
         return String.format("%d %s", id, name);
+    }
+
+    public List<SocialClass> getSocialClasses() {
+        List<SocialClass> result = new ArrayList<>();
+        for (int i = minClass.getRank(); i <= minClass.getRank(); i++) {
+            result.add(SocialClass.fromRank(i));
+        }
+        return result;
+    }
+
+    /**
+     * Gets the required gender for this occupation, or null if both genders can hold it
+     */
+    @Nullable
+    public Gender getRequiredGender() {
+        if (allowFemale && allowMale) {
+            return null;
+        }
+        return allowFemale ? Gender.FEMALE : Gender.MALE;
     }
 }

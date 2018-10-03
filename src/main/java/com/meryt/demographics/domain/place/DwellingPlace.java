@@ -272,6 +272,10 @@ public abstract class DwellingPlace {
                 .collect(Collectors.toList());
     }
 
+    public List<Household> getRecursiveHouseholds(@NonNull LocalDate onDate) {
+        return getAllHouseholds(onDate);
+    }
+
     /**
      * Get the person who owns the property on this date. (May be empty.)
      * @param onDate the date to find an owner; there may be 0 or 1 persons owning the property on this date.

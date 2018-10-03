@@ -9,6 +9,7 @@ import lombok.NonNull;
 
 import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.domain.person.PersonTitlePeriod;
 import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.domain.person.Trait;
 
@@ -44,6 +45,8 @@ public class PersonResponse {
     private final double strength;
 
     private final List<String> traits;
+    private final List<PersonTitleResponse> titles;
+
 
     public PersonResponse(@NonNull Person person) {
         this(person, null);
@@ -79,6 +82,15 @@ public class PersonResponse {
             traits = new ArrayList<>();
             for (Trait t : person.getTraits()) {
                 traits.add(t.getName());
+            }
+        }
+
+        if (person.getTitles().isEmpty()) {
+            titles = null;
+        } else {
+            titles = new ArrayList<>();
+            for (PersonTitlePeriod titlePeriod : person.getTitles()) {
+                titles.add(new PersonTitleResponse(titlePeriod));
             }
         }
 

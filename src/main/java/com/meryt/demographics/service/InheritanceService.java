@@ -89,6 +89,9 @@ public class InheritanceService {
         personService.save(person);
 
         double cash = period.getCapital();
+        if (cash == 0.0) {
+            return;
+        }
 
         List<Person> heirs = heirService.findHeirsForCashInheritance(person, onDate);
 
@@ -275,7 +278,7 @@ public class InheritanceService {
                 dwelling.addOwner(titleHolder, onDate, titleHolder.getDeathDate(),
                         ancestryService.getDwellingPlaceReasonForHeirWithRelationship(titleHolder, person));
                 dwelling = dwellingPlaceService.save(dwelling);
-                results.add(new PropertyTransferEvent(onDate, dwelling, dwelling.getOwners(onDate.minusDays(1))));
+                results.add(new PropertyTransferEvent(onDate, dwelling));
                 log.info(String.format("%s %s is inherited by %s on %s",
                         dwelling.getType().getFriendlyName(),
                         dwelling.getLocationString(),
@@ -320,7 +323,7 @@ public class InheritanceService {
                 dwelling.addOwner(maleHeirForEntailments, onDate, maleHeirForEntailments.getDeathDate(),
                         ancestryService.getDwellingPlaceReasonForHeirWithRelationship(maleHeirForEntailments, person));
                 dwelling = dwellingPlaceService.save(dwelling);
-                results.add(new PropertyTransferEvent(onDate, dwelling, dwelling.getOwners(onDate.minusDays(1))));
+                results.add(new PropertyTransferEvent(onDate, dwelling));
                 log.info(String.format("%d %s inherits %s %s on %s", maleHeirForEntailments.getId(),
                         maleHeirForEntailments.getName(), dwelling.getType().getFriendlyName(),
                         dwelling.getLocationString(), onDate));
@@ -360,7 +363,7 @@ public class InheritanceService {
             estateOrFarm.addOwner(heir, onDate, heir.getDeathDate(),
                     ancestryService.getDwellingPlaceReasonForHeirWithRelationship(heir, person));
             estateOrFarm = dwellingPlaceService.save(estateOrFarm);
-            results.add(new PropertyTransferEvent(onDate, estateOrFarm, estateOrFarm.getOwners(onDate.minusDays(1))));
+            results.add(new PropertyTransferEvent(onDate, estateOrFarm));
             if (estateOrFarm instanceof Estate) {
                 personService.maybeUpdateLastNameForNewOwnerOfEstate(heir, (Estate) estateOrFarm, onDate);
             }
@@ -377,8 +380,7 @@ public class InheritanceService {
                         onDate));
                 estateBuilding.addOwner(heir, onDate, heir.getDeathDate(),
                         ancestryService.getDwellingPlaceReasonForHeirWithRelationship(heir, person));
-                results.add(new PropertyTransferEvent(onDate, estateBuilding,
-                        estateBuilding.getOwners(onDate.minusDays(1))));
+                results.add(new PropertyTransferEvent(onDate, estateBuilding));
                 estateBuilding = dwellingPlaceService.save(estateBuilding);
                 if (estateBuilding instanceof Dwelling) {
                     results.addAll(maybeMoveHeirIntoInheritedHouse(person, heir, onDate,
@@ -409,7 +411,7 @@ public class InheritanceService {
             house.addOwner(heir, onDate, heir.getDeathDate(),
                     ancestryService.getDwellingPlaceReasonForHeirWithRelationship(heir, person));
             house = dwellingPlaceService.save(house);
-            results.add(new PropertyTransferEvent(onDate, house, house.getOwners(onDate.minusDays(1))));
+            results.add(new PropertyTransferEvent(onDate, house));
             personService.save(heir);
             results.addAll(maybeMoveHeirIntoInheritedHouse(person, heir, onDate, (Dwelling) house));
         }

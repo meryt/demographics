@@ -2,8 +2,10 @@ package com.meryt.demographics.domain.place;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
+import java.util.function.BinaryOperator;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import javax.persistence.CascadeType;
@@ -20,6 +22,7 @@ import lombok.NonNull;
 import lombok.Setter;
 
 import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.domain.person.SocialClass;
 
 @Getter
 @Setter
@@ -139,5 +142,23 @@ public class Household {
         return getDwellingPlaces().stream()
                 .filter(hip -> hip.contains(onDate))
                 .findFirst().orElse(null);
+    }
+
+    /**
+     * Get the max social class of any resident, or null if there are no residents on this date
+     */
+    @Nullable
+    public SocialClass getMaxSocialClass(@NonNull LocalDate onDate) {
+        return getInhabitants(onDate).stream()
+                .map(Person::getSocialClass)
+                .max(Comparator.comparing(SocialClass::getRank))
+                .orElse(null);
+    }
+
+    @NonNull
+    public Double getCapital(@NonNull LocalDate onDate) {
+        return getInhabitants(onDate).stream()
+                .mapToDouble(p -> p.getCapitalNullSafe(onDate))
+                .sum();
     }
 }

@@ -120,11 +120,14 @@ public class FamilyService {
 
         Person husband = family.getHusband();
         Person wife = family.getWife();
+
+        Household husbandsHousehold = moveWifeAndStepchildrenToHusbandsHousehold(family);
+
         DwellingPlace husbandPlace = husband.getResidence(weddingDate);
         DwellingPlace wifePlace = wife.getResidence(weddingDate);
 
         if (moveAwayIfHusbandNonResident && husbandPlace == null && wifePlace == null) {
-            log.info("Not creating household. Neither family member lives in the parishes.");
+            log.info("Not moving household. Neither family member lives in the parishes.");
             maybeDisableMaternityCheckingForNonResidentFamily(husband, wife);
             return family;
         }
@@ -154,7 +157,6 @@ public class FamilyService {
             }
         }
 
-        Household husbandsHousehold = moveWifeAndStepchildrenToHusbandsHousehold(family);
         findResidenceForNewFamily(family, husbandsHousehold, moveAwayIfHusbandNonResident);
 
         return family;
@@ -495,12 +497,8 @@ public class FamilyService {
             return;
         }
 
-        Double brideCapital = wife.getCapital(weddingDate);
-        if (brideCapital == null) {
-            brideCapital = 0.0;
-        }
-        wife.setCapital(brideCapital + settlement, weddingDate,
-                PersonCapitalPeriod.Reason.receivedMarriageSettlementMessage());
+        wife.addCapital(settlement, weddingDate,
+                PersonCapitalPeriod.Reason.receivedMarriageSettlementMessage(settlement));
         personService.save(wife);
     }
 
@@ -538,13 +536,17 @@ public class FamilyService {
         // one half of her share of the parent's cash.
         double bridesSettlement = parentCapital / (2 * numPeopleWithShares);
 
-        parent.setCapital(parentCapital - bridesSettlement, date,
-                PersonCapitalPeriod.Reason.providedMarriageSettlementMessage(daughter));
+        parent.addCapital(-1 * bridesSettlement, date,
+                PersonCapitalPeriod.Reason.providedMarriageSettlementMessage(daughter, bridesSettlement));
 
         personService.save(parent);
         log.info(String.format("%d %s received a marriage settlement of %.2f from her parent %d %s",
                 daughter.getId(), daughter.getName(), bridesSettlement, parent.getId(), parent.getName()));
         return bridesSettlement;
+    }
+
+    List<Family> loadFamiliesNotInSameHousehold(@NonNull LocalDate onDate) {
+        return familyRepository.loadFamiliesNotInSameHousehold(onDate);
     }
 
 }

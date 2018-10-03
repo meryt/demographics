@@ -128,18 +128,22 @@ public class DwellingPlaceService {
         save(place);
 
         if (transferCapital) {
+            double amountPerOwner = place.getValue() / currentOwners.size();
             for (Person previousOwner : currentOwners) {
-                previousOwner.addCapital(place.getValue() / currentOwners.size(), onDate,
-                        PersonCapitalPeriod.Reason.soldPropertyMessage(place, newOwner));
+                previousOwner.addCapital(amountPerOwner, onDate,
+                        PersonCapitalPeriod.Reason.soldPropertyMessage(place, newOwner, amountPerOwner));
                 personService.save(previousOwner);
             }
 
-            newOwner.addCapital(place.getValue() * -1, onDate, PersonCapitalPeriod.Reason.purchasedPropertyMessage(place,
-                    currentOwners.isEmpty() ? null : currentOwners.get(0)));
+            String capitalReason = PersonCapitalPeriod.Reason.purchasedPropertyMessage(
+                    place,
+                    currentOwners.isEmpty() ? null : currentOwners.get(0),
+                    place.getValue());
+
+            newOwner.addCapital(place.getValue() * -1, onDate, capitalReason);
             personService.save(newOwner);
         }
 
-        return new PropertyTransferEvent(onDate, place, currentOwners);
+        return new PropertyTransferEvent(onDate, place);
     }
-
 }

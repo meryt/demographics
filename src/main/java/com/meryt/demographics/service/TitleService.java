@@ -40,17 +40,20 @@ public class TitleService {
     private final HeirService heirService;
     private final DwellingPlaceService dwellingPlaceService;
     private final AncestryService ancestryService;
+    private final FertilityService fertilityService;
 
     public TitleService(@Autowired @NonNull TitleRepository titleRepository,
                         @Autowired @NonNull PersonService personService,
                         @Autowired @NonNull HeirService heirService,
                         @Autowired @NonNull DwellingPlaceService dwellingPlaceService,
-                        @Autowired @NonNull AncestryService ancestryService) {
+                        @Autowired @NonNull AncestryService ancestryService,
+                        @Autowired @NonNull FertilityService fertilityService) {
         this.titleRepository = titleRepository;
         this.personService = personService;
         this.heirService = heirService;
         this.dwellingPlaceService = dwellingPlaceService;
         this.ancestryService = ancestryService;
+        this.fertilityService = fertilityService;
     }
 
     @Nullable
@@ -276,11 +279,17 @@ public class TitleService {
                 continue;
             }
             LocalDate heirMayBeBorn = null;
-            if (person.isMale() && person.getSpouse(date) != null &&
-                    (person.getSpouse(date).isPregnant(date) ||
-                        person.getSpouse(date).mayGiveBirthBy(date)) &&
-                    person.getSpouse(date).getMaternity().getMiscarriageDate() == null) {
-                heirMayBeBorn = person.getSpouse(date).getMaternity().getDueDate();
+            if (person.isMale()) {
+                Person wife = person.getSpouse(date);
+                if (wife != null) {
+                    boolean allowMaternalDeath = wife.getTitles().isEmpty() && wife.getOwnedDwellingPlaces().isEmpty();
+                    fertilityService.cycleToDate(wife, date, allowMaternalDeath);
+
+                    if ((wife.isPregnant(date) || wife.mayGiveBirthBy(date)) &&
+                        wife.getMaternity().getMiscarriageDate() == null) {
+                        heirMayBeBorn = wife.getMaternity().getDueDate();
+                    }
+                }
             }
             List<CalendarDayEvent> result = checkForSingleTitleHeir(title, date, heirMayBeBorn);
             singleTitleHeirs.addAll(result.stream()
@@ -294,14 +303,33 @@ public class TitleService {
         if (!singleTitleHeirs.isEmpty()) {
             Double capital = person.getCapital(date);
             if (capital != null) {
-                double portion = capital / singleTitleHeirs.size();
+                double portionForChildren = capital / 4;
+                double remainingCapital = capital - portionForChildren;
+                int numChildren = person.getLivingChildren(date).size();
+                if (numChildren == 0) {
+                    remainingCapital = capital;
+                    portionForChildren = 0;
+                }
+
+                double portionForHeir = remainingCapital / singleTitleHeirs.size();
                 for (Person heir : singleTitleHeirs) {
-                    heir.addCapital(portion, date,
+                    heir.addCapital(portionForHeir, date,
                             ancestryService.getCapitalReasonMessageForHeirWithRelationship(heir, person));
                     log.info(String.format("%.2f is inherited by %s on %s",
-                            portion, ancestryService.getLogMessageForHeirWithRelationship(heir, person), date));
+                            portionForHeir, ancestryService.getLogMessageForHeirWithRelationship(heir, person), date));
                     personService.save(heir);
                 }
+                if (portionForChildren > 0) {
+                    double portionForChild = portionForChildren / numChildren;
+                    for (Person child : person.getLivingChildren(date)) {
+                        child.addCapital(portionForChild, date,
+                                ancestryService.getCapitalReasonMessageForHeirWithRelationship(child, person));
+                        log.info(String.format("%.2f is inherited by %s on %s", portionForHeir,
+                                ancestryService.getLogMessageForHeirWithRelationship(child, person), date));
+                        personService.save(child);
+                    }
+                }
+
                 PersonCapitalPeriod period = person.getCapitalPeriod(date);
                 if (period != null) {
                     period.setToDate(date);

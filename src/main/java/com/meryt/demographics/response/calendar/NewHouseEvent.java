@@ -5,16 +5,16 @@ import lombok.Getter;
 import lombok.NonNull;
 
 import com.meryt.demographics.domain.place.DwellingPlace;
-import com.meryt.demographics.response.DwellingPlaceResponse;
+import com.meryt.demographics.response.DwellingPlaceDetailResponse;
 
 @Getter
 public class NewHouseEvent extends CalendarDayEvent {
 
-    private DwellingPlaceResponse dwellingPlace;
+    private DwellingPlaceDetailResponse dwellingPlace;
 
     public NewHouseEvent(@NonNull LocalDate date, @NonNull DwellingPlace house) {
         super(date);
-        dwellingPlace = new DwellingPlaceResponse(house, date);
+        dwellingPlace = new DwellingPlaceDetailResponse(house, date, null);
         setType(CalendarEventType.NEW_HOUSE);
     }
 

@@ -9,12 +9,14 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import lombok.Getter;
 import lombok.NonNull;
 
+import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.domain.person.PersonCapitalPeriod;
 import com.meryt.demographics.domain.person.PersonOccupationPeriod;
-import com.meryt.demographics.domain.person.PersonTitlePeriod;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.HouseholdInhabitantPeriod;
+import com.meryt.demographics.service.AncestryService;
 
 /**
  * This response shows details about a person and descends into its member family, households, and occupations.
@@ -28,29 +30,23 @@ public class PersonDetailResponse extends PersonResponse {
 
     private final String age;
     private final Double capital;
-    private final List<PersonTitleResponse> titles;
     private final List<PersonFamilyResponse> families;
     private final List<PersonOccupationResponse> occupations;
+    private final OccupationReference occupation;
     private final HouseholdResponseWithLocations household;
     private final List<HouseholdResponseWithLocations> households;
     private final List<DwellingPlaceReference> ownedProperties;
     private final PersonParentsFamilyResponse family;
+    private final List<PersonCapitalResponse> capitalHistory;
 
     public PersonDetailResponse(@NonNull Person person) {
-        this(person, null);
+        this(person, null, null);
     }
 
-    public PersonDetailResponse(@NonNull Person person, @Nullable LocalDate onDate) {
+    public PersonDetailResponse(@NonNull Person person,
+                                @Nullable LocalDate onDate,
+                                @Nullable AncestryService ancestryService) {
         super(person);
-
-        if (person.getTitles().isEmpty()) {
-            titles = null;
-        } else {
-            titles = new ArrayList<>();
-            for (PersonTitlePeriod titlePeriod : person.getTitles()) {
-                titles.add(new PersonTitleResponse(titlePeriod));
-            }
-        }
 
         if (person.getFamilies().isEmpty()) {
             families = null;
@@ -63,7 +59,18 @@ public class PersonDetailResponse extends PersonResponse {
 
         if (person.getOccupations().isEmpty()) {
             occupations = null;
+            occupation = null;
         } else {
+            if (onDate != null) {
+                Occupation occ = person.getOccupation(onDate);
+                if (occ != null) {
+                    occupation = new OccupationReference(occ);
+                } else {
+                    occupation = null;
+                }
+            } else {
+                occupation = null;
+            }
             occupations = new ArrayList<>();
             for (PersonOccupationPeriod occupation : person.getOccupations()) {
                 occupations.add(new PersonOccupationResponse(occupation));
@@ -72,13 +79,19 @@ public class PersonDetailResponse extends PersonResponse {
 
         family = person.getFamily() == null ? null : new PersonParentsFamilyResponse(person.getFamily(), person);
 
+        capitalHistory = person.getCapitalPeriods().stream()
+                .map(PersonCapitalResponse::new)
+                .collect(Collectors.toList());;
+
         if (onDate != null) {
             age = person.getAge(onDate);
             capital = person.getCapital(onDate);
 
             households = null;
             Household personHousehold = person.getHousehold(onDate);
-            household = personHousehold == null ? null : new HouseholdResponseWithLocations(personHousehold, onDate);
+            household = personHousehold == null
+                    ? null
+                    : new HouseholdResponseWithLocations(personHousehold, onDate, ancestryService);
 
             List<DwellingPlaceReference> props = person.getOwnedDwellingPlaces(onDate).stream()
                 .map(DwellingPlaceReference::new)
@@ -95,7 +108,7 @@ public class PersonDetailResponse extends PersonResponse {
             household = null;
             households = new ArrayList<>();
             for (HouseholdInhabitantPeriod householdPeriod : person.getHouseholds()) {
-                households.add(new HouseholdResponseWithLocations(householdPeriod.getHousehold()));
+                households.add(new HouseholdResponseWithLocations(householdPeriod.getHousehold(), null, ancestryService));
             }
 
             List<DwellingPlaceReference> props = person.getOwnedDwellingPlaces().stream()

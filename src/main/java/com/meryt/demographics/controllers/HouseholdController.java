@@ -28,6 +28,7 @@ import com.meryt.demographics.response.HouseholdResponseWithLocations;
 import com.meryt.demographics.response.calendar.CalendarDayEvent;
 import com.meryt.demographics.rest.BadRequestException;
 import com.meryt.demographics.rest.ResourceNotFoundException;
+import com.meryt.demographics.service.AncestryService;
 import com.meryt.demographics.service.ControllerHelperService;
 import com.meryt.demographics.service.DwellingPlaceService;
 import com.meryt.demographics.service.HouseholdDwellingPlaceService;
@@ -43,17 +44,20 @@ public class HouseholdController {
     private final HouseholdDwellingPlaceService householdDwellingPlaceService;
     private final DwellingPlaceService dwellingPlaceService;
     private final ControllerHelperService controllerHelperService;
+    private final AncestryService ancestryService;
 
     public HouseholdController(@Autowired HouseholdService householdService,
                                @Autowired PersonService personService,
                                @Autowired DwellingPlaceService dwellingPlaceService,
                                @Autowired HouseholdDwellingPlaceService householdDwellingPlaceService,
-                               @Autowired ControllerHelperService controllerHelperService) {
+                               @Autowired ControllerHelperService controllerHelperService,
+                               @Autowired AncestryService ancestryService) {
         this.householdService = householdService;
         this.personService = personService;
         this.householdDwellingPlaceService = householdDwellingPlaceService;
         this.dwellingPlaceService = dwellingPlaceService;
         this.controllerHelperService = controllerHelperService;
+        this.ancestryService = ancestryService;
     }
 
     @RequestMapping("/api/households/{householdId}")
@@ -66,7 +70,7 @@ public class HouseholdController {
         } else {
             date = controllerHelperService.parseDate("current");
         }
-        return new HouseholdResponseWithLocations(household, date);
+        return new HouseholdResponseWithLocations(household, date, ancestryService);
     }
 
     @RequestMapping("/api/households/homeless")
@@ -78,8 +82,23 @@ public class HouseholdController {
 
         return Stream.concat(householdService.loadHouseholdsWithoutHouses(date).stream(),
                 householdService.loadHouseholdsWithoutLocations(date).stream())
-                .map(h -> new HouseholdResponseWithLocations(h, date))
+                .map(h -> new HouseholdResponseWithLocations(h, date, ancestryService))
                 .collect(Collectors.toList());
+    }
+
+    @RequestMapping(value = "/api/households/empty", method = RequestMethod.POST)
+    public List<HouseholdResponseWithLocations> getHouseholdsWithoutInhabitantsInLocations(
+            @RequestParam(value = "onDate") String onDate) {
+        if (onDate == null) {
+            throw new BadRequestException("onDate cannot be null");
+        }
+        final LocalDate date = controllerHelperService.parseDate(onDate);
+
+        List<Household> households = householdService.cleanUpHouseholdsWithoutInhabitantsInLocations(date);
+        return households.stream()
+                .map(hh -> new HouseholdResponseWithLocations(hh, date, ancestryService))
+                .collect(Collectors.toList());
+
     }
 
     @RequestMapping(value = "/api/households", method = RequestMethod.POST)
@@ -105,7 +124,7 @@ public class HouseholdController {
 
         Household household = householdService.createHouseholdForHead(person, onDate,
                 householdPost.getIncludeHomelessFamilyMembers());
-        return new HouseholdResponseWithLocations(household, onDate);
+        return new HouseholdResponseWithLocations(household, onDate, ancestryService);
     }
 
     /**
@@ -162,7 +181,7 @@ public class HouseholdController {
             throw new BadRequestException("dwellingPlaceId must be either a Parish, a Dwelling, or null");
         }
 
-        return new HouseholdResponseWithLocations(household, onDate);
+        return new HouseholdResponseWithLocations(household, onDate, ancestryService);
     }
 
     @NonNull

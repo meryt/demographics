@@ -247,8 +247,8 @@ public class PersonGenerator {
      */
     private void generateAndSetTraits(@NonNull PersonParameters personParameters, @NonNull Person person) {
 
-        // A person gets 2 - 4 random traits
-        person.getTraits().addAll(traitService.randomTraits(new Die(3).roll() + 1));
+        // A person gets 1-3 random traits
+        person.getTraits().addAll(traitService.randomTraits(new Die(3).roll()));
 
         Person favoredParent = null;
         Person otherParent = null;

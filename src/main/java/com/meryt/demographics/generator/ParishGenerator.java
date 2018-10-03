@@ -200,7 +200,8 @@ public class ParishGenerator {
         List<Occupation> farmLaborers = occupationService.findByIsFarmLaborer();
 
         Household household;
-        for (int i = 0; i < 5; i++) {
+        int expectedNumServants = estate.getExpectedNumServantHouseholds();
+        for (int i = 0; i < expectedNumServants; i++) {
             household = populator.createHouseholdToFillOccupation(parameters, estate,
                     domesticServants.get(i % domesticServants.size()));
             if (household != null) {

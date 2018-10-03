@@ -10,6 +10,7 @@ import lombok.NonNull;
 import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.HouseholdLocationPeriod;
+import com.meryt.demographics.service.AncestryService;
 
 public class HouseholdResponseWithLocations extends HouseholdResponse {
 
@@ -18,12 +19,10 @@ public class HouseholdResponseWithLocations extends HouseholdResponse {
     @Getter
     private List<DwellingPlaceReference> locations;
 
-    HouseholdResponseWithLocations(@NonNull Household household) {
-        this(household, null);
-    }
-
-    public HouseholdResponseWithLocations(@NonNull Household household, @Nullable LocalDate onDate) {
-        super(household, onDate);
+    public HouseholdResponseWithLocations(@NonNull Household household,
+                                          @Nullable LocalDate onDate,
+                                          @Nullable AncestryService ancestryService) {
+        super(household, onDate, ancestryService);
 
         if (onDate == null) {
             populateDatelessData(household);

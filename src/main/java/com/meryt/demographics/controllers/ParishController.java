@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.meryt.demographics.domain.place.Parish;
 import com.meryt.demographics.generator.ParishGenerator;
 import com.meryt.demographics.request.ParishParameters;
-import com.meryt.demographics.response.DwellingPlaceResponse;
+import com.meryt.demographics.response.DwellingPlaceDetailResponse;
 import com.meryt.demographics.service.ConfigurationService;
 import com.meryt.demographics.service.DwellingPlaceService;
 
@@ -29,14 +29,14 @@ public class ParishController {
     }
 
     @RequestMapping("/api/parishes/random")
-    public DwellingPlaceResponse randomParish(@RequestBody ParishParameters parishParameters) {
+    public DwellingPlaceDetailResponse randomParish(@RequestBody ParishParameters parishParameters) {
         Parish parish = parishGenerator.generateParish(parishParameters);
         configurationService.setCurrentDate(parishParameters.getFamilyParameters().getReferenceDate());
         if (parishParameters.isPersist()) {
-            return new DwellingPlaceResponse(dwellingPlaceService.save(parish),
-                    parishParameters.getFamilyParameters().getReferenceDate());
+            return new DwellingPlaceDetailResponse(dwellingPlaceService.save(parish),
+                    parishParameters.getFamilyParameters().getReferenceDate(), null);
         } else {
-            return new DwellingPlaceResponse(parish, parishParameters.getFamilyParameters().getReferenceDate());
+            return new DwellingPlaceDetailResponse(parish, parishParameters.getFamilyParameters().getReferenceDate(), null);
         }
     }
 }

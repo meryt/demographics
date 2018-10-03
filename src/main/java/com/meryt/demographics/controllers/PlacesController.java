@@ -16,7 +16,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.PersonCapitalPeriod;
-import com.meryt.demographics.domain.person.PersonTitlePeriod;
 import com.meryt.demographics.domain.place.Dwelling;
 import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.DwellingPlaceOwnerPeriod;
@@ -29,12 +28,15 @@ import com.meryt.demographics.generator.WealthGenerator;
 import com.meryt.demographics.request.EstatePost;
 import com.meryt.demographics.response.DwellingPlaceOwnerResponse;
 import com.meryt.demographics.response.DwellingPlaceReference;
+import com.meryt.demographics.response.DwellingPlaceDetailResponse;
 import com.meryt.demographics.response.DwellingPlaceResponse;
 import com.meryt.demographics.rest.BadRequestException;
 import com.meryt.demographics.rest.ResourceNotFoundException;
+import com.meryt.demographics.service.AncestryService;
 import com.meryt.demographics.service.ControllerHelperService;
 import com.meryt.demographics.service.DwellingPlaceService;
 import com.meryt.demographics.service.HouseholdDwellingPlaceService;
+import com.meryt.demographics.service.HouseholdService;
 import com.meryt.demographics.service.PersonService;
 import com.meryt.demographics.service.TitleService;
 
@@ -48,31 +50,37 @@ public class PlacesController {
     private final TitleService titleService;
     private final PersonService personService;
     private final ParishGenerator parishGenerator;
+    private final AncestryService ancestryService;
+    private final HouseholdService householdService;
 
     public PlacesController(@Autowired DwellingPlaceService dwellingPlaceService,
                             @Autowired ControllerHelperService controllerHelperService,
                             @Autowired HouseholdDwellingPlaceService householdDwellingPlaceService,
                             @Autowired PersonService personService,
                             @Autowired ParishGenerator parishGenerator,
-                            @Autowired TitleService titleService) {
+                            @Autowired TitleService titleService,
+                            @Autowired AncestryService ancestryService,
+                            @Autowired HouseholdService householdService) {
         this.dwellingPlaceService = dwellingPlaceService;
         this.controllerHelperService = controllerHelperService;
         this.householdDwellingPlaceService = householdDwellingPlaceService;
         this.personService = personService;
         this.parishGenerator = parishGenerator;
         this.titleService = titleService;
+        this.ancestryService = ancestryService;
+        this.householdService = householdService;
     }
 
     @RequestMapping("/api/places/{placeId}")
-    public DwellingPlaceResponse getPlace(@PathVariable long placeId,
-                                          @RequestParam(value = "onDate", required = false) String onDate) {
+    public DwellingPlaceDetailResponse getPlace(@PathVariable long placeId,
+                                                @RequestParam(value = "onDate", required = false) String onDate) {
         DwellingPlace place = dwellingPlaceService.load(placeId);
 
         if (place == null) {
             throw new ResourceNotFoundException("No place found for ID " + placeId);
         } else {
             LocalDate date = controllerHelperService.parseDate(onDate);
-            return new DwellingPlaceResponse(place, date);
+            return new DwellingPlaceDetailResponse(place, date, ancestryService);
         }
     }
 
@@ -92,12 +100,12 @@ public class PlacesController {
     }
 
     @RequestMapping(value = "/api/places", method = RequestMethod.POST)
-    public DwellingPlaceResponse postPlace(@RequestBody DwellingPlace place) {
-        return new DwellingPlaceResponse(dwellingPlaceService.save(place), null);
+    public DwellingPlaceDetailResponse postPlace(@RequestBody DwellingPlace place) {
+        return new DwellingPlaceDetailResponse(dwellingPlaceService.save(place), null, ancestryService);
     }
 
     @RequestMapping(value = "/api/estates", method = RequestMethod.POST)
-    public DwellingPlaceResponse createEstateForHousehold(@RequestBody EstatePost estatePost) {
+    public DwellingPlaceDetailResponse createEstateForHousehold(@RequestBody EstatePost estatePost) {
         if (estatePost.getParentDwellingPlaceId() == null) {
             throw new BadRequestException("parentDwellingPlaceIdIsRequired");
         }
@@ -107,8 +115,7 @@ public class PlacesController {
 
         Household ownerHousehold = owner.getHousehold(onDate);
         if (ownerHousehold == null) {
-            throw new BadRequestException(String.format("%d %s is not a member of a household on %s",
-                    owner.getId(), owner.getName(), onDate));
+            ownerHousehold = householdService.createHouseholdForHead(owner, onDate, true);
         }
 
         Title entailedTitle = null;
@@ -135,7 +142,7 @@ public class PlacesController {
 
         parishGenerator.populateEstateWithEmployees(estate, onDate);
 
-        return new DwellingPlaceResponse(estate, onDate);
+        return new DwellingPlaceDetailResponse(estate, onDate, ancestryService);
     }
 
     @RequestMapping("/api/places/estates")
@@ -153,47 +160,47 @@ public class PlacesController {
     }
 
     @RequestMapping("/api/places/parishes")
-    public List<DwellingPlaceResponse> getParishes(@RequestParam(value = "onDate", required = false) String onDate) {
+    public List<DwellingPlaceDetailResponse> getParishes(@RequestParam(value = "onDate", required = false) String onDate) {
         final LocalDate date = controllerHelperService.parseDate(onDate);
 
         List<DwellingPlace> estates = dwellingPlaceService.loadByType(DwellingPlaceType.PARISH);
-        return estates.stream().map(e -> new DwellingPlaceResponse(e, date)).collect(Collectors.toList());
+        return estates.stream().map(e -> new DwellingPlaceDetailResponse(e, date, ancestryService)).collect(Collectors.toList());
     }
 
     @RequestMapping("/api/places/towns")
-    public List<DwellingPlaceResponse> getTowns(@RequestParam(value = "onDate", required = false) String onDate) {
+    public List<DwellingPlaceDetailResponse> getTowns(@RequestParam(value = "onDate", required = false) String onDate) {
         final LocalDate date = controllerHelperService.parseDate(onDate);
 
         List<DwellingPlace> estates = dwellingPlaceService.loadByType(DwellingPlaceType.TOWN);
-        return estates.stream().map(e -> new DwellingPlaceResponse(e, date)).collect(Collectors.toList());
+        return estates.stream().map(e -> new DwellingPlaceDetailResponse(e, date, ancestryService)).collect(Collectors.toList());
     }
 
     @RequestMapping("/api/places/farms")
-    public List<DwellingPlaceResponse> getFarms(@RequestParam(value = "onDate", required = false) String onDate) {
+    public List<DwellingPlaceDetailResponse> getFarms(@RequestParam(value = "onDate", required = false) String onDate) {
         final LocalDate date = controllerHelperService.parseDate(onDate);
 
         List<DwellingPlace> estates = dwellingPlaceService.loadByType(DwellingPlaceType.FARM);
-        return estates.stream().map(e -> new DwellingPlaceResponse(e, date)).collect(Collectors.toList());
+        return estates.stream().map(e -> new DwellingPlaceDetailResponse(e, date, ancestryService)).collect(Collectors.toList());
     }
 
     @RequestMapping(value = "/api/places/houses/empty", method = RequestMethod.GET)
-    public List<DwellingPlaceResponse> getEmptyHouses(@RequestParam(value = "onDate") String onDate) {
+    public List<DwellingPlaceDetailResponse> getEmptyHouses(@RequestParam(value = "onDate") String onDate) {
         final LocalDate date = controllerHelperService.parseDate(onDate);
         List<Dwelling> houses = new ArrayList<>();
         for (DwellingPlace parish : dwellingPlaceService.loadByType(DwellingPlaceType.PARISH)) {
             houses.addAll(parish.getEmptyHouses(date));
         }
         return houses.stream()
-                .map(h -> new DwellingPlaceResponse(h, date))
+                .map(h -> new DwellingPlaceDetailResponse(h, date, ancestryService))
                 .collect(Collectors.toList());
     }
 
     @RequestMapping(value = "/api/places/unowned", method = RequestMethod.GET)
-    public List<DwellingPlaceResponse> getUnownedHousesEstatesAndFarms(@RequestParam(value = "onDate") String onDate) {
+    public List<DwellingPlaceDetailResponse> getUnownedHousesEstatesAndFarms(@RequestParam(value = "onDate") String onDate) {
         final LocalDate date = controllerHelperService.parseDate(onDate);
         List<DwellingPlace> houses = dwellingPlaceService.getUnownedHousesEstatesAndFarms(date);
         return houses.stream()
-                .map(h -> new DwellingPlaceResponse(h, date))
+                .map(h -> new DwellingPlaceDetailResponse(h, date, ancestryService))
                 .collect(Collectors.toList());
     }
 }

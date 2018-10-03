@@ -118,6 +118,18 @@ public class PersonService {
                 .collect(Collectors.toList());
     }
 
+    @NonNull
+    List<Person> findUnmarriedUnemployedPeopleBySocialClassAndGenderAndAge(@NonNull List<SocialClass> socialClasses,
+                                                                           @Nullable Gender gender,
+                                                                           int minAgeInYears,
+                                                                           int maxAgeInYears,
+                                                                           @NonNull LocalDate onDate) {
+        LocalDate minBirthDate = onDate.minusYears(maxAgeInYears);
+        LocalDate maxBirthDate = onDate.minusYears(minAgeInYears);
+        return personRepository.findUnmarriedUnemployedPeopleBySocialClassAndGenderAndAge(socialClasses,
+                gender, minBirthDate, maxBirthDate);
+    }
+
     /**
      * Find all descendants of a person.
      *

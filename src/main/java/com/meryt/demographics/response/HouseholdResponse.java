@@ -10,11 +10,13 @@ import javax.annotation.Nullable;
 import lombok.Getter;
 import lombok.NonNull;
 
+import com.meryt.demographics.domain.family.Relationship;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.place.Household;
+import com.meryt.demographics.service.AncestryService;
 
 @Getter
-public class HouseholdResponse {
+class HouseholdResponse {
 
     @Getter
     private final long id;
@@ -24,11 +26,9 @@ public class HouseholdResponse {
     @Getter
     private List<PersonReference> inhabitants;
 
-    HouseholdResponse(@NonNull Household household) {
-        this(household, null);
-    }
-
-    public HouseholdResponse(@NonNull Household household, @Nullable LocalDate onDate) {
+    HouseholdResponse(@NonNull Household household,
+                      @Nullable LocalDate onDate,
+                      @Nullable AncestryService ancestryService) {
         id = household.getId();
 
         if (onDate != null) {
@@ -36,7 +36,10 @@ public class HouseholdResponse {
             if (!people.isEmpty()) {
                 Person hhHead = household.getHead(onDate);
                 if (hhHead != null) {
-                    head = new PersonSummaryResponse(hhHead, onDate);
+                    Relationship headRel = ancestryService != null
+                            ? ancestryService.calculateRelationship(hhHead, hhHead)
+                            : null;
+                    head = new HouseholdInhabitantSummaryResponse(hhHead, onDate, headRel);
                 }
 
                 inhabitants = new ArrayList<>();
@@ -44,7 +47,10 @@ public class HouseholdResponse {
                         .sorted(Comparator.comparing(Person::getBirthDate))
                         .filter(p -> p != hhHead)
                         .collect(Collectors.toList())) {
-                    inhabitants.add(new PersonSummaryResponse(p, onDate));
+                    Relationship relToHead = (ancestryService != null && hhHead != null)
+                            ? ancestryService.calculateRelationship(p, hhHead)
+                            : null;
+                    inhabitants.add(new HouseholdInhabitantSummaryResponse(p, onDate, relToHead));
                 }
             }
         }

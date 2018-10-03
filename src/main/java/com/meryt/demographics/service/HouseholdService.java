@@ -2,12 +2,13 @@ package com.meryt.demographics.service;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import lombok.NonNull;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -22,6 +23,7 @@ import com.meryt.demographics.repository.HouseholdRepository;
 import com.meryt.demographics.time.LocalDateComparator;
 
 @Service
+@Slf4j
 public class HouseholdService {
 
     private static final int MIN_HEAD_OF_HOUSEHOLD_AGE = 16;
@@ -85,6 +87,41 @@ public class HouseholdService {
      */
     public List<Household> loadHouseholdsWithoutHouses(@NonNull LocalDate onDate) {
         return householdRepository.findHouseholdsWithoutHouses(onDate);
+    }
+
+    private List<Household> loadHouseholdsWithoutInhabitantsInLocations(@NonNull LocalDate onDate) {
+        return householdRepository.loadHouseholdsWithoutInhabitantsInLocations(onDate);
+    }
+
+    /**
+     * Finds all households that are in a location on the date but have no inhabitants. They then have their location
+     * end date set to the max end date of the last person who lived in them.
+     *
+     * @param onDate the date on which to do the search (presumably the current date)
+     * @return a list of households that were modified
+     */
+    public List<Household> cleanUpHouseholdsWithoutInhabitantsInLocations(@NonNull LocalDate onDate) {
+        List<Household> households = loadHouseholdsWithoutInhabitantsInLocations(onDate);
+        List<Household> modifiedHouseholds = new ArrayList<>();
+        for (Household household : households) {
+            LocalDate maxDate = household.getInhabitantPeriods().stream()
+                    .map(HouseholdInhabitantPeriod::getToDate)
+                    .filter(Objects::nonNull)
+                    .max(LocalDate::compareTo)
+                    .orElse(null);
+            if (maxDate != null && maxDate.isBefore(onDate)) {
+                HouseholdLocationPeriod period = household.getHouseholdLocationPeriod(onDate);
+                log.info(String.format("Household %d has no residents since %s; resetting end date of location",
+                        household.getId(), maxDate));
+                if (period != null && (maxDate.isAfter(period.getFromDate()) || maxDate.equals(period.getToDate()))) {
+                    period.setToDate(maxDate);
+                    save(period);
+                    save(household);
+                    modifiedHouseholds.add(household);
+                }
+            }
+        }
+        return modifiedHouseholds;
     }
 
     /**
@@ -152,9 +189,9 @@ public class HouseholdService {
     }
 
     public Person addPersonToHousehold(@NonNull Person person,
-                                     @NonNull Household household,
-                                     @NonNull LocalDate fromDate,
-                                     boolean isHead) {
+                                       @NonNull Household household,
+                                       @NonNull LocalDate fromDate,
+                                       boolean isHead) {
 
         HouseholdInhabitantPeriod newPeriod = new HouseholdInhabitantPeriod();
         newPeriod.setFromDate(fromDate);

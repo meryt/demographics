@@ -29,6 +29,26 @@ public interface PersonRepository extends PagingAndSortingRepository<Person, Lon
                                                        @Param("gender") @NonNull Gender gender,
                                                        @Param("aliveOnDate") @NonNull LocalDate onDate);
 
+    @Query("SELECT p FROM Person p " +
+            "WHERE (:gender IS NULL OR p.gender = :gender) " +
+            "AND p.motheredFamilies IS EMPTY " +
+            "AND p.fatheredFamilies IS EMPTY " +
+            "AND p.occupations IS EMPTY " +
+            "AND p.socialClass IN (:socialClasses) " +
+            "AND (CAST(:minBirthDate AS date) IS NULL OR p.birthDate >= :minBirthDate) " +
+            "AND (CAST(:maxBirthDate AS date) IS NULL OR p.birthDate <= :maxBirthDate) " +
+            "ORDER BY p.birthDate"
+    )
+    List<Person> findUnmarriedUnemployedPeopleBySocialClassAndGenderAndAge(@Param("socialClasses")
+                                                                              @NonNull List<SocialClass> socialClasses,
+                                                                           @Param("gender")
+                                                                              @Nullable Gender gender,
+                                                                           @Param("minBirthDate")
+                                                                              @Nullable LocalDate minBirthDate,
+                                                                           @Param("maxBirthDate")
+                                                                              @Nullable LocalDate maxBirthDate);
+
+
     List<Person> findByDeathDate(LocalDate deathDate);
 
     @Query("SELECT p FROM Person p " +

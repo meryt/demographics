@@ -28,12 +28,13 @@ public class PersonCapitalPeriod implements DateRange {
 
     public static class Reason {
 
-        public static String receivedMarriageSettlementMessage() {
-            return "Received marriage settlement";
+        public static String receivedMarriageSettlementMessage(double amount) {
+            return String.format("Received marriage settlement of %.2f", amount);
         }
 
-        public static String providedMarriageSettlementMessage(@NonNull Person daughter) {
-            return String.format("Provided marriage settlement to %d %s", daughter.getId(), daughter.getName());
+        public static String providedMarriageSettlementMessage(@NonNull Person daughter, double amount) {
+            return String.format("Provided marriage settlement of %.2f to %d %s", amount, daughter.getId(),
+                    daughter.getName());
         }
 
         public static String startingCapitalMessage() {
@@ -41,20 +42,28 @@ public class PersonCapitalPeriod implements DateRange {
         }
 
         public static String builtNewDwellingPlaceMessage(@NonNull DwellingPlace property) {
-            return String.format("Built new dwelling %s %d%s", property.getType().getFriendlyName(), property.getId(),
-                    property.getName() == null ? "" : property.getName());
+            return String.format("Built new dwelling %s %d%s for %.2f",
+                    property.getType().getFriendlyName(),
+                    property.getId(),
+                    property.getName() == null ? "" : property.getName(),
+                    property.getValue());
         }
 
-        public static String purchasedPropertyMessage(@NonNull DwellingPlace property, @Nullable Person seller) {
-            return String.format("Purchased %s %d %s from %s", property.getType().getFriendlyName(), property.getId(),
+        public static String purchasedPropertyMessage(@NonNull DwellingPlace property,
+                                                      @Nullable Person seller,
+                                                      double amount) {
+            return String.format("Purchased %s %d %s from %s for %.2f",
+                    property.getType().getFriendlyName(),
+                    property.getId(),
                     property.getName() == null ? "" : property.getName(),
-                    seller == null ? "unidentified person" : seller.getId() + " " + seller.getName());
+                    seller == null ? "unidentified person" : seller.getId() + " " + seller.getName(),
+                    amount);
         }
 
-        public static String soldPropertyMessage(@NonNull DwellingPlace property, @NonNull Person buyer) {
-            return String.format("Sold %s %d%s to %d %s", property.getType().getFriendlyName(), property.getId(),
+        public static String soldPropertyMessage(@NonNull DwellingPlace property, @NonNull Person buyer, double amount) {
+            return String.format("Sold %s %d%s to %d %s for %.2f", property.getType().getFriendlyName(), property.getId(),
                     property.getName() == null ? "" : property.getName(),
-                    buyer.getId(), buyer.getName());
+                    buyer.getId(), buyer.getName(), amount);
         }
 
         public static String inheritedCapitalMessage(@NonNull Person deceased, @Nullable Relationship relationship) {
@@ -62,16 +71,32 @@ public class PersonCapitalPeriod implements DateRange {
                     relationship == null ? "no relation" : relationship.getName());
         }
 
-        public static String rentsMessage() {
-            return "Rents";
+        public static String livingExpensesMessage(double amount) {
+            return String.format("Expenses of %.2f", amount);
         }
 
-        public static String wagesMessage() {
-            return "Wages";
+        public static String rentsMessage(@NonNull DwellingPlace place, double amount) {
+            return String.format("Income of %.2f from %d %s", amount, place.getId(), place.getFriendlyName());
         }
 
-        public static String interestMessage() {
-            return "Interest";
+        public static String receivedDwellingRentMessage(double amount) {
+            return String.format("Received rent of %.2f", amount);
+        }
+
+        public static String paidDwellingRentMessage(double amount) {
+            return String.format("Paid rent of %.2f", amount);
+        }
+
+        public static String wagesMessage(double amount) {
+            return String.format("Wages of %.2f", amount);
+        }
+
+        public static String interestMessage(double amount) {
+            return String.format("Interest on investments of %.2f", amount);
+        }
+
+        public static String loweredSocialClassMessage() {
+            return "Bankruptcy";
         }
     }
 

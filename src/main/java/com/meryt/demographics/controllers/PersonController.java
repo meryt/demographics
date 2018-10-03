@@ -23,6 +23,7 @@ import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.family.LeastCommonAncestorRelationship;
 import com.meryt.demographics.domain.family.Relationship;
 import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.domain.person.PersonCapitalPeriod;
 import com.meryt.demographics.domain.person.PersonTitlePeriod;
 import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.domain.person.fertility.Fertility;
@@ -42,6 +43,7 @@ import com.meryt.demographics.request.PersonTitlePost;
 import com.meryt.demographics.request.RandomFamilyParameters;
 import com.meryt.demographics.response.HouseholdResponseWithLocations;
 import com.meryt.demographics.response.LeastCommonAncestorResponse;
+import com.meryt.demographics.response.PersonCapitalResponse;
 import com.meryt.demographics.response.PersonDescendantResponse;
 import com.meryt.demographics.response.PersonDetailResponse;
 import com.meryt.demographics.response.PersonFamilyResponse;
@@ -65,6 +67,7 @@ import com.meryt.demographics.service.TitleService;
 @RestController
 public class PersonController {
 
+    private static final String DEATH_DATE = "deathDate";
     private static final String SOCIAL_CLASS = "socialClass";
     private static final String LAST_NAME = "lastName";
     private static final String IS_LAST_NAME_RECURSIVE = "applyLastNameRecursively";
@@ -123,7 +126,7 @@ public class PersonController {
         } catch (IllegalArgumentException e) {
             throw new BadRequestException(e.getMessage());
         }
-        return new PersonDetailResponse(personGenerator.generate(params), null);
+        return new PersonDetailResponse(personGenerator.generate(params), null, ancestryService);
     }
 
     @RequestMapping(value = "/api/persons/{personId}", method = RequestMethod.GET)
@@ -134,7 +137,7 @@ public class PersonController {
         if (onDate != null) {
             date = controllerHelperService.parseDate(onDate);
         }
-        return new PersonDetailResponse(person, date);
+        return new PersonDetailResponse(person, date, ancestryService);
     }
 
     @RequestMapping(value = "/api/persons/{personId}", method = RequestMethod.DELETE)
@@ -193,7 +196,16 @@ public class PersonController {
         if (post.isIncludeHomelessFamilyMembers()) {
             household = householdService.addHomelessFamilyMembersToHousehold(person, household, fromDate, true);
         }
-        return new HouseholdResponseWithLocations(household, fromDate);
+        return new HouseholdResponseWithLocations(household, fromDate, ancestryService);
+    }
+
+    @RequestMapping(value = "/api/persons/{personId}/capital", method = RequestMethod.GET)
+    public List<PersonCapitalResponse> getPersonCapital(@PathVariable long personId) {
+        Person person = controllerHelperService.loadPerson(personId);
+        return person.getCapitalPeriods().stream()
+                .sorted(Comparator.comparing(PersonCapitalPeriod::getFromDate))
+                .map(PersonCapitalResponse::new)
+                .collect(Collectors.toList());
     }
 
     @RequestMapping(value = "/api/persons/{personId}/living-descendants", method = RequestMethod.GET)
@@ -400,6 +412,18 @@ public class PersonController {
                 }
                 updates.remove(IS_LAST_NAME_RECURSIVE);
             }
+        }
+
+        if (updates.containsKey(DEATH_DATE)) {
+            LocalDate deathDate = controllerHelperService.parseDate((String) updates.get(DEATH_DATE));
+            if (deathDate != null) {
+                if (deathDate.isBefore(person.getBirthDate())) {
+                    throw new BadRequestException(String.format("%s of %s is before current birth date of %s",
+                            DEATH_DATE, deathDate, person.getBirthDate()));
+                }
+                person.setDeathDate(deathDate);
+            }
+            updates.remove(DEATH_DATE);
         }
 
         if (!updates.isEmpty()) {

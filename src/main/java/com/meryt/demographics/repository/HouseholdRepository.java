@@ -28,4 +28,16 @@ public interface HouseholdRepository extends CrudRepository<Household, Long> {
             "WHERE hl.dwelling_place_id IS NULL",
             nativeQuery =  true)
     List<Household> findHouseholdsWithoutLocations(@NonNull LocalDate onDate);
+
+    @Query(value = "SELECT \n" +
+            "    h.*\n" +
+            "FROM (  SELECT household_id, MAX(to_date) \n" +
+            "        FROM household_inhabitants \n" +
+            "        GROUP BY 1 \n" +
+            "        HAVING MAX(to_date) < :onDate) y \n" +
+            "INNER JOIN household_locations hl \n" +
+            "    ON y.household_id = hl.household_id AND DATERANGE(hl.from_date, hl.to_date) @> CAST(:onDate AS DATE) \n" +
+            "INNER JOIN households h ON y.household_id = h.id\n",
+            nativeQuery =  true)
+    List<Household> loadHouseholdsWithoutInhabitantsInLocations(@NonNull LocalDate onDate);
 }

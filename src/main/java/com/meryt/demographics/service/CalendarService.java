@@ -1,6 +1,7 @@
 package com.meryt.demographics.service;
 
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -19,6 +20,7 @@ import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.place.Dwelling;
 import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.DwellingPlaceType;
+import com.meryt.demographics.domain.place.Estate;
 import com.meryt.demographics.domain.place.Farm;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.Parish;
@@ -145,6 +147,11 @@ public class CalendarService {
                     && date.getDayOfMonth() == nextDatePost.getFirstDayOfYearOrDefault()) {
                 distributeCapital(date);
             }
+
+            if (isQuarterDay(date)) {
+                hireEstateEmployees(date);
+            }
+
             configurationService.setCurrentDate(date);
             i++;
         }
@@ -378,7 +385,7 @@ public class CalendarService {
         for (Map.Entry<LocalDate, List<CalendarDayEvent>> entry : map1.entrySet()) {
             entry.getValue().removeIf(post::isSuppressedEventType);
             entry.getValue().removeIf(e -> e.getType() == CalendarEventType.PROPERTY_TRANSFER &&
-                    ((PropertyTransferEvent) e).getDwellingPlace().getType().equals("DWELLING"));
+                    !((PropertyTransferEvent) e).getDwellingPlace().getType().equals("ESTATE"));
         }
 
         map1.values().removeIf(List::isEmpty);
@@ -395,6 +402,9 @@ public class CalendarService {
                             .map(o -> o.getId() + " " + o.getName()).collect(Collectors.joining(", ")),
                     p.getParent().getId(), p.getParent().getFriendlyName(), p.getParent().getOwners(onDate).stream()
                             .map(o -> o.getId() + " " + o.getName()).collect(Collectors.joining(", ")))));
+        familyService.loadFamiliesNotInSameHousehold(onDate).forEach(f ->
+            log.warn(String.format("The wife of %d %s is not living with him", f.getHusband().getId(),
+                    f.getHusband().getName())));
     }
 
     private void distributeCapital(@NonNull LocalDate date) {
@@ -402,5 +412,28 @@ public class CalendarService {
         log.info(String.format("%d was a %s year with a factor of %s", date.getYear() - 1,
                 goodYearFactor > 0 ? "good" : "bad", goodYearFactor));
         wealthService.distributeCapital(date, goodYearFactor);
+    }
+
+    private boolean isQuarterDay(@NonNull LocalDate date) {
+        if (date.getDayOfMonth() == 2 && date.getMonth() == Month.FEBRUARY) {
+            return true;
+        }
+        if (date.getDayOfMonth() == 15 && date.getMonth() == Month.MAY) {
+            return true;
+        }
+        if (date.getDayOfMonth() == 1 && date.getMonth() == Month.AUGUST) {
+            return true;
+        }
+        return date.getDayOfMonth() == 11 && date.getMonth() == Month.NOVEMBER;
+    }
+
+    private void hireEstateEmployees(@NonNull LocalDate date) {
+        for (DwellingPlace place : dwellingPlaceService.loadByType(DwellingPlaceType.ESTATE)) {
+            Estate estate = (Estate) place;
+            householdDwellingPlaceService.hireEstateEmployees(estate, date, estate.getExpectedNumServantHouseholds(),
+                    occupationService.findByIsDomesticServant());
+            householdDwellingPlaceService.hireEstateEmployees(estate, date, estate.getExpectedNumFarmLaborerHouseholds(),
+                    occupationService.findByIsFarmLaborer());
+        }
     }
 }

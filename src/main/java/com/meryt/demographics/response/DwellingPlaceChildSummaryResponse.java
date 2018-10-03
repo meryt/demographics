@@ -1,7 +1,6 @@
 package com.meryt.demographics.response;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -12,9 +11,10 @@ import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.place.DwellingPlace;
 
 @Getter
-public class DwellingPlaceChildSummaryResponse extends DwellingPlacePointer {
+class DwellingPlaceChildSummaryResponse extends DwellingPlacePointer {
 
     private Double value;
+    private LocalDate foundedDate;
     private Boolean entailed;
     private final Double acres;
     private final Double squareMiles;
@@ -23,12 +23,13 @@ public class DwellingPlaceChildSummaryResponse extends DwellingPlacePointer {
     private Long totalPopulation;
     private final List<PersonSummaryResponse> owners;
 
-    public DwellingPlaceChildSummaryResponse(@NonNull DwellingPlace dwellingPlace, @Nullable LocalDate onDate) {
+    DwellingPlaceChildSummaryResponse(@NonNull DwellingPlace dwellingPlace, @Nullable LocalDate onDate) {
         super(dwellingPlace);
         value = dwellingPlace.getValue();
         acres = dwellingPlace.getAcres();
         squareMiles = dwellingPlace.getSquareMiles();
         entailed = dwellingPlace.isEntailed() ? true : null;
+        foundedDate = dwellingPlace.getFoundedDate();
 
         if (dwellingPlace.getParent() == null) {
             location = null;

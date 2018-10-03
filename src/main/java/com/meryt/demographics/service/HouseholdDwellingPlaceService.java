@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import lombok.NonNull;
@@ -44,6 +45,7 @@ public class HouseholdDwellingPlaceService {
     private final HouseholdService householdService;
     private final DwellingPlaceService dwellingPlaceService;
     private final PersonService personService;
+
 
     public HouseholdDwellingPlaceService(@Autowired @NonNull HouseholdService householdService,
                                          @Autowired @NonNull DwellingPlaceService dwellingPlaceService,
@@ -241,6 +243,23 @@ public class HouseholdDwellingPlaceService {
         return results;
     }
 
+    void maybeMoveIndebtedHouseholdToEmptyHouse(@NonNull Parish parish,
+                                                @NonNull Household household,
+                                                @NonNull LocalDate onDate) {
+        Dwelling cheapestHouse = parish.getEmptyHouses(onDate).stream()
+                .min(Comparator.comparing(Dwelling::getValue))
+                .orElse(null);
+        Dwelling currentHouse = (Dwelling) household.getDwellingPlace(onDate);
+        if (cheapestHouse != null && (currentHouse == null || cheapestHouse.getValue() < currentHouse.getValue())) {
+            List<Person> owners = cheapestHouse.getOwners(onDate);
+            log.info(String.format("Household is moving into empty house in %s owned by %s",
+                    cheapestHouse.getLocationString(), owners.isEmpty()
+                            ? "nobody"
+                            : owners.get(0).getId() + " " + owners.get(0).getName()));
+            addToDwellingPlace(household, cheapestHouse, onDate, null);
+        }
+    }
+
     void moveAway(@NonNull Person person, @NonNull LocalDate onDate) {
         Household hh = person.getHousehold(onDate);
         if (hh == null || person.getResidence(onDate) == null) {
@@ -265,18 +284,18 @@ public class HouseholdDwellingPlaceService {
             if (parent instanceof Estate) {
                 personService.maybeUpdateLastNameForNewOwnerOfEstate(buyer, (Estate) parent, date);
             }
-            results.add(new PropertyTransferEvent(date, parent, parent.getOwners(date.minusDays(1))));
+            results.add(new PropertyTransferEvent(date, parent));
         }
         dwellingPlaceService.buyDwellingPlace(house, buyer, date, reason);
         house = (Dwelling) addToDwellingPlace(buyer.getHousehold(date), house, date, null);
-        results.add(new PropertyTransferEvent(date, house, house.getOwners(date.minusDays(1))));
+        results.add(new PropertyTransferEvent(date, house));
         return results;
     }
 
-    List<Dwelling> findBuyableHousesFarmsAndEstates(@NonNull Parish parish,
-                                                           @NonNull LocalDate onDate,
-                                                           double availableCapital) {
-        List<Dwelling> emptyHouses = parish.getEmptyHouses(onDate);
+    List<Dwelling> findBuyableHousesFarmsAndEstates(@NonNull DwellingPlace parentPlace,
+                                                    @NonNull LocalDate onDate,
+                                                    double availableCapital) {
+        List<Dwelling> emptyHouses = parentPlace.getEmptyHouses(onDate);
         return emptyHouses.stream()
                 .filter(h -> h.getNullSafeValueIncludingAttachedParent() < availableCapital
                         && !h.isEntailed()
@@ -285,11 +304,11 @@ public class HouseholdDwellingPlaceService {
     }
 
     @Nullable
-    Dwelling findBestBuyableHouseFarmOrEstate(@NonNull Parish parish,
+    Dwelling findBestBuyableHouseFarmOrEstate(@NonNull DwellingPlace parentPlace,
                                               @NonNull LocalDate onDate,
                                               double availableCapital,
                                               double minAcceptableValue) {
-        return findBuyableHousesFarmsAndEstates(parish, onDate, availableCapital)
+        return findBuyableHousesFarmsAndEstates(parentPlace, onDate, availableCapital)
                 .stream()
                 .filter(d -> d.getValue() >= minAcceptableValue)
                 .max(Comparator.comparing(Dwelling::getNullSafeValueIncludingAttachedParent))
@@ -307,10 +326,10 @@ public class HouseholdDwellingPlaceService {
      *              person's capital
      */
     public Dwelling moveFamilyIntoNewHouse(@NonNull DwellingPlace dwellingPlace,
-                                    @NonNull Household household,
-                                    @NonNull LocalDate moveInDate,
-                                    @Nullable Double value,
-                                    @NonNull String reason) {
+                                           @NonNull Household household,
+                                           @NonNull LocalDate moveInDate,
+                                           @Nullable Double value,
+                                           @NonNull String reason) {
         Dwelling house = new Dwelling();
         house.setFoundedDate(moveInDate);
         Person head = household.getHead(moveInDate);
@@ -358,6 +377,8 @@ public class HouseholdDwellingPlaceService {
         Estate estate = new Estate();
         estate.setFoundedDate(moveInDate);
         estate.setValue(WealthGenerator.getRandomLandValue(headOfHousehold.getSocialClass()));
+        // A 100 acre estate in 1801 sold for about 3500 pounds (35 pounds per acre)
+        estate.setAcres(estate.getValue() / 35.0);
         boolean isEntailed = headOfHousehold.isMale() && new BetweenDie().roll(1, 100) > 30;
         estate = (Estate) dwellingPlaceService.save(estate);
         estate.setEntailed(isEntailed);
@@ -602,5 +623,108 @@ public class HouseholdDwellingPlaceService {
     private boolean personRequiresFarmOnDate(@NonNull Person person, @NonNull LocalDate onDate) {
         Occupation occ = person.getOccupation(onDate);
         return occ != null && occ.isFarmOwner();
+    }
+
+    void hireEstateEmployees(@NonNull Estate estate,
+                             @NonNull LocalDate date,
+                             int numExpectedServants,
+                             @NonNull List<Occupation> servantOccupations) {
+        Map<Occupation, List<Person>> peopleWithOccupations = estate.getPeopleWithOccupations(date);
+        int count = 0;
+        for (Occupation servantOccupation : servantOccupations) {
+            if (peopleWithOccupations.containsKey(servantOccupation)) {
+                count += peopleWithOccupations.get(servantOccupation).size();
+            }
+        }
+        int servantsToHire = numExpectedServants - count;
+        for (int i = 0; i < servantsToHire; i++) {
+            Occupation occupation = servantOccupations.get(new Die(servantOccupations.size()).roll() - 1);
+            hireEstateEmployeeForOccupation(estate, occupation, date);
+        }
+    }
+
+    private void hireEstateEmployeeForOccupation(@NonNull Estate estate,
+                                                 @NonNull Occupation occupation,
+                                                 @NonNull LocalDate date) {
+        List<Person> people = personService.findUnmarriedUnemployedPeopleBySocialClassAndGenderAndAge(
+                occupation.getSocialClasses(), occupation.getRequiredGender(), 15, 22, date).stream()
+                .filter(p -> personResidesInParish(p, estate.getParish(), date))
+                .collect(Collectors.toList());
+        Collections.shuffle(people);
+        if (people.isEmpty()) {
+            return;
+        }
+        Person personToHire = people.get(0);
+        personToHire.addOccupation(occupation, date);
+        personService.save(personToHire);
+        Household currentHousehold = personToHire.getHousehold(date);
+        Household householdToMove;
+        if (currentHousehold != null) {
+            Person head = currentHousehold.getHead(date);
+            if (head != null && head.equals(personToHire)) {
+                householdToMove = currentHousehold;
+            } else {
+                moveAway(personToHire, date);
+                householdToMove = householdService.createHouseholdForHead(personToHire, date, false);
+            }
+        } else {
+            householdToMove = householdService.createHouseholdForHead(personToHire, date, false);
+        }
+
+        if (occupation.isDomesticServant()) {
+            addToDwellingPlace(householdToMove, estate.getManorHouse(), date, null);
+        } else {
+            moveHiredFarmLaborerOntoEstate(estate, personToHire, householdToMove, date);
+        }
+    }
+
+    private static boolean personResidesInParish(@NonNull Person person,
+                                                 @NonNull Parish parish,
+                                                 @NonNull LocalDate onDate) {
+        DwellingPlace residence = person.getResidence(onDate);
+        if (residence == null) {
+            return false;
+        }
+        Parish personParish = residence.getParish();
+        return personParish != null && personParish.equals(parish);
+    }
+
+    private void moveHiredFarmLaborerOntoEstate(@NonNull Estate estate,
+                                                @NonNull Person laborer,
+                                                @NonNull Household household,
+                                                @NonNull LocalDate onDate) {
+        double capital = laborer.getCapitalNullSafe(onDate);
+        double minValue = WealthGenerator.getHouseValueRange(laborer.getSocialClass()).getFirst();
+
+        Dwelling buyableHouse = findBestBuyableHouseFarmOrEstate(estate, onDate, capital, minValue);
+        if (buyableHouse != null) {
+            buyAndMoveIntoHouse(buyableHouse, laborer, onDate,
+                    DwellingPlaceOwnerPeriod.Reason.purchasedHouseUponEmploymentMessage());
+            return;
+        }
+
+        Dwelling newDwelling = null;
+        List<Dwelling> emptyHouses = estate.getEmptyHouses(onDate);
+        if (!emptyHouses.isEmpty()) {
+            Collections.shuffle(emptyHouses);
+            newDwelling = emptyHouses.get(0);
+        } else {
+            List<DwellingPlace> allDwellings = new ArrayList<>(estate.getRecursiveDwellingPlaces(DwellingPlaceType.DWELLING));
+            if (allDwellings.isEmpty()) {
+                Collections.shuffle(allDwellings);
+                newDwelling = (Dwelling) allDwellings.get(0);
+            }
+        }
+
+        if (newDwelling != null) {
+            List<Person> houseOwner = newDwelling.getOwners(onDate);
+            log.info(String.format("Moved new farm laborer %d %s into house on estate, owned by %s",
+                    laborer.getId(), laborer.getName(),
+                    houseOwner.isEmpty() ? "nobody" : houseOwner.get(0).getName()));
+            addToDwellingPlace(household, newDwelling, onDate, null);
+        } else {
+            moveFamilyIntoNewHouse(estate, household, onDate, null,
+                    DwellingPlaceOwnerPeriod.Reason.purchasedHouseUponEmploymentMessage());
+        }
     }
 }

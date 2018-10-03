@@ -185,9 +185,9 @@ public class WealthGenerator {
             case YEOMAN_OR_MERCHANT:
                 return Pair.of(50, 200);
             case GENTLEMAN:
-                return Pair.of(200, 500);
+                return Pair.of(100, 300);
             case BARONET:
-                return Pair.of(500, 2_000);
+                return Pair.of(400, 1_000);
             case BARON:
             case VISCOUNT:
             case EARL:
@@ -198,6 +198,43 @@ public class WealthGenerator {
                 return Pair.of(2_000, 5_000);
             default:
                 throw new IllegalArgumentException("No value range defined for social class " + socialClass.name());
+        }
+    }
+
+    /**
+     * At higher levels, the cost of living remains unchanged as it is assumed some expenses and some incomes are
+     * from elsewhere. This is the cost of living in one house/estate in one parish.
+     */
+    public static Integer getYearlyCostOfLivingPerHousehold(@NonNull SocialClass socialClass) {
+        switch (socialClass) {
+            case PAUPER:
+                return 4;
+            case LABORER:
+                return 12;
+            case LANDOWNER_OR_CRAFTSMAN:
+                return 30;
+            case YEOMAN_OR_MERCHANT:
+                return 100;
+            case GENTLEMAN:
+                return 700;
+            case BARONET:
+                return 1600;
+            case BARON:
+                return 4000;
+            case VISCOUNT:
+                return 4000;
+            case EARL:
+                return 4000;
+            case MARQUESS:
+                return 4000;
+            case DUKE:
+                return 4000;
+            case PRINCE:
+                return 4000;
+            case MONARCH:
+                return 4000;
+            default:
+                throw new IllegalArgumentException("No cost of living defined for social class " + socialClass.name());
         }
     }
 }
