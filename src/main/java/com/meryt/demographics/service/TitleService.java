@@ -364,6 +364,7 @@ public class TitleService {
                     ? nextToLastHeir.getDeathDate()
                     : LocalDateComparator.min(heirMayBeBornOn, nextToLastHeir.getDeathDate());
             title.setNextAbeyanceCheckDate(nextCheck);
+            reenableMaternitiesForPotentialHeirs(heirs.getSecond(), date);
             save(title);
         } else {
             Person heir = heirs.getSecond().get(0);
@@ -442,5 +443,25 @@ public class TitleService {
     private boolean allHoldersHaveFinishedGeneration(@NonNull Title title) {
         return title.getTitleHolders().stream()
                 .allMatch(th -> th.getPerson().isFinishedGeneration());
+    }
+
+    /**
+     * A lower class person not living in the parishes may have had their maternity checking disabled by setting the
+     * father to null. If the person or the person's spouse may be an heir to a title, this check should be reenabled
+     *
+     * @param heirs list of people who may be heirs
+     * @param onDate the date on which to do the check
+     */
+    private void reenableMaternitiesForPotentialHeirs(@NonNull List<Person> heirs, @NonNull LocalDate onDate) {
+        for (Person heir : heirs) {
+            Person wife = heir.isFemale() ? heir : heir.getSpouse(onDate);
+            if (wife != null && wife.isLiving(onDate) && wife.isMarried(onDate)
+                    && wife.getMaternity().getFather() == null) {
+                log.info(String.format("Reenabling maternity checks for %d %s because %d %s is a potential heir",
+                        wife.getId(), wife.getName(), heir.getId(), heir.getName()));
+                wife.getMaternity().setFather(wife.getSpouse(onDate));
+                personService.save(wife);
+            }
+        }
     }
 }

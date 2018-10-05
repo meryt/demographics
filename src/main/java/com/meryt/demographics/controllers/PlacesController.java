@@ -15,20 +15,16 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.meryt.demographics.domain.person.Person;
-import com.meryt.demographics.domain.person.PersonCapitalPeriod;
 import com.meryt.demographics.domain.place.Dwelling;
 import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.DwellingPlaceOwnerPeriod;
 import com.meryt.demographics.domain.place.DwellingPlaceType;
-import com.meryt.demographics.domain.place.Estate;
-import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.title.Title;
 import com.meryt.demographics.generator.ParishGenerator;
-import com.meryt.demographics.generator.WealthGenerator;
 import com.meryt.demographics.request.EstatePost;
+import com.meryt.demographics.response.DwellingPlaceDetailResponse;
 import com.meryt.demographics.response.DwellingPlaceOwnerResponse;
 import com.meryt.demographics.response.DwellingPlaceReference;
-import com.meryt.demographics.response.DwellingPlaceDetailResponse;
 import com.meryt.demographics.response.DwellingPlaceResponse;
 import com.meryt.demographics.rest.BadRequestException;
 import com.meryt.demographics.rest.ResourceNotFoundException;
@@ -36,8 +32,6 @@ import com.meryt.demographics.service.AncestryService;
 import com.meryt.demographics.service.ControllerHelperService;
 import com.meryt.demographics.service.DwellingPlaceService;
 import com.meryt.demographics.service.HouseholdDwellingPlaceService;
-import com.meryt.demographics.service.HouseholdService;
-import com.meryt.demographics.service.PersonService;
 import com.meryt.demographics.service.TitleService;
 
 @Slf4j
@@ -47,28 +41,22 @@ public class PlacesController {
     private final DwellingPlaceService dwellingPlaceService;
     private final ControllerHelperService controllerHelperService;
     private final HouseholdDwellingPlaceService householdDwellingPlaceService;
-    private final TitleService titleService;
-    private final PersonService personService;
-    private final ParishGenerator parishGenerator;
     private final AncestryService ancestryService;
-    private final HouseholdService householdService;
+    private final TitleService titleService;
+    private final ParishGenerator parishGenerator;
 
     public PlacesController(@Autowired DwellingPlaceService dwellingPlaceService,
                             @Autowired ControllerHelperService controllerHelperService,
                             @Autowired HouseholdDwellingPlaceService householdDwellingPlaceService,
-                            @Autowired PersonService personService,
-                            @Autowired ParishGenerator parishGenerator,
-                            @Autowired TitleService titleService,
                             @Autowired AncestryService ancestryService,
-                            @Autowired HouseholdService householdService) {
+                            @Autowired TitleService titleService,
+                            @Autowired ParishGenerator parishGenerator) {
         this.dwellingPlaceService = dwellingPlaceService;
         this.controllerHelperService = controllerHelperService;
         this.householdDwellingPlaceService = householdDwellingPlaceService;
-        this.personService = personService;
-        this.parishGenerator = parishGenerator;
-        this.titleService = titleService;
         this.ancestryService = ancestryService;
-        this.householdService = householdService;
+        this.titleService = titleService;
+        this.parishGenerator = parishGenerator;
     }
 
     @RequestMapping("/api/places/{placeId}")
@@ -106,43 +94,34 @@ public class PlacesController {
 
     @RequestMapping(value = "/api/estates", method = RequestMethod.POST)
     public DwellingPlaceDetailResponse createEstateForHousehold(@RequestBody EstatePost estatePost) {
-        if (estatePost.getParentDwellingPlaceId() == null) {
-            throw new BadRequestException("parentDwellingPlaceIdIsRequired");
+        if (estatePost.getParentDwellingPlaceId() == null && estatePost.getExistingHouseId() == null) {
+            throw new BadRequestException("Either parentDwellingPlaceId or existingHouseId is required");
         }
-        DwellingPlace place = dwellingPlaceService.load(estatePost.getParentDwellingPlaceId());
+        if (estatePost.getParentDwellingPlaceId() != null && estatePost.getExistingHouseId() != null) {
+            throw new BadRequestException("Only one of parentDwellingPlaceId and existingHouseId may be non-null");
+        }
         Person owner = controllerHelperService.loadPerson(estatePost.getOwnerId());
         LocalDate onDate = controllerHelperService.parseDate(estatePost.getOwnerFromDate());
 
-        Household ownerHousehold = owner.getHousehold(onDate);
-        if (ownerHousehold == null) {
-            ownerHousehold = householdService.createHouseholdForHead(owner, onDate, true);
-        }
-
-        Title entailedTitle = null;
+        Title entailedToTitle = null;
         if (estatePost.getEntailedTitleId() != null) {
-            entailedTitle = titleService.load(estatePost.getEntailedTitleId());
+            entailedToTitle = titleService.load(estatePost.getEntailedTitleId());
         }
 
-        Estate estate = householdDwellingPlaceService.createEstateForHousehold(place, estatePost.getName(),
-                estatePost.getDwellingName(), owner, ownerHousehold, onDate, entailedTitle);
-
-        if (owner.getCapitalPeriods().isEmpty()) {
-            double capital = WealthGenerator.getRandomStartingCapital(owner.getSocialClass(),
-                    owner.getOccupation(onDate) != null);
-            owner.addCapital(capital, onDate, PersonCapitalPeriod.Reason.startingCapitalMessage());
-            log.info(String.format("%d %s got starting capital of %.2f", owner.getId(), owner.getName(), capital));
-            personService.save(owner);
+        if (estatePost.getParentDwellingPlaceId() != null) {
+            DwellingPlace place = dwellingPlaceService.load(estatePost.getParentDwellingPlaceId());
+            return new DwellingPlaceDetailResponse(householdDwellingPlaceService.createEstateInPlace(place, owner,
+                    estatePost, onDate, entailedToTitle, parishGenerator), onDate, ancestryService);
+        } else {
+            DwellingPlace house = dwellingPlaceService.load(estatePost.getExistingHouseId());
+            if (!(house instanceof  Dwelling)) {
+                throw new IllegalArgumentException("existingHouseId " + estatePost.getExistingHouseId()
+                        + " does not correspond to a Dwelling");
+            }
+            return new DwellingPlaceDetailResponse(householdDwellingPlaceService.createEstateAroundDwelling(
+                    (Dwelling) house, estatePost, onDate, entailedToTitle, parishGenerator), onDate, ancestryService);
         }
 
-        if (estatePost.getMustPurchase() != null && estatePost.getMustPurchase()) {
-            owner.addCapital(estate.getValue() * -1, onDate,
-                    PersonCapitalPeriod.Reason.builtNewDwellingPlaceMessage(estate));
-            personService.save(owner);
-        }
-
-        parishGenerator.populateEstateWithEmployees(estate, onDate);
-
-        return new DwellingPlaceDetailResponse(estate, onDate, ancestryService);
     }
 
     @RequestMapping("/api/places/estates")

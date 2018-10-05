@@ -3,7 +3,6 @@ package com.meryt.demographics.response;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import lombok.Getter;
 import lombok.NonNull;
@@ -16,7 +15,7 @@ import com.meryt.demographics.domain.place.Household;
 @Getter
 public class DwellingPlaceResponse extends DwellingPlaceSummaryResponse {
 
-    private List<PersonReference> currentOwners;
+    private PersonReference currentOwner;
 
     private List<HouseholdSummaryResponse> leadingHouseholds;
 
@@ -32,10 +31,10 @@ public class DwellingPlaceResponse extends DwellingPlaceSummaryResponse {
                 }
             }
 
-            List<Person> owningPersons = dwellingPlace.getOwners(onDate);
-            currentOwners = owningPersons.isEmpty()
+            Person owningPerson = dwellingPlace.getOwner(onDate);
+            currentOwner = owningPerson == null
                     ? null
-                    : owningPersons.stream().map(p -> new PersonReference(p, onDate)).collect(Collectors.toList());
+                    : new PersonReference(owningPerson, onDate);
         }
 
     }

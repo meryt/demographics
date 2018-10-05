@@ -2,7 +2,6 @@ package com.meryt.demographics.service;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -128,18 +127,16 @@ public class WealthService {
      * rent depends on the value of the house, and each household in the house pays the same share.
      */
     private void distributeDwellingRents(@NonNull Parish parish, @NonNull Dwelling dwelling, @NonNull LocalDate onDate) {
-        List<Person> owners = dwelling.getOwners(onDate);
-        if (owners.isEmpty()) {
+        Person owner = dwelling.getOwner(onDate);
+        if (owner == null) {
             return;
         }
         List<Person> residents = dwelling.getAllResidents(onDate);
         if (residents.isEmpty()) {
             return;
         }
-        for (Person owner : owners) {
-            if (residents.contains(owner)) {
-                return;
-            }
+        if (residents.contains(owner)) {
+            return;
         }
         double rent = dwelling.getNullSafeValue() / 30;
         List<Household> households = dwelling.getHouseholds(onDate);
@@ -150,11 +147,8 @@ public class WealthService {
                 householdDwellingPlaceService.maybeMoveIndebtedHouseholdToEmptyHouse(parish, household, onDate);
             }
         }
-        double rentPerOwner = rent / owners.size();
-        for (Person owner : owners) {
-            owner.addCapital(rentPerOwner, onDate, PersonCapitalPeriod.Reason.receivedDwellingRentMessage(rentPerOwner));
-            personService.save(owner);
-        }
+        owner.addCapital(rent, onDate, PersonCapitalPeriod.Reason.receivedDwellingRentMessage(rent));
+        personService.save(owner);
     }
 
     private void householdPayExpense(@NonNull Household household,
@@ -221,8 +215,8 @@ public class WealthService {
     private void distributeEstateRentsAndFarmIncome(@NonNull DwellingPlace estate,
                                                     @NonNull LocalDate onDate,
                                                     double goodYearFactor) {
-        List<Person> owners = estate.getOwners(onDate);
-        if (owners.isEmpty()) {
+        Person owner = estate.getOwner(onDate);
+        if (owner == null) {
             log.info(String.format("No rents were distributed for %d %s, as it has no owner", estate.getId(),
                     estate.getLocationString()));
             return;
@@ -236,13 +230,10 @@ public class WealthService {
         double baseRent = value * individualFactor;
         double adjustedRent = adjustForGoodOrBadYear(baseRent, goodYearFactor);
 
-        double individualRent = adjustedRent / owners.size();
-        for (Person owner : owners) {
-            owner.addCapital(individualRent, onDate, PersonCapitalPeriod.Reason.rentsMessage(estate, individualRent));
-            log.debug(String.format("%d %s received %.2f from rents on %d %s", owner.getId(), owner.getName(),
-                    individualRent, estate.getId(), estate.getLocationString()));
-            personService.save(owner);
-        }
+        owner.addCapital(adjustedRent, onDate, PersonCapitalPeriod.Reason.rentsMessage(estate, adjustedRent));
+        log.debug(String.format("%d %s received %.2f from rents on %d %s", owner.getId(), owner.getName(),
+                adjustedRent, estate.getId(), estate.getLocationString()));
+        personService.save(owner);
     }
 
     private void distributeWages(@Nullable Occupation occupation,

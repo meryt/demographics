@@ -695,7 +695,7 @@ public class Person {
      * @param capital the new amount of money he should have
      * @param asOfDate the date as of which this amount should take effect
      */
-    public void setCapital(double capital, @NonNull LocalDate asOfDate, @Nullable String reason) {
+    private void setCapital(double capital, @NonNull LocalDate asOfDate, @Nullable String reason) {
         PersonCapitalPeriod newPeriod = new PersonCapitalPeriod();
         newPeriod.setCapital(capital);
         newPeriod.setPerson(this);

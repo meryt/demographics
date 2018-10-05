@@ -64,14 +64,21 @@ public class DwellingPlaceService {
         return dwellingPlaceRepository.findByParentIsNotNullAndAttachedToParentIsTrue();
     }
 
+    /**
+     * Gets a list of dwelling places in an error state, whereby they are attached to their parent, but the owner of
+     * their parent is not the same as their owner.
+     *
+     * @param onDate
+     * @return a list of affected DwellingPlaces
+     */
     List<DwellingPlace> getPlacesSeparatedFromParents(@NonNull LocalDate onDate) {
         List<DwellingPlace> results = new ArrayList<>();
         for (DwellingPlace place : getPlacesAttachedToParents()) {
-            if (place.getOwners(onDate) != null && place.getParent().getOwners(onDate) == null) {
+            if (place.getOwner(onDate) != null && place.getParent().getOwner(onDate) == null) {
                 results.add(place);
-            } else if (place.getOwners(onDate) == null && place.getParent().getOwners(onDate) != null) {
+            } else if (place.getOwner(onDate) == null && place.getParent().getOwner(onDate) != null) {
                 results.add(place);
-            } else if (!place.getOwners(onDate).containsAll(place.getParent().getOwners(onDate))) {
+            } else if (!place.getOwner(onDate).equals(place.getParent().getOwner(onDate))) {
                 results.add(place);
             }
         }
@@ -112,13 +119,13 @@ public class DwellingPlaceService {
                     newOwner.getId(), newOwner.getName(), place.getType().getFriendlyName(), place.getId(), onDate));
         }
 
-        if (place.getOwners(onDate).contains(newOwner)) {
+        if (newOwner.equals(place.getOwner(onDate))) {
             log.info(String.format("%d %s already owns %d %s, not transferring property", newOwner.getId(),
                     newOwner.getName(), place.getId(), place.getFriendlyName()));
             return null;
         }
 
-        List<Person> currentOwners = place.getOwners(onDate);
+        Person currentOwner = place.getOwner(onDate);
         for (DwellingPlaceOwnerPeriod period : place.getOwnerPeriods()) {
             if (period.contains(onDate)) {
                 period.setToDate(onDate);
@@ -128,16 +135,13 @@ public class DwellingPlaceService {
         save(place);
 
         if (transferCapital) {
-            double amountPerOwner = place.getValue() / currentOwners.size();
-            for (Person previousOwner : currentOwners) {
-                previousOwner.addCapital(amountPerOwner, onDate,
-                        PersonCapitalPeriod.Reason.soldPropertyMessage(place, newOwner, amountPerOwner));
-                personService.save(previousOwner);
+            if (currentOwner != null) {
+                currentOwner.addCapital(place.getValue(), onDate,
+                        PersonCapitalPeriod.Reason.soldPropertyMessage(place, newOwner, place.getValue()));
+                personService.save(currentOwner);
             }
 
-            String capitalReason = PersonCapitalPeriod.Reason.purchasedPropertyMessage(
-                    place,
-                    currentOwners.isEmpty() ? null : currentOwners.get(0),
+            String capitalReason = PersonCapitalPeriod.Reason.purchasedPropertyMessage(place, currentOwner,
                     place.getValue());
 
             newOwner.addCapital(place.getValue() * -1, onDate, capitalReason);

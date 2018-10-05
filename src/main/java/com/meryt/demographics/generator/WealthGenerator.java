@@ -5,6 +5,7 @@ import org.springframework.data.util.Pair;
 
 import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.generator.random.BetweenDie;
+import com.meryt.demographics.generator.random.Die;
 
 public class WealthGenerator {
 
@@ -66,36 +67,10 @@ public class WealthGenerator {
     }
 
     private static Pair<Integer, Integer> getEstateValueRange(@NonNull SocialClass socialClass) {
-        switch (socialClass) {
-            case PAUPER:
-                return Pair.of(20, 80);
-            case LABORER:
-                return Pair.of(100, 400);
-            case LANDOWNER_OR_CRAFTSMAN:
-                return Pair.of(200, 500);
-            case YEOMAN_OR_MERCHANT:
-                return Pair.of(500, 800);
-            case GENTLEMAN:
-                return Pair.of(800, 10_000);
-            case BARONET:
-                return Pair.of(5000, 50_000);
-            case BARON:
-                return Pair.of(20_000, 100_000);
-            case VISCOUNT:
-                return Pair.of(80_000, 500_000);
-            case EARL:
-                return Pair.of(100_000, 400_000);
-            case MARQUESS:
-                return Pair.of(300_000, 500_000);
-            case DUKE:
-                return Pair.of(300_000, 1_000_000);
-            case PRINCE:
-                return Pair.of(300_000, 1_000_000);
-            case MONARCH:
-                return Pair.of(300_000, 1_000_000);
-            default:
-                throw new IllegalArgumentException("No value range defined for social class " + socialClass.name());
-        }
+        // An estate should cost about 30 times the required income for the social class, up to the amount
+        // required for the next highest social class.
+        return Pair.of(getYearlyCostOfLivingPerHousehold(socialClass) * 30,
+                getYearlyCostOfLivingPerHousehold(socialClass.plusOne()) * 30);
     }
 
     private static Pair<Integer, Integer> getStartingCapitalValueRange(@NonNull SocialClass socialClass) {
@@ -208,11 +183,11 @@ public class WealthGenerator {
     public static Integer getYearlyCostOfLivingPerHousehold(@NonNull SocialClass socialClass) {
         switch (socialClass) {
             case PAUPER:
-                return 4;
+                return 2;
             case LABORER:
-                return 12;
+                return 9;
             case LANDOWNER_OR_CRAFTSMAN:
-                return 30;
+                return 25;
             case YEOMAN_OR_MERCHANT:
                 return 100;
             case GENTLEMAN:

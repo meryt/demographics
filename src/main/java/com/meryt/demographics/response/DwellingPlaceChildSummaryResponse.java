@@ -21,7 +21,7 @@ class DwellingPlaceChildSummaryResponse extends DwellingPlacePointer {
     private final String location;
     private Long directPopulation;
     private Long totalPopulation;
-    private final List<PersonSummaryResponse> owners;
+    private final PersonSummaryResponse owner;
 
     DwellingPlaceChildSummaryResponse(@NonNull DwellingPlace dwellingPlace, @Nullable LocalDate onDate) {
         super(dwellingPlace);
@@ -44,11 +44,11 @@ class DwellingPlaceChildSummaryResponse extends DwellingPlacePointer {
         }
 
         if (onDate != null) {
-            List<Person> ownerPersons = dwellingPlace.getOwners(onDate);
-            if (!ownerPersons.isEmpty()) {
-                owners = ownerPersons.stream().map(p -> new PersonSummaryResponse(p, onDate)).collect(Collectors.toList());
+            Person ownerPerson = dwellingPlace.getOwner(onDate);
+            if (ownerPerson != null) {
+                owner = new PersonSummaryResponse(ownerPerson, onDate);
             } else {
-                owners = null;
+                owner = null;
             }
 
             long pop = dwellingPlace.getPopulation(onDate);
@@ -57,7 +57,7 @@ class DwellingPlaceChildSummaryResponse extends DwellingPlacePointer {
             directPopulation = directPop == 0 ? null : directPop;
 
         } else {
-            owners = null;
+            owner = null;
         }
     }
 }

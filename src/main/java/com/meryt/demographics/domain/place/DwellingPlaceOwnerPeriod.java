@@ -30,7 +30,8 @@ public class DwellingPlaceOwnerPeriod implements DateRange {
     public enum ReasonToPurchase {
         MARRIAGE("Purchased upon marriage"),
         EVICTION("Purchased upon eviction"),
-        MOVE_TO_PARISH("Moved to parish");
+        MOVE_TO_PARISH("Moved to parish"),
+        CREATED_ESTATE("Created estate");
 
         @Getter
         private final String message;

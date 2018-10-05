@@ -79,7 +79,7 @@ public enum SocialClass {
     }
 
     /**
-     * Returns the next higher class, or the highest if it's already the lowest
+     * Returns the next higher class, or the highest if it's already the highest
      */
     @NonNull
     public SocialClass plusOne() {

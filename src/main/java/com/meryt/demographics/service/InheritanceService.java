@@ -156,7 +156,7 @@ public class InheritanceService {
         }
         DwellingPlace currentDwelling = heir.getResidence(onDate);
         // If he doesn't live in the parish, or if he owns his dwelling and it's entailed, don't move away from it.
-        if (currentDwelling == null || (currentDwelling.isEntailed() && currentDwelling.getOwners(onDate).contains(heir))) {
+        if (currentDwelling == null || (currentDwelling.isEntailed() && heir.equals(currentDwelling.getOwner(onDate)))) {
             return;
         }
 
@@ -269,7 +269,7 @@ public class InheritanceService {
                 titleService.save(title);
             }
 
-            if (titleHolder != null && !dwelling.getOwners(onDate).contains(titleHolder)) {
+            if (titleHolder != null && !titleHolder.equals(dwelling.getOwner(onDate))) {
                 String relationshipString = ancestryService.getLogMessageForHeirWithRelationship(titleHolder, person);
                 log.info(String.format("%s is entailed to %s. Giving to title heir %s.",
                         dwelling.getFriendlyName(),
@@ -286,7 +286,7 @@ public class InheritanceService {
                         onDate));
                 personService.save(titleHolder);
             }
-            if (titleHolder != null && dwelling.getOwners(onDate).contains(titleHolder)) {
+            if (titleHolder != null && titleHolder.equals(dwelling.getOwner(onDate))) {
                 // This dwelling should have been taken care of by the inheritance service. We don't need to do
                 // anything here.
                 entailedPlaces.remove(dwelling);
@@ -342,7 +342,7 @@ public class InheritanceService {
         int i = 0;
         for (DwellingPlace estateOrFarm : unentailedEstates) {
             List<DwellingPlace> places = estateOrFarm.getDwellingPlaces().stream()
-                    .filter(dp -> dp.getOwners(onDate.minusDays(1)).contains(person))
+                    .filter(dp -> person.equals(dp.getOwner(onDate.minusDays(1))))
                     .sorted(Comparator.comparing(DwellingPlace::getValue).reversed())
                     .collect(Collectors.toList());
             unentailedHouses.removeAll(places);
@@ -578,10 +578,9 @@ public class InheritanceService {
         }
 
         // First see whether the current owner has a living child who is a possible heir. If so, this person inherits.
-        List<Person> currentOwner = dwelling.getOwners(onDate.minusDays(1));
-        if (!currentOwner.isEmpty()) {
-            Person owner = currentOwner.get(0);
-            List<Person> children = owner.getLivingChildren(onDate).stream()
+        Person currentOwner = dwelling.getOwner(onDate.minusDays(1));
+        if (currentOwner != null) {
+            List<Person> children = currentOwner.getLivingChildren(onDate).stream()
                     .filter(p -> titleHeirs.getSecond().contains(p))
                     .sorted(Comparator.comparing(Person::getBirthDate))
                     .collect(Collectors.toList());

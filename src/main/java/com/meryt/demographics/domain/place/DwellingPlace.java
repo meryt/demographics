@@ -279,14 +279,15 @@ public abstract class DwellingPlace {
     /**
      * Get the person who owns the property on this date. (May be empty.)
      * @param onDate the date to find an owner; there may be 0 or 1 persons owning the property on this date.
-     * @return the owning person or persons, or empty list if no one owns it at this time
+     * @return the owning person, or null if no one owns it at this time
      */
     @NotNull
-    public List<Person> getOwners(@NonNull LocalDate onDate) {
+    public Person getOwner(@NonNull LocalDate onDate) {
         return getOwnerPeriods().stream()
                 .filter(p -> p.contains(onDate))
                 .map(DwellingPlaceOwnerPeriod::getOwner)
-                .collect(Collectors.toList());
+                .findFirst()
+                .orElse(null);
     }
 
     /**
@@ -338,7 +339,7 @@ public abstract class DwellingPlace {
         return getRecursiveDwellingPlaces().stream()
                 .filter(p -> LocalDateComparator.firstIsOnOrBeforeSecond(p.getFoundedDate(), onDate))
                 .filter(p -> p.isHouse() || p.isEstateOrFarm())
-                .filter(h -> h.getOwners(onDate).isEmpty())
+                .filter(h -> h.getOwner(onDate) == null)
                 .sorted(Comparator.comparing(DwellingPlace::getNullSafeValue).reversed())
                 .collect(Collectors.toList());
     }

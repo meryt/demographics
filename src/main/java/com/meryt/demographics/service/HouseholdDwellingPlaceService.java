@@ -28,9 +28,11 @@ import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.HouseholdLocationPeriod;
 import com.meryt.demographics.domain.place.Parish;
 import com.meryt.demographics.domain.title.Title;
+import com.meryt.demographics.generator.ParishGenerator;
 import com.meryt.demographics.generator.WealthGenerator;
 import com.meryt.demographics.generator.random.BetweenDie;
 import com.meryt.demographics.generator.random.Die;
+import com.meryt.demographics.request.EstatePost;
 import com.meryt.demographics.response.calendar.CalendarDayEvent;
 import com.meryt.demographics.response.calendar.NewHouseEvent;
 import com.meryt.demographics.response.calendar.PropertyTransferEvent;
@@ -45,7 +47,6 @@ public class HouseholdDwellingPlaceService {
     private final HouseholdService householdService;
     private final DwellingPlaceService dwellingPlaceService;
     private final PersonService personService;
-
 
     public HouseholdDwellingPlaceService(@Autowired @NonNull HouseholdService householdService,
                                          @Autowired @NonNull DwellingPlaceService dwellingPlaceService,
@@ -204,11 +205,11 @@ public class HouseholdDwellingPlaceService {
         if (!emptyHouses.isEmpty()) {
             Collections.shuffle(emptyHouses);
             Dwelling house = emptyHouses.get(0);
-            List<Person> owners = house.getOwners(date);
+            Person owner = house.getOwner(date);
             log.info(String.format("Household is moving into empty house in %s owned by %s",
-                    house.getLocationString(), owners.isEmpty()
+                    house.getLocationString(), owner == null
                             ? "nobody"
-                            : owners.get(0).getId() + " " + owners.get(0).getName()));
+                            : owner.getId() + " " + owner.getName()));
             addToDwellingPlace(household, house, date, null);
             return results;
         }
@@ -233,8 +234,8 @@ public class HouseholdDwellingPlaceService {
         addToDwellingPlace(household, townOrParish, date, null);
         DwellingPlace newHouse = moveHomelessHouseholdIntoHouse(household, date, date, reason);
         if (newHouse != null) {
-            List<Person> owners = newHouse.getOwners(date);
-            if (newHouse instanceof Dwelling && owners != null && owners.contains(head)) {
+            Person owner = newHouse.getOwner(date);
+            if (newHouse instanceof Dwelling && owner == head) {
                 results.add(new NewHouseEvent(date, newHouse));
                 return results;
             }
@@ -251,11 +252,11 @@ public class HouseholdDwellingPlaceService {
                 .orElse(null);
         Dwelling currentHouse = (Dwelling) household.getDwellingPlace(onDate);
         if (cheapestHouse != null && (currentHouse == null || cheapestHouse.getValue() < currentHouse.getValue())) {
-            List<Person> owners = cheapestHouse.getOwners(onDate);
+            Person owner = cheapestHouse.getOwner(onDate);
             log.info(String.format("Household is moving into empty house in %s owned by %s",
-                    cheapestHouse.getLocationString(), owners.isEmpty()
+                    cheapestHouse.getLocationString(), owner == null
                             ? "nobody"
-                            : owners.get(0).getId() + " " + owners.get(0).getName()));
+                            : owner.getId() + " " + owner.getName()));
             addToDwellingPlace(household, cheapestHouse, onDate, null);
         }
     }
@@ -495,9 +496,9 @@ public class HouseholdDwellingPlaceService {
         if (type == DwellingPlaceType.DWELLING) {
             // Just move the household into the house (you can't put a house inside a house)
             DwellingPlace house = placesOfType.get(0);
-            List<Person> houseOwner = house.getOwners(moveInDate);
+            Person houseOwner = house.getOwner(moveInDate);
             log.info(String.format("Moved pauper %s into house of %s", household.getFriendlyName(moveInDate),
-                    houseOwner.isEmpty() ? "id " + house.getId() : houseOwner.get(0).getName()));
+                    houseOwner == null ? "id " + house.getId() : houseOwner.getName()));
             return addToDwellingPlace(household, house, moveInDate, null);
         } else {
             // Create a house for the family and place it in the random dwelling place
@@ -557,12 +558,13 @@ public class HouseholdDwellingPlaceService {
         personService.save(farmer);
 
         dwellingPlaceService.save(farm);
-        if (house.getOwners(onDate).isEmpty()) {
+        if (house.getOwner(onDate) == null) {
             house.addOwner(farmer, onDate, farmer.getDeathDate(),
                     DwellingPlaceOwnerPeriod.Reason.tookUnownedHouseMessage());
         }
-        house.getOwners(onDate).forEach(o -> farm.addOwner(o, onDate, o.getDeathDate(),
-                DwellingPlaceOwnerPeriod.Reason.foundedFarmForRuralHouseMessage()));
+        Person owner = house.getOwner(onDate);
+        farm.addOwner(owner, onDate, owner.getDeathDate(),
+                DwellingPlaceOwnerPeriod.Reason.foundedFarmForRuralHouseMessage());
 
         house.getParent().addDwellingPlace(farm);
         dwellingPlaceService.save(house.getParent());
@@ -589,7 +591,7 @@ public class HouseholdDwellingPlaceService {
         }
     }
 
-    public Estate createEstateForHousehold(@NonNull DwellingPlace locationOfEstate,
+    private Estate createEstateForHousehold(@NonNull DwellingPlace locationOfEstate,
                                            @NonNull String estateName,
                                            @NonNull String dwellingName,
                                            @NonNull Person owner,
@@ -609,6 +611,138 @@ public class HouseholdDwellingPlaceService {
 
         dwellingPlaceService.save(house);
         dwellingPlaceService.save(estate);
+
+        return estate;
+    }
+
+    /**
+     * Creates an estate around an existing house
+     * @param house the existing house
+     * @param estateName the name of the new estate
+     * @param dwellingName the new name of the house
+     * @param owner the owner of the new estate (should logically be the owner of the house)
+     * @param ownerHousehold the household of the owner
+     * @param onDate the date the estate is founded
+     * @param entailedToTitle if non-null the estate will be entailed to this title
+     * @return the new estate
+     */
+    private Estate createEstateForHouse(@NonNull Dwelling house,
+                                       @NonNull String estateName,
+                                       @NonNull String dwellingName,
+                                       @NonNull Person owner,
+                                       @NonNull Household ownerHousehold,
+                                       @NonNull LocalDate onDate,
+                                       @Nullable Title entailedToTitle) {
+
+        Estate estate = new Estate();
+        estate.setFoundedDate(onDate);
+        estate.setName(estateName);
+        estate.setValue(WealthGenerator.getRandomLandValue(owner.getSocialClass()));
+        // A 100 acre estate in 1801 sold for about 3500 pounds (35 pounds per acre)
+        estate.setAcres(estate.getValue() / 35.0);
+        boolean isEntailed = owner.isMale() && new BetweenDie().roll(1, 100) > 30;
+        estate = (Estate) dwellingPlaceService.save(estate);
+        estate.setEntailed(isEntailed);
+
+        DwellingPlace dwellingPlace = house.getParent();
+
+        dwellingPlace.addDwellingPlace(estate);
+        dwellingPlaceService.save(dwellingPlace);
+        dwellingPlaceService.save(estate);
+        estate.addOwner(owner, onDate, owner.getDeathDate(),
+                DwellingPlaceOwnerPeriod.ReasonToPurchase.CREATED_ESTATE.getMessage());
+        house.setName(dwellingName);
+        house.setEntailed(isEntailed);
+        house.setAttachedToParent(true);
+        estate.addDwellingPlace(house);
+        house = (Dwelling) dwellingPlaceService.save(house);
+        estate = (Estate) dwellingPlaceService.save(estate);
+        log.info(String.format("Generated estate '%s' for household of %s, %s", estate.getName(),
+                owner.getName(), owner.getSocialClass().getFriendlyName()));
+        if (!house.equals(ownerHousehold.getDwellingPlace(onDate))) {
+            house = (Dwelling) addToDwellingPlace(ownerHousehold, house, onDate, null);
+            householdService.save(ownerHousehold);
+        }
+
+        if (entailedToTitle != null) {
+            estate.setEntailedTitle(entailedToTitle);
+            house.setEntailedTitle(entailedToTitle);
+        }
+
+        dwellingPlaceService.save(house);
+        dwellingPlaceService.save(estate);
+
+        return estate;
+    }
+
+    /**
+     * Create an estate for the specified person in the specified place
+     *
+     * @param parentPlace the place (e.g. Parish) where the estate will be located
+     * @param owner the owner of the new estate
+     * @param estatePost extra configuration
+     * @param onDate the date on which the estate will be created and the owner move in
+     * @param entailedToTitle if non-null, the house will be entailed to this title
+     * @return the new Estate
+     */
+    public Estate createEstateInPlace(@NonNull DwellingPlace parentPlace,
+                                      @NonNull Person owner,
+                                      @NonNull EstatePost estatePost,
+                                      @NonNull LocalDate onDate,
+                                      @Nullable Title entailedToTitle,
+                                      @NonNull ParishGenerator parishGenerator) {
+        Household ownerHousehold = owner.getHousehold(onDate);
+        if (ownerHousehold == null) {
+            ownerHousehold = householdService.createHouseholdForHead(owner, onDate, true);
+        }
+
+        Estate estate = createEstateForHousehold(parentPlace, estatePost.getName(),
+                estatePost.getDwellingName(), owner, ownerHousehold, onDate, entailedToTitle);
+
+        if (owner.getCapitalPeriods().isEmpty()) {
+            double capital = WealthGenerator.getRandomStartingCapital(owner.getSocialClass(),
+                    owner.getOccupation(onDate) != null);
+            owner.addCapital(capital, onDate, PersonCapitalPeriod.Reason.startingCapitalMessage());
+            log.info(String.format("%d %s got starting capital of %.2f", owner.getId(), owner.getName(), capital));
+            personService.save(owner);
+        }
+
+        if (estatePost.getMustPurchase() != null && estatePost.getMustPurchase()) {
+            owner.addCapital(estate.getValue() * -1, onDate,
+                    PersonCapitalPeriod.Reason.builtNewDwellingPlaceMessage(estate));
+            personService.save(owner);
+        }
+
+        parishGenerator.populateEstateWithEmployees(estate, onDate);
+
+        return estate;
+    }
+
+    public Estate createEstateAroundDwelling(@NonNull Dwelling house,
+                                             @NonNull EstatePost estatePost,
+                                             @NonNull LocalDate onDate,
+                                             @Nullable Title entailedToTitle,
+                                             @NonNull ParishGenerator parishGenerator) {
+        Person owner = house.getOwner(onDate);
+        if (owner == null) {
+            throw new IllegalArgumentException("The house has no owner on the specified date");
+        }
+
+        Household ownerHousehold = owner.getHousehold(onDate);
+        if (ownerHousehold == null) {
+            ownerHousehold = householdService.createHouseholdForHead(owner, onDate, true);
+        }
+
+        Estate estate = createEstateForHouse(house, estatePost.getName(), estatePost.getDwellingName(), owner,
+                ownerHousehold, onDate, entailedToTitle);
+
+        if (estatePost.getMustPurchase() != null && estatePost.getMustPurchase()) {
+            owner.addCapital(estate.getValue() * -1, onDate,
+                    PersonCapitalPeriod.Reason.builtNewDwellingPlaceMessage(estate));
+            personService.save(owner);
+        }
+
+        parishGenerator.populateEstateWithEmployees(estate, onDate);
 
         return estate;
     }
@@ -647,7 +781,7 @@ public class HouseholdDwellingPlaceService {
                                                  @NonNull Occupation occupation,
                                                  @NonNull LocalDate date) {
         List<Person> people = personService.findUnmarriedUnemployedPeopleBySocialClassAndGenderAndAge(
-                occupation.getSocialClasses(), occupation.getRequiredGender(), 15, 22, date).stream()
+                occupation.getSocialClasses(), occupation.getRequiredGender(), 15, 50, date).stream()
                 .filter(p -> personResidesInParish(p, estate.getParish(), date))
                 .collect(Collectors.toList());
         Collections.shuffle(people);
@@ -717,10 +851,10 @@ public class HouseholdDwellingPlaceService {
         }
 
         if (newDwelling != null) {
-            List<Person> houseOwner = newDwelling.getOwners(onDate);
+            Person houseOwner = newDwelling.getOwner(onDate);
             log.info(String.format("Moved new farm laborer %d %s into house on estate, owned by %s",
                     laborer.getId(), laborer.getName(),
-                    houseOwner.isEmpty() ? "nobody" : houseOwner.get(0).getName()));
+                    houseOwner == null ? "nobody" : houseOwner.getName()));
             addToDwellingPlace(household, newDwelling, onDate, null);
         } else {
             moveFamilyIntoNewHouse(estate, household, onDate, null,

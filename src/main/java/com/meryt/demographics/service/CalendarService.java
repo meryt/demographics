@@ -398,10 +398,10 @@ public class CalendarService {
             log.warn(String.format("%d %s is a homeless household on %s", h.getId(), h.getFriendlyName(onDate), onDate)));
         dwellingPlaceService.getPlacesSeparatedFromParents(onDate).forEach(p ->
             log.warn(String.format("%d %s is owned by %s but its parent %d %s is owned by %s",
-                    p.getId(), p.getFriendlyName(), p.getOwners(onDate).stream()
-                            .map(o -> o.getId() + " " + o.getName()).collect(Collectors.joining(", ")),
-                    p.getParent().getId(), p.getParent().getFriendlyName(), p.getParent().getOwners(onDate).stream()
-                            .map(o -> o.getId() + " " + o.getName()).collect(Collectors.joining(", ")))));
+                    p.getId(), p.getFriendlyName(),
+                    p.getOwner(onDate) == null ? "nobody" : p.getOwner(onDate).getId(),
+                    p.getParent().getId(), p.getParent().getFriendlyName(),
+                    p.getParent().getOwner(onDate) == null ? "nobody" : p.getParent().getOwner(onDate).getId())));
         familyService.loadFamiliesNotInSameHousehold(onDate).forEach(f ->
             log.warn(String.format("The wife of %d %s is not living with him", f.getHusband().getId(),
                     f.getHusband().getName())));
