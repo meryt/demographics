@@ -17,10 +17,12 @@ import com.meryt.demographics.domain.person.EyeColor;
 import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.SocialClass;
+import com.meryt.demographics.domain.place.HouseholdInhabitantPeriod;
 import com.meryt.demographics.generator.random.Die;
 import com.meryt.demographics.generator.random.PercentDie;
 import com.meryt.demographics.math.FunkyBetaDistribution;
 import com.meryt.demographics.request.PersonParameters;
+import com.meryt.demographics.service.FamilyService;
 import com.meryt.demographics.service.LifeTableService;
 import com.meryt.demographics.service.NameService;
 import com.meryt.demographics.service.SocialClassService;
@@ -74,13 +76,19 @@ public class PersonGenerator {
 
         Person person = new Person();
         person.setGender(personParameters.getGender() == null ? Gender.random() : personParameters.getGender());
-        person.setFirstName(nameService.randomFirstName(person.getGender(), personParameters.getExcludeNames(),
-                nameDate));
+        if (personParameters.getFirstName() != null) {
+            person.setFirstName(personParameters.getFirstName());
+        } else {
+            person.setFirstName(nameService.randomFirstName(person.getGender(), personParameters.getExcludeNames(),
+                    nameDate));
+        }
 
         // People didn't use last names till about 1400. But if one is specified, use it.
         if (!PersonParameters.NO_LAST_NAME.equals(personParameters.getLastName())) {
             if (personParameters.getLastName() != null) {
                 person.setLastName(personParameters.getLastName());
+            } else if (personParameters.getFather() != null) {
+                person.setLastName(personParameters.getFather().getLastName());
             } else if (nameDate.isAfter(LocalDate.of(LAST_NAME_BEGINNING_YEAR, 1, 1))) {
                 person.setLastName(nameService.randomLastName());
             }
@@ -105,6 +113,22 @@ public class PersonGenerator {
         }
 
         generateAndSetTraits(personParameters, person);
+
+        if (personParameters.getFather() != null && personParameters.getMother() != null) {
+            Person father = personParameters.getFather();
+            Person mother = personParameters.getMother();
+            Family existingFamily = father.getFamilies().stream()
+                    .filter(f -> f.getWife() != null && f.getWife().getId() == mother.getId())
+                    .findFirst().orElse(null);
+            if (existingFamily != null) {
+                existingFamily.addChild(person);
+            } else {
+                Family family = new Family();
+                family.setHusband(father);
+                family.setWife(mother);
+                family.addChild(person);
+            }
+        }
 
         FertilityGenerator fertilityGenerator = new FertilityGenerator();
         if (person.isMale()) {
@@ -213,15 +237,19 @@ public class PersonGenerator {
         Integer minAge = personParameters.getMinAge() == null ? 0 : personParameters.getMinAge();
         if (personParameters.getBirthDate() != null) {
             person.setBirthDate(personParameters.getBirthDate());
-            // Get a random death date such that the person is alive on the reference date if born on this
-            // date
-            long lifespan;
-            Integer minAgeYears = aliveOnDate != null ? person.getBirthDate().until(aliveOnDate).getYears() : null;
-            do {
-                lifespan = lifeTableService.randomLifeExpectancy(personParameters.getBirthDate(),
-                        minAgeYears, null, person.getGender());
-            } while (aliveOnDate != null && person.getBirthDate().plusDays(lifespan).isBefore(aliveOnDate));
-            person.setDeathDate(person.getBirthDate().plusDays(lifespan));
+            if (personParameters.getDeathDate() != null) {
+                person.setDeathDate(personParameters.getDeathDate());
+            } else {
+                // Get a random death date such that the person is alive on the reference date if born on this
+                // date
+                long lifespan;
+                Integer minAgeYears = aliveOnDate != null ? person.getBirthDate().until(aliveOnDate).getYears() : null;
+                do {
+                    lifespan = lifeTableService.randomLifeExpectancy(personParameters.getBirthDate(),
+                            minAgeYears, null, person.getGender());
+                } while (aliveOnDate != null && person.getBirthDate().plusDays(lifespan).isBefore(aliveOnDate));
+                person.setDeathDate(person.getBirthDate().plusDays(lifespan));
+            }
         } else if (aliveOnDate != null) {
             // Get a random age such that the person is at least minAge / at most maxAge on this reference date.
             // From this we get a birth date (not the actual lifespan).

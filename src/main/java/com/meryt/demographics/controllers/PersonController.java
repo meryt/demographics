@@ -27,6 +27,7 @@ import com.meryt.demographics.domain.person.PersonCapitalPeriod;
 import com.meryt.demographics.domain.person.PersonTitlePeriod;
 import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.domain.person.fertility.Fertility;
+import com.meryt.demographics.domain.person.fertility.Maternity;
 import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.DwellingPlaceOwnerPeriod;
 import com.meryt.demographics.domain.place.Household;
@@ -34,6 +35,7 @@ import com.meryt.demographics.domain.title.Title;
 import com.meryt.demographics.domain.title.TitleInheritanceStyle;
 import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.generator.family.MatchMaker;
+import com.meryt.demographics.generator.person.FertilityGenerator;
 import com.meryt.demographics.generator.person.PersonGenerator;
 import com.meryt.demographics.request.PersonFamilyPost;
 import com.meryt.demographics.request.PersonFertilityPost;
@@ -67,10 +69,12 @@ import com.meryt.demographics.service.TitleService;
 @RestController
 public class PersonController {
 
+    private static final String BIRTH_DATE = "birthDate";
     private static final String DEATH_DATE = "deathDate";
     private static final String SOCIAL_CLASS = "socialClass";
     private static final String LAST_NAME = "lastName";
     private static final String IS_LAST_NAME_RECURSIVE = "applyLastNameRecursively";
+    private static final String FIRST_NAME = "firstName";
 
     private final PersonGenerator personGenerator;
 
@@ -126,7 +130,24 @@ public class PersonController {
         } catch (IllegalArgumentException e) {
             throw new BadRequestException(e.getMessage());
         }
-        return new PersonDetailResponse(personGenerator.generate(params), null, ancestryService);
+        if (params.getFatherId() != null) {
+            params.setFather(controllerHelperService.loadPerson(params.getFatherId()));
+        }
+        if (params.getMotherId() != null) {
+            params.setMother(controllerHelperService.loadPerson(params.getMotherId()));
+        }
+
+        Person person = personGenerator.generate(params);
+        personService.save(person);
+        if (person.getFamily() != null) {
+            familyService.save(person.getFamily());
+            Household mothersHousehold = person.getMother().getHousehold(person.getBirthDate());
+            if (mothersHousehold != null) {
+                householdService.addPersonToHousehold(person, mothersHousehold, person.getBirthDate(), false);
+            }
+        }
+
+        return new PersonDetailResponse(person, null, ancestryService);
     }
 
     @RequestMapping(value = "/api/persons/{personId}", method = RequestMethod.GET)
@@ -157,6 +178,23 @@ public class PersonController {
     @RequestMapping(value = "/api/persons/{personId}/fertility", method = RequestMethod.POST)
     public Fertility postPersonFertility(@PathVariable long personId, @RequestBody PersonFertilityPost post) {
         Person person = controllerHelperService.loadPerson(personId);
+
+        if (person.getFertility() == null) {
+            FertilityGenerator fertilityGenerator = new FertilityGenerator();
+            if (person.isFemale()) {
+                Maternity maternity = fertilityGenerator.randomMaternity(person);
+                //maternity.setPersonId(person.getId());
+                //maternity.setPerson(person);
+                person.setMaternity(maternity);
+            } else {
+                person.setPaternity(fertilityGenerator.randomPaternity());
+            }
+            // This is broken in Hibernate 5.2.14-5.2.16 and possibly later. For now it is only possible to create
+            // a fertility record at the time the person record is created.
+            // https://hibernate.atlassian.net/browse/HHH-12436
+            personService.save(person);
+        }
+
         LocalDate cycleToDate = post.getCycleToDateAsDate();
         if (cycleToDate != null) {
             if (!person.isFemale()) {
@@ -245,7 +283,9 @@ public class PersonController {
                                                           @RequestParam(value = "aliveOnDate", required = false)
                                                                 String aliveOnDate,
                                                           @RequestParam(value = "maxDistance", required = false)
-                                                                Long maxDistance) {
+                                                                Long maxDistance,
+                                                          @RequestParam(value = "maxAge", required = false)
+                                                                Integer maxAge) {
         Person person = controllerHelperService.loadPerson(personId);
         LocalDate aliveOn = controllerHelperService.parseDate(aliveOnDate);
 
@@ -257,9 +297,10 @@ public class PersonController {
         }
 
         return relatedPersons.stream()
+                .filter(p -> (maxAge == null || aliveOn == null) || p.getAgeInYears(aliveOn) <= maxAge)
                 .map(rp -> new RelatedPersonResponse(rp, ancestryService.calculateRelationship(rp, person, true)))
                 .sorted(Comparator.comparing(RelatedPersonResponse::getDegreeOfSeparation)
-                        .thenComparing(Comparator.comparing(RelatedPersonResponse::getBirthDate).reversed()))
+                        .thenComparing(RelatedPersonResponse::getBirthDate))
                 .collect(Collectors.toList());
     }
 
@@ -275,6 +316,9 @@ public class PersonController {
             return null;
         }
         Relationship relationship = ancestryService.calculateRelationship(otherPerson, person, false);
+        if (relationship == null) {
+            return null;
+        }
 
         return new LeastCommonAncestorResponse(person, otherPerson, lcaRelationship, relationship, personService);
     }
@@ -366,6 +410,8 @@ public class PersonController {
         }
         familyParameters.setAllowExistingSpouse(personFamilyPost.isAllowExistingSpouse());
         familyParameters.setMinSpouseSelection(personFamilyPost.getMinSpouseSelection());
+        familyParameters.setTriesUntilGiveUp(personFamilyPost.getTriesUntilGiveUp());
+        familyParameters.setSkipGenerateChildren(personFamilyPost.getSkipGenerateChildren());
 
         Family family = familyGenerator.generate(person, familyParameters);
         if (family == null) {
@@ -414,6 +460,11 @@ public class PersonController {
             }
         }
 
+        if (updates.containsKey(FIRST_NAME)) {
+            person.setFirstName((String) updates.get(FIRST_NAME));
+            updates.remove(FIRST_NAME);
+        }
+
         if (updates.containsKey(DEATH_DATE)) {
             LocalDate deathDate = controllerHelperService.parseDate((String) updates.get(DEATH_DATE));
             if (deathDate != null) {
@@ -424,6 +475,18 @@ public class PersonController {
                 person.setDeathDate(deathDate);
             }
             updates.remove(DEATH_DATE);
+        }
+
+        if (updates.containsKey(BIRTH_DATE)) {
+            LocalDate birthDate = controllerHelperService.parseDate((String) updates.get(BIRTH_DATE));
+            if (birthDate != null) {
+                if (birthDate.isAfter(person.getDeathDate())) {
+                    throw new BadRequestException(String.format("%s of %s is after current death date of %s",
+                            BIRTH_DATE, birthDate, person.getDeathDate()));
+                }
+                person.setBirthDate(birthDate);
+            }
+            updates.remove(BIRTH_DATE);
         }
 
         if (!updates.isEmpty()) {

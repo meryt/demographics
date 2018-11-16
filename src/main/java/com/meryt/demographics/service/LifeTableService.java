@@ -34,7 +34,7 @@ public class LifeTableService {
                                      @Nullable Integer maxAgeYears,
                                      @Nullable Gender gender) {
         LifeTablePeriod period;
-        if (birthDate.isAfter(LocalDate.of(1800,1,1))) {
+        if (birthDate.isAfter(LocalDate.of(1700,1,1))) {
             period = LifeTablePeriod.VICTORIAN;
         } else {
             period = LifeTablePeriod.MEDIEVAL;

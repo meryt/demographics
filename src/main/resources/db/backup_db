@@ -1,6 +1,12 @@
 #!/bin/bash
 
-mv ~/Dropbox/demographics.pgdump ~/Dropbox/demographics.pgdump.bak
+mv demographics.pgdump demographics.pgdump.bak
 
-pg_dump demographics > ~/Dropbox/demographics.pgdump
+pg_dump demographics > demographics.pgdump
+cp demographics.pgdump demographics-archive.pgdump
+bzip2 demographics-archive.pgdump
+mv demographics-archive.pgdump.bz2 ~/Dropbox/demographics-archive.pgdump.bz2
+
+
+
 

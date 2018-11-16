@@ -13,6 +13,14 @@ public class GenerationPost extends OutputToFilePost {
      */
     private Boolean onlyNonResidents;
 
+    /**
+     * This param can be used to perform these operations only on a single person. If a non-null reference date is
+     * set on the PersonFamilyPost, will loop until then. Otherwise until his death.
+     */
+    private Long onlyForPerson;
+
+    private Boolean skipTitleUpdate;
+
     public void validate() {
         if (personFamilyPost == null) {
             throw new IllegalArgumentException("personFamilyPost is required");

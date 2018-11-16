@@ -146,6 +146,7 @@ public class CalendarService {
             if (date.getMonthValue() == nextDatePost.getFirstMonthOfYearOrDefault()
                     && date.getDayOfMonth() == nextDatePost.getFirstDayOfYearOrDefault()) {
                 distributeCapital(date);
+                condemnRuinedHouses(date);
             }
 
             if (isQuarterDay(date)) {
@@ -434,6 +435,14 @@ public class CalendarService {
                     occupationService.findByIsDomesticServant());
             householdDwellingPlaceService.hireEstateEmployees(estate, date, estate.getExpectedNumFarmLaborerHouseholds(),
                     occupationService.findByIsFarmLaborer());
+        }
+    }
+
+    private void condemnRuinedHouses(@NonNull LocalDate date) {
+        try {
+            dwellingPlaceService.condemnRuinedHouses(date);
+        } catch (RuntimeException e) {
+            log.error("Failed to condemn old houses", e);
         }
     }
 }

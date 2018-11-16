@@ -6,5 +6,6 @@ public enum Peerage {
     IRELAND,
     GREAT_BRITAIN,
     UNITED_KINGDOM,
-    NOVA_SCOTIA
+    NOVA_SCOTIA,
+    FRANCE
 }

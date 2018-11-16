@@ -67,11 +67,17 @@ public class FamilyGenerator {
     @Nullable
     public Family generate(@NonNull Person founder, @NonNull RandomFamilyParameters familyParameters) {
 
-        Family family = searchForSpouse(founder, familyParameters);
-        if (family != null && family.getHusband() != null && family.getWife() != null) {
-            log.info(String.format("%s married %s on %s", family.getHusband().getName(), family.getWife().getName(),
-                    family.getWeddingDate()));
-        } else {
+        Family family = null;
+        int numTries = familyParameters.getTriesUntilGiveUp() == null ? 1 : familyParameters.getTriesUntilGiveUp();
+        for (int i = 0; i < numTries; i++) {
+            family = searchForSpouse(founder, familyParameters);
+            if (family != null && family.getHusband() != null && family.getWife() != null) {
+                log.info(String.format("%s married %s on %s", family.getHusband().getName(), family.getWife().getName(),
+                        family.getWeddingDate()));
+                break;
+            }
+        }
+        if (family == null || family.getHusband() == null || family.getWife() == null) {
             log.info(String.format("%s could not find a %s.", founder.getName(),
                     founder.isMale() ? "wife" : "husband"));
             return null;
@@ -88,7 +94,9 @@ public class FamilyGenerator {
             family.setHusband(personService.save(family.getHusband()));
             family.setWife(personService.save(family.getWife()));
         }
-        generateChildren(family, familyParameters);
+        if (!familyParameters.isSkipGenerateChildren()) {
+            generateChildren(family, familyParameters);
+        }
 
         for (Person child : family.getChildren()) {
             if (child.getAgeInYears(child.getDeathDate()) <= DIED_IN_CHILDHOOD_AGE) {

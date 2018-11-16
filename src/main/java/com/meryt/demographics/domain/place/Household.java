@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
-import java.util.function.BinaryOperator;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import javax.persistence.CascadeType;
@@ -23,6 +22,7 @@ import lombok.Setter;
 
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.SocialClass;
+import com.meryt.demographics.time.LocalDateComparator;
 
 @Getter
 @Setter
@@ -69,7 +69,7 @@ public class Household {
         }
         Person head = getHead(onDate);
         if (head != null) {
-            return head.getName() + " household";
+            return String.format("Household %d of %s", id, head.getIdAndName());
         } else {
             return "Household " + id;
         }
@@ -109,6 +109,12 @@ public class Household {
                 .filter(p -> p.contains(onDate))
                 .map(HouseholdLocationPeriod::getDwellingPlace)
                 .findFirst().orElse(null);
+    }
+
+    @SuppressWarnings("unchecked")
+    @NonNull
+    public List<HouseholdLocationPeriod> getLocations(@NonNull LocalDate fromDate, @Nullable LocalDate toDate) {
+        return (List<HouseholdLocationPeriod>) LocalDateComparator.getRangesWithinRange(dwellingPlaces, fromDate, toDate);
     }
 
     /**

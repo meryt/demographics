@@ -22,6 +22,11 @@ import com.meryt.demographics.response.calendar.PropertyTransferEvent;
 @Slf4j
 public class DwellingPlaceService {
 
+    /**
+     * A house that remains empty for this many years is considered ruined and can no longer be inhabited.
+     */
+    private static final int YEARS_TO_HOUSE_RUIN = 20;
+
     private final DwellingPlaceRepository dwellingPlaceRepository;
     private final PersonService personService;
 
@@ -68,17 +73,18 @@ public class DwellingPlaceService {
      * Gets a list of dwelling places in an error state, whereby they are attached to their parent, but the owner of
      * their parent is not the same as their owner.
      *
-     * @param onDate
+     * @param onDate the check date
      * @return a list of affected DwellingPlaces
      */
     List<DwellingPlace> getPlacesSeparatedFromParents(@NonNull LocalDate onDate) {
         List<DwellingPlace> results = new ArrayList<>();
         for (DwellingPlace place : getPlacesAttachedToParents()) {
-            if (place.getOwner(onDate) != null && place.getParent().getOwner(onDate) == null) {
+            Person owner = place.getOwner(onDate);
+            if (owner != null && place.getParent().getOwner(onDate) == null) {
                 results.add(place);
-            } else if (place.getOwner(onDate) == null && place.getParent().getOwner(onDate) != null) {
+            } else if (owner == null && place.getParent().getOwner(onDate) != null) {
                 results.add(place);
-            } else if (!place.getOwner(onDate).equals(place.getParent().getOwner(onDate))) {
+            } else if (owner != null && !owner.equals(place.getParent().getOwner(onDate))) {
                 results.add(place);
             }
         }
@@ -149,5 +155,20 @@ public class DwellingPlaceService {
         }
 
         return new PropertyTransferEvent(onDate, place);
+    }
+
+    /**
+     * Finds houses that have been empty for at least YEARS_TO_HOUSE_RUIN years, sets the ruined date on the house,
+     * makes it unowned, and saves it.
+     *
+     * @param date the date on which to check inhabitants
+     */
+    void condemnRuinedHouses(@NonNull LocalDate date) {
+        List<DwellingPlace> ruinedHouses = dwellingPlaceRepository.findDerelictHouses(date, YEARS_TO_HOUSE_RUIN);
+        for (DwellingPlace house : ruinedHouses) {
+            house.condemn(date);
+            save(house);
+            log.info(String.format("Condemned %s as it has not had occupants in many years", house.getFriendlyName()));
+        }
     }
 }

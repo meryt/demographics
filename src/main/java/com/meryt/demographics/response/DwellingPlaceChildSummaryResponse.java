@@ -15,6 +15,7 @@ class DwellingPlaceChildSummaryResponse extends DwellingPlacePointer {
 
     private Double value;
     private LocalDate foundedDate;
+    private LocalDate ruinedDate;
     private Boolean entailed;
     private final Double acres;
     private final Double squareMiles;
@@ -30,6 +31,7 @@ class DwellingPlaceChildSummaryResponse extends DwellingPlacePointer {
         squareMiles = dwellingPlace.getSquareMiles();
         entailed = dwellingPlace.isEntailed() ? true : null;
         foundedDate = dwellingPlace.getFoundedDate();
+        ruinedDate = dwellingPlace.getRuinedDate();
 
         if (dwellingPlace.getParent() == null) {
             location = null;

@@ -144,7 +144,7 @@ public class WealthService {
         for (Household household : households) {
             householdPayExpense(household, rentPerHousehold, onDate, ExpenseType.RENT);
             if (household.getCapital(onDate) < 0) {
-                householdDwellingPlaceService.maybeMoveIndebtedHouseholdToEmptyHouse(parish, household, onDate);
+                householdDwellingPlaceService.maybeMoveHouseholdToCheapestEmptyHouse(parish, household, onDate);
             }
         }
         owner.addCapital(rent, onDate, PersonCapitalPeriod.Reason.receivedDwellingRentMessage(rent));
@@ -240,7 +240,15 @@ public class WealthService {
                                  @NonNull Person person,
                                  @NonNull LocalDate onDate,
                                  double goodYearFactor) {
-        Pair<Integer, Integer> range = WealthGenerator.getYearlyIncomeValueRange(person.getSocialClass());
+        SocialClass socialClass;
+        if (occupation == null) {
+            socialClass = person.getSocialClass();
+        } else {
+            socialClass = person.getSocialClass().getRank() > occupation.getMaxClass().getRank()
+                    ? occupation.getMaxClass()
+                    : person.getSocialClass();
+        }
+        Pair<Integer, Integer> range = WealthGenerator.getYearlyIncomeValueRange(socialClass);
         int value = new BetweenDie().roll(range.getFirst(), range.getSecond());
         double adjustedWage = adjustForGoodOrBadYear(value, goodYearFactor);
         person.addCapital(adjustedWage, onDate, PersonCapitalPeriod.Reason.wagesMessage(adjustedWage));
@@ -251,7 +259,7 @@ public class WealthService {
 
     private void distributeInterestOnCapital(@NonNull Person person, @NonNull LocalDate onDate) {
         Double currentCapital = person.getCapital(onDate);
-        if (currentCapital == null || currentCapital < 0.0) {
+        if (currentCapital == null || currentCapital <= 0.0) {
             return;
         }
 

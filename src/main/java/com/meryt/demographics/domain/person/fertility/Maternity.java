@@ -244,7 +244,7 @@ public class Maternity extends Fertility {
         }
     }
 
-    private void cycleForwardsToDate(@NonNull LocalDate toDate, boolean forceLessThan) {
+    public void cycleForwardsToDate(@NonNull LocalDate toDate, boolean forceLessThan) {
         while (lastCycleDate.isBefore(toDate)) {
             LocalDate d = getNextCycleDate();
             if (d == null) {

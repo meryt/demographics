@@ -62,6 +62,18 @@ public class Occupation {
     }
 
     /**
+     * Gets all social classes from 1 up to the max rank for this occupation. This includes all social classes that
+     * would be willing to do the job.
+     */
+    public List<SocialClass> getSocialClassesUpToMaxRank() {
+        List<SocialClass> result = new ArrayList<>();
+        for (int i = 1; i <= minClass.getRank(); i++) {
+            result.add(SocialClass.fromRank(i));
+        }
+        return result;
+    }
+
+    /**
      * Gets the required gender for this occupation, or null if both genders can hold it
      */
     @Nullable

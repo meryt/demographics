@@ -53,7 +53,10 @@ public class MatchMaker {
         List<Family> existingFamilies = person.getFamilies();
         for (Family existingFamily : existingFamilies) {
             Person spouse = person.isMale() ? existingFamily.getWife() : existingFamily.getHusband();
-            if (spouse != null && spouse.getDeathDate() != null && spouse.getDeathDate().isAfter(startDate)) {
+            if (existingFamily.isMarriage() &&
+                    spouse != null
+                    && spouse.getDeathDate() != null
+                    && spouse.getDeathDate().isAfter(startDate)) {
                 startDate = spouse.getDeathDate();
             }
         }

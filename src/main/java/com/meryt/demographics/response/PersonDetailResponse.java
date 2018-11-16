@@ -12,7 +12,6 @@ import lombok.NonNull;
 import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
-import com.meryt.demographics.domain.person.PersonCapitalPeriod;
 import com.meryt.demographics.domain.person.PersonOccupationPeriod;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.HouseholdInhabitantPeriod;
@@ -38,6 +37,7 @@ public class PersonDetailResponse extends PersonResponse {
     private final List<DwellingPlaceReference> ownedProperties;
     private final PersonParentsFamilyResponse family;
     private final List<PersonCapitalResponse> capitalHistory;
+    private final List<ResidencePeriodResponse> residences;
 
     public PersonDetailResponse(@NonNull Person person) {
         this(person, null, null);
@@ -81,7 +81,11 @@ public class PersonDetailResponse extends PersonResponse {
 
         capitalHistory = person.getCapitalPeriods().stream()
                 .map(PersonCapitalResponse::new)
-                .collect(Collectors.toList());;
+                .collect(Collectors.toList());
+
+        residences = person.getResidences().stream()
+                .map(ResidencePeriodResponse::new)
+                .collect(Collectors.toList());
 
         if (onDate != null) {
             age = person.getAge(onDate);

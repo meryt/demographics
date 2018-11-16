@@ -45,7 +45,7 @@ public class PersonCapitalPeriod implements DateRange {
             return String.format("Built new dwelling %s %d%s for %.2f",
                     property.getType().getFriendlyName(),
                     property.getId(),
-                    property.getName() == null ? "" : property.getName(),
+                    property.getName() == null ? "" : " " + property.getName(),
                     property.getValue());
         }
 

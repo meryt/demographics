@@ -38,9 +38,19 @@ public class PersonParameters {
     private LocalDate birthDate;
 
     /**
+     * If set, this death date will be used. If aliveOnDate is also used, the aliveOnDate will be ignored.
+     */
+    private LocalDate deathDate;
+
+    /**
      * If set, this last name will be used.
      */
     private String lastName;
+
+    /**
+     * If set, this first name will be used.
+     */
+    private String firstName;
 
     /**
      * If non-empty, the following names will not be used
@@ -50,6 +60,9 @@ public class PersonParameters {
     private Person father;
 
     private Person mother;
+
+    private Long fatherId;
+    private Long motherId;
 
     private SocialClass minSocialClass;
 

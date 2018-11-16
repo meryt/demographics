@@ -94,6 +94,8 @@ public abstract class DwellingPlace {
 
     private LocalDate foundedDate;
 
+    private LocalDate ruinedDate;
+
     @ManyToOne
     private Title entailedTitle;
 
@@ -226,6 +228,13 @@ public abstract class DwellingPlace {
                     Person head = h.getHead(onDate);
                     return (head != null && head.getSocialClass().getRank() >= minSocialClass.getRank());
                 })
+                .sorted(Comparator.comparing(h -> {
+                    Person head = ((Household) h).getHead(onDate);
+                    return head == null ? 0 : head.getSocialClassRank();
+                }).reversed().thenComparing(h -> {
+                    DwellingPlace location = ((Household) h).getDwellingPlace(onDate);
+                    return location == null ? "" : location.getLocationString();
+                }))
                 .collect(Collectors.toList());
     }
 
@@ -316,6 +325,22 @@ public abstract class DwellingPlace {
         getOwnerPeriods().add(newPeriod);
     }
 
+    /**
+     * Sets the ruined date on the dwelling place, and ends the ownership period of the current owner, if any.
+     *
+     * Does not save the house in the database.
+     *
+     * @param onDate the date on which to condemn the house
+     */
+    public void condemn(@NonNull LocalDate onDate) {
+        setRuinedDate(onDate);
+        for (DwellingPlaceOwnerPeriod period : getOwnerPeriods()) {
+            if (period.contains(onDate)) {
+                period.setToDate(onDate);
+            }
+        }
+    }
+
     public Map<Occupation, List<Person>> getPeopleWithOccupations(@NonNull LocalDate onDate) {
         return getAllHouseholds(onDate).stream()
                 .map(h -> h.getInhabitants(onDate))
@@ -328,6 +353,7 @@ public abstract class DwellingPlace {
     public List<Dwelling> getEmptyHouses(@NonNull LocalDate onDate) {
         return getRecursiveDwellingPlaces(DwellingPlaceType.DWELLING).stream()
                 .filter(h -> LocalDateComparator.firstIsOnOrBeforeSecond(h.getFoundedDate(), onDate)
+                        && (h.getRuinedDate() == null || h.getRuinedDate().isAfter(onDate))
                         && h.getAllResidents(onDate).isEmpty())
                 .sorted(Comparator.comparing(DwellingPlace::getNullSafeValue).reversed())
                 .map(d -> (Dwelling) d)
@@ -337,7 +363,8 @@ public abstract class DwellingPlace {
     @NonNull
     public List<DwellingPlace> getUnownedHousesEstatesAndFarms(@NonNull LocalDate onDate) {
         return getRecursiveDwellingPlaces().stream()
-                .filter(p -> LocalDateComparator.firstIsOnOrBeforeSecond(p.getFoundedDate(), onDate))
+                .filter(p -> LocalDateComparator.firstIsOnOrBeforeSecond(p.getFoundedDate(), onDate)
+                        && (p.getRuinedDate() == null || p.getRuinedDate().isAfter(onDate)))
                 .filter(p -> p.isHouse() || p.isEstateOrFarm())
                 .filter(h -> h.getOwner(onDate) == null)
                 .sorted(Comparator.comparing(DwellingPlace::getNullSafeValue).reversed())

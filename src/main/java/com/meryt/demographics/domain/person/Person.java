@@ -42,6 +42,7 @@ import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.DwellingPlaceOwnerPeriod;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.HouseholdInhabitantPeriod;
+import com.meryt.demographics.domain.place.HouseholdLocationPeriod;
 import com.meryt.demographics.domain.title.Title;
 import com.meryt.demographics.time.FormatPeriod;
 import com.meryt.demographics.time.LocalDateComparator;
@@ -286,6 +287,10 @@ public class Person {
 
     public String getName() {
         return (firstName + " " + (lastName == null ? "" : lastName)).trim();
+    }
+
+    public String getIdAndName() {
+        return id + " " + getName();
     }
 
     @Override
@@ -762,5 +767,30 @@ public class Person {
                 .collect(Collectors.toList());
     }
 
+    public List<HouseholdLocationPeriod> getResidences() {
+        List<HouseholdLocationPeriod> results = new ArrayList<>();
+        for (HouseholdInhabitantPeriod householdInhabitantPeriod : getHouseholds()) {
+            LocalDate fromDate = householdInhabitantPeriod.getFromDate();
+            LocalDate toDate = householdInhabitantPeriod.getToDate();
+            List<HouseholdLocationPeriod> householdLocationsDuringPeriod = householdInhabitantPeriod.getHousehold()
+                    .getLocations(fromDate, toDate);
+            for (HouseholdLocationPeriod householdLocationPeriod : householdLocationsDuringPeriod) {
+                HouseholdLocationPeriod period = new HouseholdLocationPeriod();
+                period.setToDate(toDate != null && (householdLocationPeriod.getToDate() == null ||
+                        householdLocationPeriod.getToDate().isAfter(toDate))
+                    ? toDate
+                    : householdLocationPeriod.getToDate());
+                period.setFromDate(fromDate.isBefore(householdLocationPeriod.getFromDate())
+                    ? householdLocationPeriod.getFromDate()
+                    : fromDate);
+                period.setDwellingPlace(householdLocationPeriod.getDwellingPlace());
+                period.setHouseholdId(householdLocationPeriod.getHousehold().getId());
+                results.add(period);
+            }
+        }
+        return results.stream()
+                .sorted(Comparator.comparing(HouseholdLocationPeriod::getFromDate))
+                .collect(Collectors.toList());
+    }
 
 }

@@ -155,11 +155,15 @@ public class PlacesController {
     }
 
     @RequestMapping("/api/places/farms")
-    public List<DwellingPlaceDetailResponse> getFarms(@RequestParam(value = "onDate", required = false) String onDate) {
+    public List<DwellingPlaceReference> getFarms(@RequestParam(value = "onDate", required = false) String onDate) {
         final LocalDate date = controllerHelperService.parseDate(onDate);
 
         List<DwellingPlace> estates = dwellingPlaceService.loadByType(DwellingPlaceType.FARM);
-        return estates.stream().map(e -> new DwellingPlaceDetailResponse(e, date, ancestryService)).collect(Collectors.toList());
+        if (date != null) {
+            return estates.stream().map(e -> new DwellingPlaceResponse(e, date)).collect(Collectors.toList());
+        } else {
+            return estates.stream().map(DwellingPlaceReference::new).collect(Collectors.toList());
+        }
     }
 
     @RequestMapping(value = "/api/places/houses/empty", method = RequestMethod.GET)

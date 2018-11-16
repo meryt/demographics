@@ -22,17 +22,6 @@ public interface DateRange {
     }
 
     /**
-     * Determines whether a new date range starting at the given date and never ending would exactly equal this date
-     * range.
-     *
-     * @param fromDate
-     * @return true if the from dates match and the toDate of this date range is null
-     */
-    default boolean openEndedRangeEquals(@NonNull LocalDate fromDate) {
-        return (getFromDate().equals(fromDate) && getToDate() == null);
-    }
-
-    /**
      * Returns true if the ranges exactly overlap. If either range is open-ended, they both must be.
      *
      * @param other the other date range
@@ -43,5 +32,4 @@ public interface DateRange {
                 (getToDate() == null && other.getToDate() == null) ||
                         (getToDate() != null && getToDate().equals(other.getToDate()))));
     }
-
 }

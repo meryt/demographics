@@ -38,7 +38,7 @@ public class FertilityGenerator {
         return maternity;
     }
 
-    Paternity randomPaternity() {
+    public Paternity randomPaternity() {
         Paternity paternity = new Paternity();
         paternity.setFertilityFactor(randFertilityFactor());
         return paternity;

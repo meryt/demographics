@@ -108,6 +108,9 @@ public class FamilyService {
         family.setWife(wife);
         family.setWeddingDate(weddingDate);
         wife.getMaternity().setFather(husband);
+        wife.getMaternity().cycleForwardsToDate(weddingDate, false);
+        wife.getMaternity().setLastCheckDate(weddingDate);
+
         personService.save(wife);
         family = save(family);
         return setupMarriage(family, weddingDate, false);
@@ -137,29 +140,34 @@ public class FamilyService {
                 wife.getOwnedDwellingPlaces(weddingDate).isEmpty() && husband.getLivingChildren(weddingDate).isEmpty()
                 && wife.getLivingChildren(weddingDate).isEmpty()) {
             Parish parish = husbandPlace == null ? wifePlace.getParish() : husbandPlace.getParish();
-            if (parish != null) {
-                double popPerSquareMile = parish.getPopulationPerSquareMile(weddingDate);
-                // The chance of moving away is based on the population per square mile. This is a parabolic function
-                // that ranges from about 0 at 30 to about 1 at 100.
-                double chanceOfEmigrating = parish.getChanceOfEmigrating(weddingDate);
-                double roll = new PercentDie().roll();
-                if (roll < chanceOfEmigrating) {
-                    log.info(String.format(
-                            "Current population per square mile of %s on %s is %.2f. New family is emigrating.",
-                            parish.getName(),
-                            weddingDate,
-                            popPerSquareMile));
+            if (parish != null && shouldEmigrate(parish, weddingDate)) {
+                emigrate(family, weddingDate);
 
-                    emigrate(family, weddingDate);
-
-                    return family;
-                }
+                return family;
             }
         }
 
         findResidenceForNewFamily(family, husbandsHousehold, moveAwayIfHusbandNonResident);
 
         return family;
+    }
+
+    private boolean shouldEmigrate(@NonNull Parish parish, @NonNull LocalDate date) {
+        double popPerSquareMile = parish.getPopulationPerSquareMile(date);
+        // The chance of moving away is based on the population per square mile. This is a parabolic function
+        // that ranges from about 0 at 30 to about 1 at 100.
+        double chanceOfEmigrating = parish.getChanceOfEmigrating(date);
+        double roll = new PercentDie().roll();
+        if (roll < chanceOfEmigrating) {
+            log.info(String.format(
+                    "Current population per square mile of %s on %s is %.2f. New family will emigrate.",
+                    parish.getName(),
+                    date,
+                    popPerSquareMile));
+
+            return true;
+        }
+        return false;
     }
 
     private void emigrate(@NonNull Family family, @NonNull LocalDate onDate) {
@@ -281,10 +289,14 @@ public class FamilyService {
         if (husbandFormerHouse == null && moveAwayIfHusbandNonResident &&
                 wife.getOwnedDwellingPlaces(date).isEmpty()
                 && wife.getOccupation(date) == null) {
-            log.info("Moving new family away from the parishes, as the husband is not a resident, and the wife is " +
-                    "unemployed and owns no property.");
-            maybeDisableMaternityCheckingForNonResidentFamily(man, wife);
-            return;
+
+            Parish wifeParish = wifeFormerHouse == null ? null : wifeFormerHouse.getParish();
+            if (wifeParish == null || shouldEmigrate(wifeParish, date)) {
+                log.info("Moving new family away from the parishes, as the husband is not a resident, and the wife is " +
+                        "unemployed and owns no property.");
+                maybeDisableMaternityCheckingForNonResidentFamily(man, wife);
+                return;
+            }
         }
 
         DwellingPlace residence = selectResidenceForNewFamily(family, mansHousehold);

@@ -244,7 +244,15 @@ public class HouseholdDwellingPlaceService {
         return results;
     }
 
-    void maybeMoveIndebtedHouseholdToEmptyHouse(@NonNull Parish parish,
+    /**
+     * Moves the household to the cheapest empty house in the parish, if there is any empty house available, and if
+     * the house is cheaper than the current house, if any.
+     *
+     * @param parish the parish in which to search
+     * @param household the household to move
+     * @param onDate the date on which to search and move
+     */
+    void maybeMoveHouseholdToCheapestEmptyHouse(@NonNull Parish parish,
                                                 @NonNull Household household,
                                                 @NonNull LocalDate onDate) {
         Dwelling cheapestHouse = parish.getEmptyHouses(onDate).stream()
@@ -253,15 +261,25 @@ public class HouseholdDwellingPlaceService {
         Dwelling currentHouse = (Dwelling) household.getDwellingPlace(onDate);
         if (cheapestHouse != null && (currentHouse == null || cheapestHouse.getValue() < currentHouse.getValue())) {
             Person owner = cheapestHouse.getOwner(onDate);
-            log.info(String.format("Household is moving into empty house in %s owned by %s",
-                    cheapestHouse.getLocationString(), owner == null
+            log.info(String.format("%s is moving into empty house in %s owned by %s on %s",
+                    household.getFriendlyName(onDate),
+                    cheapestHouse.getLocationString(),
+                    owner == null
                             ? "nobody"
-                            : owner.getId() + " " + owner.getName()));
+                            : owner.getIdAndName(),
+                    onDate));
             addToDwellingPlace(household, cheapestHouse, onDate, null);
         }
     }
 
-    void moveAway(@NonNull Person person, @NonNull LocalDate onDate) {
+    /**
+     * Moves the person's current household out of its current location, if any. The person will remain in the
+     * household, but the household will no longer be in any specific location.
+     *
+     * @param person the person whose household we will move away (if he is in a household)
+     * @param onDate the date on which to move
+     */
+    void movePersonsHouseholdAway(@NonNull Person person, @NonNull LocalDate onDate) {
         Household hh = person.getHousehold(onDate);
         if (hh == null || person.getResidence(onDate) == null) {
             return;
@@ -293,6 +311,17 @@ public class HouseholdDwellingPlaceService {
         return results;
     }
 
+    /**
+     * Find houses that are buyable. They must have no current residents, must not be entailed, and must cost less
+     * than the available capital. If the house is attached to a farm or estate, the total value must be checked, as the
+     * person would have to buy both. The search is limited to places recursively contained by the given parent place,
+     * e.g. a Parish.
+     *
+     * @param parentPlace the parent place in which to search
+     * @param onDate the date on which to search
+     * @param availableCapital the amount of money available to buy the house
+     * @return the list of empty, affordable houses
+     */
     List<Dwelling> findBuyableHousesFarmsAndEstates(@NonNull DwellingPlace parentPlace,
                                                     @NonNull LocalDate onDate,
                                                     double availableCapital) {
@@ -781,7 +810,7 @@ public class HouseholdDwellingPlaceService {
                                                  @NonNull Occupation occupation,
                                                  @NonNull LocalDate date) {
         List<Person> people = personService.findUnmarriedUnemployedPeopleBySocialClassAndGenderAndAge(
-                occupation.getSocialClasses(), occupation.getRequiredGender(), 15, 50, date).stream()
+                occupation.getSocialClassesUpToMaxRank(), occupation.getRequiredGender(), 15, 50, date).stream()
                 .filter(p -> personResidesInParish(p, estate.getParish(), date))
                 .collect(Collectors.toList());
         Collections.shuffle(people);
@@ -798,7 +827,7 @@ public class HouseholdDwellingPlaceService {
             if (head != null && head.equals(personToHire)) {
                 householdToMove = currentHousehold;
             } else {
-                moveAway(personToHire, date);
+                movePersonsHouseholdAway(personToHire, date);
                 householdToMove = householdService.createHouseholdForHead(personToHire, date, false);
             }
         } else {

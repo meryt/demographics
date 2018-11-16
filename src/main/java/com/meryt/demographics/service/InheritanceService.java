@@ -207,7 +207,7 @@ public class InheritanceService {
                 } else if (pretension.getRank() >= SocialClass.GENTLEMAN.getRank()) {
                     log.info(String.format("No house could be found suitable for a %s; heir will move away",
                             pretension.getFriendlyName()));
-                    householdDwellingPlaceService.moveAway(heir, onDate);
+                    householdDwellingPlaceService.movePersonsHouseholdAway(heir, onDate);
                     if (heir.isMarried(onDate)) {
                         Person husband = heir.isMale() ? heir : heir.getSpouse(onDate);
                         Person wife = heir.isFemale() ? heir : heir.getSpouse(onDate);

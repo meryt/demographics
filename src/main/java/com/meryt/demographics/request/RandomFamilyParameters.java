@@ -131,6 +131,13 @@ public class RandomFamilyParameters {
     private Integer minDegreesSeparation;
 
     /**
+     * Try up to this many times, if no spouse is found on the first try. If null, only tries once.
+     */
+    private Integer triesUntilGiveUp;
+
+    private Boolean skipGenerateChildren;
+
+    /**
      * Copy constructor
      */
     public RandomFamilyParameters(@NonNull RandomFamilyParameters other) {
@@ -154,6 +161,8 @@ public class RandomFamilyParameters {
         spouse = other.spouse;
         spouseLastName = other.spouseLastName;
         chanceGeneratedSpouse = other.chanceGeneratedSpouse;
+        triesUntilGiveUp = other.triesUntilGiveUp;
+        skipGenerateChildren = other.skipGenerateChildren;
     }
 
     public int getMinHusbandAgeOrDefault() {
@@ -218,4 +227,7 @@ public class RandomFamilyParameters {
         return new PercentDie().roll() > chanceGeneratedSpouse;
     }
 
+    public boolean isSkipGenerateChildren() {
+        return skipGenerateChildren != null && skipGenerateChildren;
+    }
 }

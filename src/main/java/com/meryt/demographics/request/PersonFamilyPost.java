@@ -43,6 +43,13 @@ public class PersonFamilyPost {
      */
     private Integer minSpouseSelection;
 
+    /**
+     * Try up to this many times, if no spouse is found on the first try. If null, only tries once.
+     */
+    private Integer triesUntilGiveUp;
+
+    private Boolean skipGenerateChildren;
+
     public void validate() {
         // nothing to validate yet
     }

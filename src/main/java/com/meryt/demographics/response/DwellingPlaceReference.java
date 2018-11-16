@@ -16,6 +16,7 @@ public class DwellingPlaceReference extends DwellingPlacePointer {
     private final String location;
     private final DwellingPlacePointer parent;
     private LocalDate foundedDate;
+    private LocalDate ruinedDate;
 
     public DwellingPlaceReference(@NonNull DwellingPlace dwellingPlace) {
         super(dwellingPlace);
@@ -24,6 +25,7 @@ public class DwellingPlaceReference extends DwellingPlacePointer {
         value = dwellingPlace.getValue();
         entailed = dwellingPlace.isEntailed() ? true : null;
         foundedDate = dwellingPlace.getFoundedDate();
+        ruinedDate = dwellingPlace.getRuinedDate();
 
         if (dwellingPlace.getParent() == null) {
             location = null;

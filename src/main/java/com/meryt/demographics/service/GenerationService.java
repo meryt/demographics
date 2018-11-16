@@ -10,7 +10,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import com.google.common.base.Strings;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
@@ -45,18 +44,15 @@ public class GenerationService {
     private final PersonService personService;
     private final FamilyService familyService;
     private final FamilyGenerator familyGenerator;
-    private final AncestryService ancestryService;
     private final TitleService titleService;
 
     public GenerationService(@Autowired @NonNull PersonService personService,
                              @Autowired @NonNull FamilyService familyService,
                              @Autowired @NonNull FamilyGenerator familyGenerator,
-                             @Autowired @NonNull AncestryService ancestryService,
                              @Autowired @NonNull TitleService titleService) {
         this.personService = personService;
         this.familyService = familyService;
         this.familyGenerator = familyGenerator;
-        this.ancestryService = ancestryService;
         this.titleService = titleService;
     }
 
@@ -142,7 +138,14 @@ public class GenerationService {
                 && generationPost.getOnlyNonResidents();
 
         List<Person> unfinishedPersons;
-        if (onlyNonResidents) {
+        if (generationPost.getOnlyForPerson() != null) {
+            Person person = personService.load(generationPost.getOnlyForPerson());
+            if (person == null) {
+                throw new IllegalArgumentException("No person exists for ID " + generationPost.getOnlyForPerson());
+            }
+            unfinishedPersons = new ArrayList<>();
+            unfinishedPersons.add(person);
+        } else if (onlyNonResidents) {
             // Only load people who have never been in a household
             unfinishedPersons = personService.loadUnfinishedNonResidents();
         } else {
@@ -219,7 +222,9 @@ public class GenerationService {
                     && !person.isMarriedNowOrAfter(untilDate));
         }
 
-        updateTitles();
+        if (generationPost.getSkipTitleUpdate() == null || !generationPost.getSkipTitleUpdate()) {
+            updateTitles();
+        }
 
         if (generationPost.getOutputToFile() != null) {
             writeGenerationsToFile(generationPost.getOutputToFile());
