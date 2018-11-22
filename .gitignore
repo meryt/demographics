@@ -1,6 +1,7 @@
 .gradle
 /build/
 !gradle/wrapper/gradle-wrapper.jar
+/out/
 
 ### STS ###
 .apt_generated
@@ -29,4 +30,5 @@ bundle.js.map
 node_modules
 
 logs/*
+src/main/resources/db/demographics-archive.pgdump
 

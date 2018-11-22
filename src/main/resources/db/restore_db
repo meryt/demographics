@@ -1,6 +1,12 @@
 #!/bin/bash
 
+rm demographics-archive.pgdump
+
+cp ~/Dropbox/demographics-archive.pgdump.bz2 . || exit
+bunzip2 demographics-archive.pgdump.bz2 || exit
+
 psql < ./drop-db.sql || exit
 psql < ./create-db.sql || exit
-psql demographics < ~/Dropbox/demographics.pgdump
+psql demographics < demographics-archive.pgdump
+
 
