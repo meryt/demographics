@@ -156,6 +156,15 @@ public class PersonService {
     }
 
     @NonNull
+    public List<Person> findStoryCharacters(@Nullable LocalDate aliveOnDate) {
+        if (aliveOnDate == null) {
+            return personRepository.findByStoryCharacterIsTrue();
+        } else {
+            return personRepository.findLivingStoryCharacters(aliveOnDate);
+        }
+    }
+
+    @NonNull
     public List<Person> findLivingRelatives(@NonNull Person person,
                                             @NonNull LocalDate aliveOnDate,
                                             @Nullable Long maxDistance) {

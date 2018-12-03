@@ -17,7 +17,11 @@ import com.meryt.demographics.domain.person.SocialClass;
 @Repository
 public interface PersonRepository extends PagingAndSortingRepository<Person, Long> {
 
+    List<Person> findByDeathDate(LocalDate deathDate);
+
     List<Person> findByFounderTrueOrderByBirthDate();
+
+    List<Person> findByStoryCharacterIsTrue();
 
     @Query("SELECT p from Person p " +
             "WHERE p.gender = :gender " +
@@ -49,7 +53,13 @@ public interface PersonRepository extends PagingAndSortingRepository<Person, Lon
                                                                               @Nullable LocalDate maxBirthDate);
 
 
-    List<Person> findByDeathDate(LocalDate deathDate);
+    @Query("SELECT p FROM Person p " +
+                    "WHERE p.birthDate <= :aliveOnDate " +
+                    "AND p.deathDate > :aliveOnDate " +
+                    "AND p.storyCharacter = TRUE " +
+                    "ORDER BY p.birthDate "
+    )
+    List<Person> findLivingStoryCharacters(@Param("aliveOnDate") @NonNull LocalDate onDate);
 
     @Query("SELECT p FROM Person p " +
             "WHERE p.gender = :gender " +

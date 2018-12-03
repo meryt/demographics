@@ -111,6 +111,11 @@ public class Person {
      */
     private boolean founder;
 
+    /**
+     * This flag can be used to indicate the person is a character in the story
+     */
+    private boolean storyCharacter;
+
     @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
     @PrimaryKeyJoinColumn
     private Maternity maternity;

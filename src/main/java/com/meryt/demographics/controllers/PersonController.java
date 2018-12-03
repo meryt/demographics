@@ -51,6 +51,7 @@ import com.meryt.demographics.response.PersonDetailResponse;
 import com.meryt.demographics.response.PersonFamilyResponse;
 import com.meryt.demographics.response.PersonHeirResponse;
 import com.meryt.demographics.response.PersonPotentialSpouseResponse;
+import com.meryt.demographics.response.PersonResponse;
 import com.meryt.demographics.response.PersonTitleResponse;
 import com.meryt.demographics.response.RelatedPersonResponse;
 import com.meryt.demographics.rest.BadRequestException;
@@ -148,6 +149,15 @@ public class PersonController {
         }
 
         return new PersonDetailResponse(person, null, ancestryService);
+    }
+
+    @RequestMapping(value = "/api/persons/characters", method = RequestMethod.GET)
+    public List<PersonResponse> getPerson(@RequestParam(value = "onDate", required = false) String onDate) {
+        final LocalDate date = (onDate != null) ? controllerHelperService.parseDate(onDate) : null;
+
+        return personService.findStoryCharacters(date).stream()
+                .map(p -> new PersonResponse(p, date))
+                .collect(Collectors.toList());
     }
 
     @RequestMapping(value = "/api/persons/{personId}", method = RequestMethod.GET)

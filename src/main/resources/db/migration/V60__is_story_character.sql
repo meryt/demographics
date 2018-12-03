@@ -1,0 +1,2 @@
+ALTER TABLE persons ADD COLUMN story_character BOOLEAN NOT NULL DEFAULT FALSE;
+
