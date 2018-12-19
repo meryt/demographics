@@ -298,6 +298,22 @@ public class Person {
         return id + " " + getName();
     }
 
+    /**
+     * Gets the person's height on a given date. If the person is not yet born, is dead, or is an adult, just returns
+     * the adult height. If a living child, calculates the height based on age, adult height, and averages for their
+     * gender at that age.
+     *
+     * @param onDate the date on which to check; if null, the heightInches is returned without calculation
+     * @return their height at their current age
+     */
+    public Double getHeightInches(@Nullable LocalDate onDate) {
+        if (heightInches == null  || onDate == null || birthDate == null || gender == null) {
+            return heightInches;
+        }
+
+        return Height.calculateHeight(heightInches, getAgeInDays(onDate), gender);
+    }
+
     @Override
     public String toString() {
         String s = getId() + " " + getName();
@@ -340,6 +356,14 @@ public class Person {
      * @return a formatted string, or null if height is null or impossibly small
      */
     public String getHeightString() {
+        return heightInchesToString(heightInches);
+    }
+
+    public String getHeightString(@Nullable LocalDate onDate) {
+        return heightInchesToString(getHeightInches(onDate));
+    }
+
+    private static String heightInchesToString(Double heightInches) {
         if (heightInches == null || heightInches < 5.0) {
             return null;
         }

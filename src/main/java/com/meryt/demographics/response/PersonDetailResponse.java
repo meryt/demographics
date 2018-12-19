@@ -22,12 +22,11 @@ import com.meryt.demographics.service.AncestryService;
  */
 @Getter
 @JsonPropertyOrder({"id", "firstName", "lastName", "gender", "age", "birthDate", "deathDate", "ageAtDeath",
-    "socialClass", "capital", "eyeColor", "hairColor", "height", "domesticity", "charisma", "comeliness",
-    "intelligence", "morality", "strength", "traits", "titles", "families", "occupations", "household", "households",
-    "ownedProperties", "family"})
+        "socialClass", "capital", "eyeColor", "hairColor", "height", "currentHeight", "domesticity", "charisma",
+        "comeliness", "intelligence", "morality", "strength", "traits", "titles", "families", "occupations",
+        "household", "households", "ownedProperties", "family"})
 public class PersonDetailResponse extends PersonResponse {
 
-    private final String age;
     private final Double capital;
     private final List<PersonFamilyResponse> families;
     private final List<PersonOccupationResponse> occupations;
@@ -46,7 +45,7 @@ public class PersonDetailResponse extends PersonResponse {
     public PersonDetailResponse(@NonNull Person person,
                                 @Nullable LocalDate onDate,
                                 @Nullable AncestryService ancestryService) {
-        super(person);
+        super(person, onDate);
 
         if (person.getFamilies().isEmpty()) {
             families = null;
@@ -88,7 +87,6 @@ public class PersonDetailResponse extends PersonResponse {
                 .collect(Collectors.toList());
 
         if (onDate != null) {
-            age = person.getAge(onDate);
             capital = person.getCapital(onDate);
 
             households = null;
@@ -107,7 +105,6 @@ public class PersonDetailResponse extends PersonResponse {
             }
 
         } else {
-            age = null;
             capital = null;
             household = null;
             households = new ArrayList<>();

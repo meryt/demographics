@@ -36,6 +36,7 @@ public class PersonResponse {
     private final String eyeColor;
     private final String hairColor;
     private final String height;
+    private final String currentHeight;
 
     private final double domesticity;
     private final double charisma;
@@ -68,6 +69,16 @@ public class PersonResponse {
         eyeColor = person.getEyeColorName();
         hairColor = person.getHairColor();
         height = person.getHeightString();
+        if (onDate != null && person.isLiving(onDate)) {
+            String heightOnDate = person.getHeightString(onDate);
+            if (height != null && height.equals(heightOnDate)) {
+                currentHeight = null;
+            } else {
+                currentHeight = heightOnDate;
+            }
+        } else {
+            currentHeight = null;
+        }
 
         domesticity = person.getDomesticity();
         charisma = person.getCharisma();
