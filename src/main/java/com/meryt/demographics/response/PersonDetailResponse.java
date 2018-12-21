@@ -15,6 +15,7 @@ import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.PersonOccupationPeriod;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.HouseholdInhabitantPeriod;
+import com.meryt.demographics.domain.timeline.TimelineEntry;
 import com.meryt.demographics.service.AncestryService;
 
 /**
@@ -24,7 +25,7 @@ import com.meryt.demographics.service.AncestryService;
 @JsonPropertyOrder({"id", "firstName", "lastName", "gender", "age", "birthDate", "deathDate", "ageAtDeath",
         "socialClass", "capital", "eyeColor", "hairColor", "height", "currentHeight", "domesticity", "charisma",
         "comeliness", "intelligence", "morality", "strength", "traits", "titles", "families", "occupations",
-        "household", "households", "ownedProperties", "family"})
+        "household", "households", "ownedProperties", "family", "timeline"})
 public class PersonDetailResponse extends PersonResponse {
 
     private final Double capital;
@@ -37,6 +38,7 @@ public class PersonDetailResponse extends PersonResponse {
     private final PersonParentsFamilyResponse family;
     private final List<PersonCapitalResponse> capitalHistory;
     private final List<ResidencePeriodResponse> residences;
+    private final List<TimelineEntry> timeline;
 
     public PersonDetailResponse(@NonNull Person person) {
         this(person, null, null);
@@ -85,6 +87,8 @@ public class PersonDetailResponse extends PersonResponse {
         residences = person.getResidences().stream()
                 .map(ResidencePeriodResponse::new)
                 .collect(Collectors.toList());
+
+        timeline = person.getTimelineEntries().isEmpty() ? null : person.getTimelineEntries();
 
         if (onDate != null) {
             capital = person.getCapital(onDate);

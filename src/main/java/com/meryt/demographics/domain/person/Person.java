@@ -43,6 +43,7 @@ import com.meryt.demographics.domain.place.DwellingPlaceOwnerPeriod;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.HouseholdInhabitantPeriod;
 import com.meryt.demographics.domain.place.HouseholdLocationPeriod;
+import com.meryt.demographics.domain.timeline.TimelineEntry;
 import com.meryt.demographics.domain.title.Title;
 import com.meryt.demographics.time.FormatPeriod;
 import com.meryt.demographics.time.LocalDateComparator;
@@ -165,6 +166,16 @@ public class Person {
     )
     @OrderBy("name")
     private Set<Trait> traits = new HashSet<>();
+
+    @ManyToMany
+    @JoinTable(
+            name = "person_timeline_entries",
+            joinColumns = @JoinColumn(name = "person_id"),
+            inverseJoinColumns = @JoinColumn(name = "timeline_entry_id")
+    )
+    @OrderBy("fromDate")
+    private List<TimelineEntry> timelineEntries = new ArrayList<>();
+
 
     public Fertility getFertility() {
         if (gender == null) {
