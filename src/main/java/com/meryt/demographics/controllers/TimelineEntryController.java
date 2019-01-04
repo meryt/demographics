@@ -3,15 +3,18 @@ package com.meryt.demographics.controllers;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 import lombok.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.timeline.TimelineEntry;
+import com.meryt.demographics.domain.timeline.TimelineEntryCategory;
 import com.meryt.demographics.request.TimelineEntryPost;
 import com.meryt.demographics.rest.BadRequestException;
 import com.meryt.demographics.rest.ResourceNotFoundException;
@@ -31,8 +34,15 @@ public class TimelineEntryController {
     }
 
     @RequestMapping(value = "/api/timeline", method = RequestMethod.GET)
-    public List<TimelineEntry> getEntries() {
-        return timelineService.loadAll();
+    public List<TimelineEntry> getEntries(@RequestParam(required = false) List<String> category) {
+        if (category == null || category.isEmpty()) {
+            return timelineService.loadAll();
+        } else {
+            List<TimelineEntryCategory> categories = category.stream()
+                    .map(TimelineEntryCategory::valueOf)
+                    .collect(Collectors.toList());
+            return timelineService.loadAllByCategories(categories);
+        }
     }
 
     @RequestMapping(value = "/api/timeline", method = RequestMethod.POST)

@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.meryt.demographics.domain.timeline.TimelineEntry;
+import com.meryt.demographics.domain.timeline.TimelineEntryCategory;
 import com.meryt.demographics.repository.TimelineEntryRepository;
 
 @Service
@@ -30,5 +31,9 @@ public class TimelineService {
 
     public List<TimelineEntry> loadAll() {
         return Lists.newArrayList(timelineEntryRepository.findAllByOrderByFromDate());
+    }
+
+    public List<TimelineEntry> loadAllByCategories(@NonNull List<TimelineEntryCategory> categories) {
+        return Lists.newArrayList(timelineEntryRepository.findByCategoryIn(categories));
     }
 }
