@@ -9,6 +9,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import javax.persistence.CascadeType;
@@ -43,6 +44,7 @@ import com.meryt.demographics.domain.place.DwellingPlaceOwnerPeriod;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.HouseholdInhabitantPeriod;
 import com.meryt.demographics.domain.place.HouseholdLocationPeriod;
+import com.meryt.demographics.domain.story.Storyline;
 import com.meryt.demographics.domain.timeline.TimelineEntry;
 import com.meryt.demographics.domain.title.Title;
 import com.meryt.demographics.time.FormatPeriod;
@@ -176,6 +178,16 @@ public class Person {
     @OrderBy("fromDate")
     private List<TimelineEntry> timelineEntries = new ArrayList<>();
 
+    /**
+     * Timeline entries for this storyline will show up in the person's timeline
+     */
+    @ManyToMany
+    @JoinTable(
+            name = "person_storylines",
+            joinColumns = @JoinColumn(name = "person_id"),
+            inverseJoinColumns = @JoinColumn(name = "storyline_id")
+    )
+    private List<Storyline> storylines = new ArrayList<>();
 
     public Fertility getFertility() {
         if (gender == null) {
@@ -831,6 +843,23 @@ public class Person {
         return results.stream()
                 .sorted(Comparator.comparing(HouseholdLocationPeriod::getFromDate))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Returns all timeline entries, including those from associated storylines
+     *
+     * @return list of timeline entries
+     */
+    public List<TimelineEntry> getAllTimelineEntries() {
+       List<TimelineEntry> personSpecificEntries = getTimelineEntries();
+       List<TimelineEntry> storylineEntries = new ArrayList<>(getStorylines().stream()
+               .flatMap(x -> x.getTimelineEntries().stream())
+               .collect(Collectors.toMap(TimelineEntry::getId, Function.identity()))
+               .values());
+       personSpecificEntries.addAll(storylineEntries);
+       return new ArrayList<>(personSpecificEntries.stream()
+               .collect(Collectors.toMap(TimelineEntry::getId, Function.identity()))
+               .values());
     }
 
 }

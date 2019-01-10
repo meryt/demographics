@@ -152,7 +152,7 @@ public class PersonController {
     }
 
     @RequestMapping(value = "/api/persons/characters", method = RequestMethod.GET)
-    public List<PersonResponse> getPerson(@RequestParam(value = "onDate", required = false) String onDate) {
+    public List<PersonResponse> getCharacters(@RequestParam(value = "onDate", required = false) String onDate) {
         final LocalDate date = (onDate != null) ? controllerHelperService.parseDate(onDate) : null;
 
         return personService.findStoryCharacters(date).stream()

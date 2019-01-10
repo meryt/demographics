@@ -88,7 +88,8 @@ public class PersonDetailResponse extends PersonResponse {
                 .map(ResidencePeriodResponse::new)
                 .collect(Collectors.toList());
 
-        timeline = person.getTimelineEntries().isEmpty() ? null : person.getTimelineEntries();
+        List<TimelineEntry> timelineEntries = person.getAllTimelineEntries();
+        timeline = timelineEntries.isEmpty() ? null : timelineEntries;
 
         if (onDate != null) {
             capital = person.getCapital(onDate);
