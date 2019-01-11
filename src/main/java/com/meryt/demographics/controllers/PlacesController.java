@@ -2,9 +2,13 @@ package com.meryt.demographics.controllers;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
+import com.google.common.collect.Comparators;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,6 +23,9 @@ import com.meryt.demographics.domain.place.Dwelling;
 import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.DwellingPlaceOwnerPeriod;
 import com.meryt.demographics.domain.place.DwellingPlaceType;
+import com.meryt.demographics.domain.place.Household;
+import com.meryt.demographics.domain.place.HouseholdInhabitantPeriod;
+import com.meryt.demographics.domain.place.HouseholdLocationPeriod;
 import com.meryt.demographics.domain.title.Title;
 import com.meryt.demographics.generator.ParishGenerator;
 import com.meryt.demographics.request.EstatePost;
@@ -26,6 +33,9 @@ import com.meryt.demographics.response.DwellingPlaceDetailResponse;
 import com.meryt.demographics.response.DwellingPlaceOwnerResponse;
 import com.meryt.demographics.response.DwellingPlaceReference;
 import com.meryt.demographics.response.DwellingPlaceResponse;
+import com.meryt.demographics.response.PersonReference;
+import com.meryt.demographics.response.PersonResidencePeriodResponse;
+import com.meryt.demographics.response.PersonSummaryResponse;
 import com.meryt.demographics.rest.BadRequestException;
 import com.meryt.demographics.rest.ResourceNotFoundException;
 import com.meryt.demographics.service.AncestryService;
@@ -33,6 +43,8 @@ import com.meryt.demographics.service.ControllerHelperService;
 import com.meryt.demographics.service.DwellingPlaceService;
 import com.meryt.demographics.service.HouseholdDwellingPlaceService;
 import com.meryt.demographics.service.TitleService;
+import com.meryt.demographics.time.DateRange;
+import com.meryt.demographics.time.LocalDateComparator;
 
 @Slf4j
 @RestController
@@ -84,6 +96,57 @@ public class PlacesController {
                 .sorted(Comparator.comparing(DwellingPlaceOwnerPeriod::getFromDate)
                         .thenComparing(DwellingPlaceOwnerPeriod::getPersonId))
                 .map(DwellingPlaceOwnerResponse::new)
+                .collect(Collectors.toList());
+    }
+
+    @RequestMapping("/api/places/{placeId}/residents")
+    @SuppressWarnings("unchecked")
+    public List<PersonResidencePeriodResponse> getPlaceResidents(@PathVariable long placeId) {
+        DwellingPlace place = dwellingPlaceService.load(placeId);
+
+        if (place == null) {
+            throw new ResourceNotFoundException("No place found for ID " + placeId);
+        }
+
+        Map<Long, List<PersonResidencePeriodResponse>> personPeriods = new HashMap<>();
+        for (HouseholdLocationPeriod householdPeriod : place.getHouseholdPeriods()) {
+            // householdPeriod specifies a household and the date range that it lived in this location.
+            Household hold = householdPeriod.getHousehold();
+            List<HouseholdInhabitantPeriod> overlappingPeriods =
+                    (List<HouseholdInhabitantPeriod>) LocalDateComparator.getRangesWithinRange(
+                    hold.getInhabitantPeriods(), householdPeriod.getFromDate(), householdPeriod.getToDate());
+            for (HouseholdInhabitantPeriod personPeriod : overlappingPeriods) {
+                PersonResidencePeriodResponse resp = new PersonResidencePeriodResponse();
+                if (personPeriod.getFromDate().isBefore(householdPeriod.getFromDate())) {
+                    resp.setFromDate(householdPeriod.getFromDate());
+                } else {
+                    resp.setFromDate(personPeriod.getFromDate());
+                }
+                LocalDate personPeriodEndDate = personPeriod.getToDate() == null
+                        ? personPeriod.getPerson().getDeathDate()
+                        : personPeriod.getToDate();
+                if (householdPeriod.getToDate() == null) {
+                    resp.setToDate(personPeriodEndDate);
+                } else if (householdPeriod.getToDate().isBefore(personPeriodEndDate)) {
+                    resp.setToDate(householdPeriod.getToDate());
+                } else {
+                    resp.setToDate(personPeriodEndDate);
+                }
+                resp.setPerson(new PersonReference(personPeriod.getPerson()));
+                if (!personPeriods.containsKey(personPeriod.getPersonId())) {
+                    personPeriods.put(personPeriod.getPersonId(), new ArrayList<>());
+                }
+                // Omit any cases where the residence "lasted" a day; these may be cases where a person changed
+                // households and moved on the same day.
+                if (!resp.getFromDate().equals(resp.getToDate())) {
+                    personPeriods.get(personPeriod.getPersonId()).add(resp);
+                }
+            }
+        }
+
+        return personPeriods.values().stream()
+                .flatMap(Collection::stream)
+                .sorted(Comparator.comparing(DateRange::getFromDate))
                 .collect(Collectors.toList());
     }
 
