@@ -27,12 +27,12 @@ import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 import javax.persistence.SequenceGenerator;
 import javax.persistence.Table;
-import javax.validation.constraints.NotNull;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
+import org.apache.commons.lang3.tuple.Pair;
 
 import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.person.Person;
@@ -98,6 +98,8 @@ public abstract class DwellingPlace {
 
     @ManyToOne
     private Title entailedTitle;
+
+    private String mapId;
 
     public Double getSquareMiles() {
         if (acres == null) {
@@ -290,11 +292,20 @@ public abstract class DwellingPlace {
      * @param onDate the date to find an owner; there may be 0 or 1 persons owning the property on this date.
      * @return the owning person, or null if no one owns it at this time
      */
-    @NotNull
+    @Nullable
     public Person getOwner(@NonNull LocalDate onDate) {
         return getOwnerPeriods().stream()
                 .filter(p -> p.contains(onDate))
                 .map(DwellingPlaceOwnerPeriod::getOwner)
+                .findFirst()
+                .orElse(null);
+    }
+
+    @NonNull
+    public Pair<Person, String> getOwnerAndReason(@NonNull LocalDate onDate) {
+        return getOwnerPeriods().stream()
+                .filter(p -> p.contains(onDate))
+                .map(dpop -> Pair.of(dpop.getOwner(), dpop.getReason()))
                 .findFirst()
                 .orElse(null);
     }

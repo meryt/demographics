@@ -698,6 +698,15 @@ public class Person {
         return householdsOnDate.isEmpty() ? null : householdsOnDate.iterator().next();
     }
 
+    @Nullable
+    public DwellingPlace getDwellingPlace(@NonNull LocalDate onDate) {
+        Household hh = getHousehold(onDate);
+        if (hh == null) {
+            return null;
+        }
+        return hh.getDwellingPlace(onDate);
+    }
+
     public List<PersonTitlePeriod> getTitles(@NonNull LocalDate onDate) {
         return getTitles().stream()
                 .filter(o -> o.contains(onDate))

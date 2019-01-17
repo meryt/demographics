@@ -22,7 +22,7 @@ public class DwellingPlaceDetailResponse extends DwellingPlaceResponse {
 
     private List<DwellingPlaceChildSummaryResponse> places;
 
-    private Map<String, List<PersonReference>> occupations;
+    private Map<String, List<PersonReferenceWithDwelling>> occupations;
 
     private List<HouseholdResponse> households;
 
@@ -56,7 +56,7 @@ public class DwellingPlaceDetailResponse extends DwellingPlaceResponse {
                 for (Map.Entry<Occupation, List<Person>> entry : peopleWithOccupations.entrySet()) {
                     occupations.put(entry.getKey().getName(),
                             entry.getValue().stream()
-                                    .map(p -> new PersonReference(p, onDate))
+                                    .map(p -> new PersonReferenceWithDwelling(p, onDate))
                                     .collect(Collectors.toList()));
                 }
             }

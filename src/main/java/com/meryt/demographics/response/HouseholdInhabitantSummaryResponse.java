@@ -14,8 +14,8 @@ class HouseholdInhabitantSummaryResponse extends PersonSummaryResponse {
     private final Relationship relationshipToHead;
 
     HouseholdInhabitantSummaryResponse(@NonNull Person person,
-                                              @Nullable LocalDate onDate,
-                                              @Nullable Relationship relationshipToHead) {
+                                       @Nullable LocalDate onDate,
+                                       @Nullable Relationship relationshipToHead) {
         super(person, onDate);
         this.relationshipToHead = relationshipToHead;
     }

@@ -1,11 +1,10 @@
 package com.meryt.demographics.response;
 
 import java.time.LocalDate;
-import java.util.List;
-import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import lombok.Getter;
 import lombok.NonNull;
+import org.apache.commons.lang3.tuple.Pair;
 
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.place.DwellingPlace;
@@ -22,7 +21,8 @@ class DwellingPlaceChildSummaryResponse extends DwellingPlacePointer {
     private final String location;
     private Long directPopulation;
     private Long totalPopulation;
-    private final PersonSummaryResponse owner;
+    private final String mapId;
+    private final DwellingPlaceOwnerDetailResponse owner;
 
     DwellingPlaceChildSummaryResponse(@NonNull DwellingPlace dwellingPlace, @Nullable LocalDate onDate) {
         super(dwellingPlace);
@@ -32,6 +32,7 @@ class DwellingPlaceChildSummaryResponse extends DwellingPlacePointer {
         entailed = dwellingPlace.isEntailed() ? true : null;
         foundedDate = dwellingPlace.getFoundedDate();
         ruinedDate = dwellingPlace.getRuinedDate();
+        mapId = dwellingPlace.getMapId();
 
         if (dwellingPlace.getParent() == null) {
             location = null;
@@ -46,9 +47,10 @@ class DwellingPlaceChildSummaryResponse extends DwellingPlacePointer {
         }
 
         if (onDate != null) {
-            Person ownerPerson = dwellingPlace.getOwner(onDate);
-            if (ownerPerson != null) {
-                owner = new PersonSummaryResponse(ownerPerson, onDate);
+            Pair<Person, String> ownerAndReason = dwellingPlace.getOwnerAndReason(onDate);
+            if (ownerAndReason != null) {
+                owner = new DwellingPlaceOwnerDetailResponse(ownerAndReason.getLeft(), onDate,
+                        ownerAndReason.getRight());
             } else {
                 owner = null;
             }
