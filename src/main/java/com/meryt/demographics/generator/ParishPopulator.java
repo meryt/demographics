@@ -13,6 +13,8 @@ import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.family.Family;
@@ -39,8 +41,9 @@ import com.meryt.demographics.service.HouseholdDwellingPlaceService;
 import com.meryt.demographics.service.HouseholdService;
 import com.meryt.demographics.service.PersonService;
 
+@Service
 @Slf4j
-class ParishPopulator {
+public class ParishPopulator {
 
     private final HouseholdGenerator householdGenerator;
     private final FamilyGenerator familyGenerator;
@@ -50,13 +53,13 @@ class ParishPopulator {
     private final PersonService personService;
     private final HouseholdDwellingPlaceService householdDwellingPlaceService;
 
-    ParishPopulator(@NonNull HouseholdGenerator householdGenerator,
-                    @NonNull FamilyGenerator familyGenerator,
-                    @NonNull FamilyService familyService,
-                    @NonNull HouseholdService householdService,
-                    @NonNull DwellingPlaceService dwellingPlaceService,
-                    @NonNull PersonService personService,
-                    @NonNull HouseholdDwellingPlaceService householdDwellingPlaceService) {
+    ParishPopulator(@NonNull @Autowired HouseholdGenerator householdGenerator,
+                    @NonNull @Autowired FamilyGenerator familyGenerator,
+                    @NonNull @Autowired FamilyService familyService,
+                    @NonNull @Autowired HouseholdService householdService,
+                    @NonNull @Autowired DwellingPlaceService dwellingPlaceService,
+                    @NonNull @Autowired PersonService personService,
+                    @NonNull @Autowired HouseholdDwellingPlaceService householdDwellingPlaceService) {
         this.householdGenerator = householdGenerator;
         this.familyGenerator = familyGenerator;
         this.familyService = familyService;
@@ -139,7 +142,7 @@ class ParishPopulator {
         return childHouseholdPopulation + household.getPopulation(familyParameters.getReferenceDate());
     }
 
-    Household createHouseholdToFillOccupation(@NonNull RandomFamilyParameters familyParameters,
+    public Household createHouseholdToFillOccupation(@NonNull RandomFamilyParameters familyParameters,
                                               @NonNull DwellingPlace town,
                                               @NonNull Occupation occupation,
                                               boolean mayCreateNewEstate,

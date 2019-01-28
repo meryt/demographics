@@ -11,6 +11,7 @@ import javax.annotation.Nullable;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import com.meryt.demographics.domain.Occupation;
@@ -28,11 +29,12 @@ import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.HouseholdLocationPeriod;
 import com.meryt.demographics.domain.place.Parish;
 import com.meryt.demographics.domain.title.Title;
-import com.meryt.demographics.generator.ParishGenerator;
+import com.meryt.demographics.generator.ParishPopulator;
 import com.meryt.demographics.generator.WealthGenerator;
 import com.meryt.demographics.generator.random.BetweenDie;
 import com.meryt.demographics.generator.random.Die;
 import com.meryt.demographics.request.EstatePost;
+import com.meryt.demographics.request.RandomFamilyParameters;
 import com.meryt.demographics.response.calendar.CalendarDayEvent;
 import com.meryt.demographics.response.calendar.NewHouseEvent;
 import com.meryt.demographics.response.calendar.PropertyTransferEvent;
@@ -47,13 +49,19 @@ public class HouseholdDwellingPlaceService {
     private final HouseholdService householdService;
     private final DwellingPlaceService dwellingPlaceService;
     private final PersonService personService;
+    private final OccupationService occupationService;
+    private final ParishPopulator parishPopulator;
 
     public HouseholdDwellingPlaceService(@Autowired @NonNull HouseholdService householdService,
                                          @Autowired @NonNull DwellingPlaceService dwellingPlaceService,
-                                         @Autowired @NonNull PersonService personService) {
+                                         @Autowired @NonNull PersonService personService,
+                                         @Autowired @NonNull OccupationService occupationService,
+                                         @Autowired @NonNull @Lazy ParishPopulator parishPopulator) {
         this.householdService = householdService;
         this.dwellingPlaceService = dwellingPlaceService;
         this.personService = personService;
+        this.occupationService = occupationService;
+        this.parishPopulator = parishPopulator;
     }
 
     public DwellingPlace addToDwellingPlace(@NonNull Household household,
@@ -592,8 +600,10 @@ public class HouseholdDwellingPlaceService {
                     DwellingPlaceOwnerPeriod.Reason.tookUnownedHouseMessage());
         }
         Person owner = house.getOwner(onDate);
-        farm.addOwner(owner, onDate, owner.getDeathDate(),
-                DwellingPlaceOwnerPeriod.Reason.foundedFarmForRuralHouseMessage());
+        if (owner != null) {
+            farm.addOwner(owner, onDate, owner.getDeathDate(),
+                    DwellingPlaceOwnerPeriod.Reason.foundedFarmForRuralHouseMessage());
+        }
 
         house.getParent().addDwellingPlace(farm);
         dwellingPlaceService.save(house.getParent());
@@ -718,8 +728,7 @@ public class HouseholdDwellingPlaceService {
                                       @NonNull Person owner,
                                       @NonNull EstatePost estatePost,
                                       @NonNull LocalDate onDate,
-                                      @Nullable Title entailedToTitle,
-                                      @NonNull ParishGenerator parishGenerator) {
+                                      @Nullable Title entailedToTitle) {
         Household ownerHousehold = owner.getHousehold(onDate);
         if (ownerHousehold == null) {
             ownerHousehold = householdService.createHouseholdForHead(owner, onDate, true);
@@ -742,7 +751,7 @@ public class HouseholdDwellingPlaceService {
             personService.save(owner);
         }
 
-        parishGenerator.populateEstateWithEmployees(estate, onDate);
+        populateEstateWithEmployees(estate, onDate);
 
         return estate;
     }
@@ -750,8 +759,7 @@ public class HouseholdDwellingPlaceService {
     public Estate createEstateAroundDwelling(@NonNull Dwelling house,
                                              @NonNull EstatePost estatePost,
                                              @NonNull LocalDate onDate,
-                                             @Nullable Title entailedToTitle,
-                                             @NonNull ParishGenerator parishGenerator) {
+                                             @Nullable Title entailedToTitle) {
         Person owner = house.getOwner(onDate);
         if (owner == null) {
             throw new IllegalArgumentException("The house has no owner on the specified date");
@@ -771,9 +779,41 @@ public class HouseholdDwellingPlaceService {
             personService.save(owner);
         }
 
-        parishGenerator.populateEstateWithEmployees(estate, onDate);
+        populateEstateWithEmployees(estate, onDate);
 
         return estate;
+    }
+
+    private void populateEstateWithEmployees(@NonNull Estate estate, @NonNull LocalDate onDate) {
+
+        RandomFamilyParameters parameters = new RandomFamilyParameters();
+        parameters.setReferenceDate(onDate);
+
+        List<Occupation> domesticServants = occupationService.findByIsDomesticServant();
+        List<Occupation> farmLaborers = occupationService.findByIsFarmLaborer();
+
+        Household household;
+        int expectedNumServants = estate.getExpectedNumServantHouseholds();
+        for (int i = 0; i < expectedNumServants; i++) {
+            household = parishPopulator.createHouseholdToFillOccupation(parameters, estate,
+                    domesticServants.get(i % domesticServants.size()), false, null);
+            if (household != null) {
+                DwellingPlace currentPlace = household.getDwellingPlace(onDate);
+                if (currentPlace != null && !currentPlace.isHouse()) {
+                    moveHomelessHouseholdIntoHouse(household, onDate, onDate,
+                            DwellingPlaceOwnerPeriod.ReasonToPurchase.MOVE_TO_PARISH);
+                }
+            }
+            household = parishPopulator.createHouseholdToFillOccupation(parameters, estate,
+                    farmLaborers.get(i % farmLaborers.size()), false, null);
+            if (household != null) {
+                DwellingPlace currentPlace = household.getDwellingPlace(onDate);
+                if (currentPlace != null && !currentPlace.isHouse()) {
+                    moveHomelessHouseholdIntoHouse(household, onDate, onDate,
+                            DwellingPlaceOwnerPeriod.ReasonToPurchase.MOVE_TO_PARISH);
+                }
+            }
+        }
     }
 
     /**

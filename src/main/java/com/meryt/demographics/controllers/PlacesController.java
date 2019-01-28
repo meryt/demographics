@@ -8,7 +8,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import com.google.common.collect.Comparators;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,7 +26,6 @@ import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.HouseholdInhabitantPeriod;
 import com.meryt.demographics.domain.place.HouseholdLocationPeriod;
 import com.meryt.demographics.domain.title.Title;
-import com.meryt.demographics.generator.ParishGenerator;
 import com.meryt.demographics.request.EstatePost;
 import com.meryt.demographics.response.DwellingPlaceDetailResponse;
 import com.meryt.demographics.response.DwellingPlaceOwnerResponse;
@@ -35,7 +33,6 @@ import com.meryt.demographics.response.DwellingPlaceReference;
 import com.meryt.demographics.response.DwellingPlaceResponse;
 import com.meryt.demographics.response.PersonReference;
 import com.meryt.demographics.response.PersonResidencePeriodResponse;
-import com.meryt.demographics.response.PersonSummaryResponse;
 import com.meryt.demographics.rest.BadRequestException;
 import com.meryt.demographics.rest.ResourceNotFoundException;
 import com.meryt.demographics.service.AncestryService;
@@ -55,20 +52,17 @@ public class PlacesController {
     private final HouseholdDwellingPlaceService householdDwellingPlaceService;
     private final AncestryService ancestryService;
     private final TitleService titleService;
-    private final ParishGenerator parishGenerator;
 
     public PlacesController(@Autowired DwellingPlaceService dwellingPlaceService,
                             @Autowired ControllerHelperService controllerHelperService,
                             @Autowired HouseholdDwellingPlaceService householdDwellingPlaceService,
                             @Autowired AncestryService ancestryService,
-                            @Autowired TitleService titleService,
-                            @Autowired ParishGenerator parishGenerator) {
+                            @Autowired TitleService titleService) {
         this.dwellingPlaceService = dwellingPlaceService;
         this.controllerHelperService = controllerHelperService;
         this.householdDwellingPlaceService = householdDwellingPlaceService;
         this.ancestryService = ancestryService;
         this.titleService = titleService;
-        this.parishGenerator = parishGenerator;
     }
 
     @RequestMapping("/api/places/{placeId}")
@@ -174,7 +168,7 @@ public class PlacesController {
         if (estatePost.getParentDwellingPlaceId() != null) {
             DwellingPlace place = dwellingPlaceService.load(estatePost.getParentDwellingPlaceId());
             return new DwellingPlaceDetailResponse(householdDwellingPlaceService.createEstateInPlace(place, owner,
-                    estatePost, onDate, entailedToTitle, parishGenerator), onDate, ancestryService);
+                    estatePost, onDate, entailedToTitle), onDate, ancestryService);
         } else {
             DwellingPlace house = dwellingPlaceService.load(estatePost.getExistingHouseId());
             if (!(house instanceof  Dwelling)) {
@@ -182,7 +176,7 @@ public class PlacesController {
                         + " does not correspond to a Dwelling");
             }
             return new DwellingPlaceDetailResponse(householdDwellingPlaceService.createEstateAroundDwelling(
-                    (Dwelling) house, estatePost, onDate, entailedToTitle, parishGenerator), onDate, ancestryService);
+                    (Dwelling) house, estatePost, onDate, entailedToTitle), onDate, ancestryService);
         }
 
     }

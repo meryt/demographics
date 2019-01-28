@@ -12,24 +12,14 @@ import org.springframework.stereotype.Service;
 
 import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.place.DwellingPlace;
-import com.meryt.demographics.domain.place.DwellingPlaceOwnerPeriod;
 import com.meryt.demographics.domain.place.DwellingPlaceType;
-import com.meryt.demographics.domain.place.Estate;
-import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.Parish;
 import com.meryt.demographics.domain.place.Region;
 import com.meryt.demographics.domain.place.Town;
-import com.meryt.demographics.generator.family.FamilyGenerator;
-import com.meryt.demographics.generator.family.HouseholdGenerator;
 import com.meryt.demographics.generator.random.Die;
 import com.meryt.demographics.request.ParishParameters;
-import com.meryt.demographics.request.RandomFamilyParameters;
 import com.meryt.demographics.service.DwellingPlaceService;
-import com.meryt.demographics.service.FamilyService;
-import com.meryt.demographics.service.HouseholdDwellingPlaceService;
-import com.meryt.demographics.service.HouseholdService;
 import com.meryt.demographics.service.OccupationService;
-import com.meryt.demographics.service.PersonService;
 import com.meryt.demographics.service.TownTemplateService;
 
 import static com.meryt.demographics.domain.place.DwellingPlace.ACRES_PER_SQUARE_MILE;
@@ -41,33 +31,18 @@ public class ParishGenerator {
     private final Die d4 = new Die(4);
 
     private final OccupationService occupationService;
-    private final FamilyGenerator familyGenerator;
-    private final FamilyService familyService;
-    private final PersonService personService;
-    private final HouseholdService householdService;
     private final DwellingPlaceService dwellingPlaceService;
-    private final HouseholdGenerator householdGenerator;
-    private final HouseholdDwellingPlaceService householdDwellingPlaceService;
     private final TownTemplateService townTemplateService;
+    private final ParishPopulator parishPopulator;
 
     public ParishGenerator(@Autowired @NonNull OccupationService occupationService,
-                           @Autowired @NonNull FamilyGenerator familyGenerator,
-                           @Autowired @NonNull FamilyService familyService,
-                           @Autowired @NonNull PersonService personService,
-                           @Autowired @NonNull HouseholdService householdService,
                            @Autowired @NonNull DwellingPlaceService dwellingPlaceService,
-                           @Autowired @NonNull HouseholdDwellingPlaceService householdDwellingPlaceService,
-                           @Autowired @NonNull HouseholdGenerator householdGenerator,
-                           @Autowired @NonNull TownTemplateService townTemplateService) {
+                           @Autowired @NonNull TownTemplateService townTemplateService,
+                           @Autowired @NonNull ParishPopulator parishPopulator) {
         this.occupationService = occupationService;
-        this.familyGenerator = familyGenerator;
-        this.householdService = householdService;
-        this.familyService = familyService;
-        this.personService = personService;
         this.dwellingPlaceService = dwellingPlaceService;
-        this.householdDwellingPlaceService = householdDwellingPlaceService;
-        this.householdGenerator = householdGenerator;
         this.townTemplateService = townTemplateService;
+        this.parishPopulator = parishPopulator;
     }
 
     /**
@@ -131,56 +106,9 @@ public class ParishGenerator {
         template.setExpectedRuralPopulation(remainingPopulation);
         template.setFamilyParameters(parishParameters.getFamilyParameters());
 
-        ParishPopulator populator = new ParishPopulator(householdGenerator,
-                familyGenerator,
-                familyService,
-                householdService,
-                dwellingPlaceService,
-                personService,
-                householdDwellingPlaceService);
-        populator.populateParish(template);
+        parishPopulator.populateParish(template);
 
         return parish;
-    }
-
-    public void populateEstateWithEmployees(@NonNull Estate estate, @NonNull LocalDate onDate) {
-
-        ParishPopulator populator = new ParishPopulator(householdGenerator,
-                familyGenerator,
-                familyService,
-                householdService,
-                dwellingPlaceService,
-                personService,
-                householdDwellingPlaceService);
-
-        RandomFamilyParameters parameters = new RandomFamilyParameters();
-        parameters.setReferenceDate(onDate);
-
-        List<Occupation> domesticServants = occupationService.findByIsDomesticServant();
-        List<Occupation> farmLaborers = occupationService.findByIsFarmLaborer();
-
-        Household household;
-        int expectedNumServants = estate.getExpectedNumServantHouseholds();
-        for (int i = 0; i < expectedNumServants; i++) {
-            household = populator.createHouseholdToFillOccupation(parameters, estate,
-                    domesticServants.get(i % domesticServants.size()), false, null);
-            if (household != null) {
-                DwellingPlace currentPlace = household.getDwellingPlace(onDate);
-                if (currentPlace != null && !currentPlace.isHouse()) {
-                    householdDwellingPlaceService.moveHomelessHouseholdIntoHouse(household, onDate, onDate,
-                            DwellingPlaceOwnerPeriod.ReasonToPurchase.MOVE_TO_PARISH);
-                }
-            }
-            household = populator.createHouseholdToFillOccupation(parameters, estate,
-                    farmLaborers.get(i % farmLaborers.size()), false, null);
-            if (household != null) {
-                DwellingPlace currentPlace = household.getDwellingPlace(onDate);
-                if (currentPlace != null && !currentPlace.isHouse()) {
-                    householdDwellingPlaceService.moveHomelessHouseholdIntoHouse(household, onDate, onDate,
-                            DwellingPlaceOwnerPeriod.ReasonToPurchase.MOVE_TO_PARISH);
-                }
-            }
-        }
     }
 
     /**

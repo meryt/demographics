@@ -15,7 +15,6 @@ import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.HouseholdInhabitantPeriod;
 import com.meryt.demographics.request.RandomFamilyParameters;
-import com.meryt.demographics.service.AncestryService;
 import com.meryt.demographics.service.FamilyService;
 import com.meryt.demographics.service.HouseholdService;
 import com.meryt.demographics.service.PersonService;
@@ -32,18 +31,15 @@ public class HouseholdGenerator {
     private final PersonService personService;
     private final FamilyService familyService;
     private final HouseholdService householdService;
-    private final AncestryService ancestryService;
 
     public HouseholdGenerator(@Autowired @NonNull FamilyGenerator familyGenerator,
                               @Autowired @NonNull PersonService personService,
                               @Autowired @NonNull FamilyService familyService,
-                              @Autowired @NonNull HouseholdService householdService,
-                              @Autowired @NonNull AncestryService ancestryService) {
+                              @Autowired @NonNull HouseholdService householdService) {
         this.familyGenerator = familyGenerator;
         this.personService = personService;
         this.familyService = familyService;
         this.householdService = householdService;
-        this.ancestryService = ancestryService;
     }
 
     /**
