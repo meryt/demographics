@@ -32,11 +32,7 @@ public class ParishController {
     public DwellingPlaceDetailResponse randomParish(@RequestBody ParishParameters parishParameters) {
         Parish parish = parishGenerator.generateParish(parishParameters);
         configurationService.setCurrentDate(parishParameters.getFamilyParameters().getReferenceDate());
-        if (parishParameters.isPersist()) {
-            return new DwellingPlaceDetailResponse(dwellingPlaceService.save(parish),
-                    parishParameters.getFamilyParameters().getReferenceDate(), null);
-        } else {
-            return new DwellingPlaceDetailResponse(parish, parishParameters.getFamilyParameters().getReferenceDate(), null);
-        }
+        return new DwellingPlaceDetailResponse(dwellingPlaceService.save(parish),
+                parishParameters.getFamilyParameters().getReferenceDate(), null);
     }
 }

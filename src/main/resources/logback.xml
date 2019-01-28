@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
-    <property name="LOG_FILE" value="${LOG_FILE:-${LOG_PATH:-${LOG_TEMP:-${java.io.tmpdir:-/tmp}}/}demographics.log}"/>
+    <property name="LOG_FILE"           value="${LOG_FILE:-${LOG_PATH:-${LOG_TEMP:-${java.io.tmpdir:-/tmp}}/}demographics.log}"/>
+    <property name="HIBERNATE_LOG_FILE" value="${HIBERNATE_LOG_FILE:-${LOG_PATH:-${LOG_TEMP:-${java.io.tmpdir:-/tmp}}/}demographics-sql.log}"/>
     <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
 
     <property name="FILE_LOG_PATTERN" value="%date{ISO8601} ${PID} [%t] %logger %p --- %m %n${LOG_EXCEPTION_CONVERSION_WORD:-%rEx}"/>
@@ -19,6 +20,18 @@
         </rollingPolicy>
     </appender>
 
+    <appender name="HIBERNATE-ROLLING-FILE"
+              class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <encoder>
+            <pattern>${FILE_LOG_PATTERN}</pattern>
+        </encoder>
+        <file>${HIBERNATE_LOG_FILE}</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- daily rollover -->
+            <fileNamePattern>${HIBERNATE_LOG_FILE}.%d{yyyy-MM-dd}.log</fileNamePattern>
+        </rollingPolicy>
+    </appender>
+
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <pattern>${CONSOLE_LOG_PATTERN}</pattern>
@@ -30,5 +43,11 @@
         <appender-ref ref="CONSOLE"/>
         <appender-ref ref="ROLLING-FILE"/>
     </root>
+
+    <!--
+    <logger name="org.hibernate.SQL" level="DEBUG">
+        <appender-ref ref="HIBERNATE-ROLLING-FILE" />
+    </logger>
+    -->
 
 </configuration>
