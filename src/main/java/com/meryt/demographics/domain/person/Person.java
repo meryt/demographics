@@ -16,6 +16,7 @@ import javax.persistence.CascadeType;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
+import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
@@ -119,23 +120,23 @@ public class Person {
      */
     private boolean storyCharacter;
 
-    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @PrimaryKeyJoinColumn
     private Maternity maternity;
 
-    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @PrimaryKeyJoinColumn
     private Paternity paternity;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     private Family family;
 
-    @OneToMany(mappedBy = "husband")
+    @OneToMany(mappedBy = "husband", fetch = FetchType.LAZY)
     @Setter(AccessLevel.PRIVATE)
     @OrderBy("wedding_date")
     private List<Family> fatheredFamilies = new ArrayList<>();
 
-    @OneToMany(mappedBy = "wife")
+    @OneToMany(mappedBy = "wife", fetch = FetchType.LAZY)
     @Setter(AccessLevel.PRIVATE)
     @OrderBy("wedding_date")
     private List<Family> motheredFamilies = new ArrayList<>();
@@ -329,7 +330,7 @@ public class Person {
      * @param onDate the date on which to check; if null, the heightInches is returned without calculation
      * @return their height at their current age
      */
-    public Double getHeightInches(@Nullable LocalDate onDate) {
+    private Double getHeightInches(@Nullable LocalDate onDate) {
         if (heightInches == null  || onDate == null || birthDate == null || gender == null) {
             return heightInches;
         }

@@ -18,7 +18,7 @@ public class EmploymentEvent extends CalendarDayEvent {
     public EmploymentEvent(@NonNull LocalDate date, @NonNull Person person, @NonNull Occupation occupation) {
         super(date);
         setType(CalendarEventType.EMPLOYMENT);
-        this.person = new PersonResponse(person);
+        this.person = new PersonResponse(person, date);
         this.occupation = new OccupationReference(occupation);
     }
 }

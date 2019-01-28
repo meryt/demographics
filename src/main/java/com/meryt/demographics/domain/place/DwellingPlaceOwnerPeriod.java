@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import javax.annotation.Nullable;
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.FetchType;
 import javax.persistence.Id;
 import javax.persistence.IdClass;
 import javax.persistence.JoinColumn;
@@ -96,7 +97,7 @@ public class DwellingPlaceOwnerPeriod implements DateRange {
     private DwellingPlace dwellingPlace;
 
     @JsonIgnore
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @MapsId("person_id")
     @JoinColumn(name = "person_id", referencedColumnName = "id")
     private Person owner;

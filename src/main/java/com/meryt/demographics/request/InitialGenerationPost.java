@@ -8,11 +8,15 @@ import lombok.Setter;
 @Getter
 @Setter
 public class InitialGenerationPost extends OutputToFilePost {
-    List<String> lastNames;
-    List<String> scottishLastNames;
-    Integer numFamilies;
-    RandomFamilyParameters familyParameters;
-    Double percentScottish;
+    private List<String> lastNames;
+    private List<String> scottishLastNames;
+    private List<String> requiredLastNames;
+    private List<String> requiredScottishLastNames;
+    private Integer numFamilies;
+    private RandomFamilyParameters familyParameters;
+    private Double percentScottish;
+    private Integer numNextGenerations;
+    private PersonFamilyPost nextGenerationPost;
 
     public void validate() {
         if (numFamilies == null || numFamilies <= 0) {

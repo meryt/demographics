@@ -22,7 +22,7 @@ public class TitleInheritanceEvent extends CalendarDayEvent {
         super(date);
         setType(CalendarEventType.TITLE_INHERITED);
         this.title = new TitleReference(title);
-        this.person = new PersonResponse(person);
+        this.person = new PersonResponse(person, date);
         this.personRecord = person;
     }
 

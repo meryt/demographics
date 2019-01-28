@@ -25,7 +25,7 @@ class TownTemplate {
      * @param onDate the date to check the town's population
      * @return true if actual population is less than expected population
      */
-    public boolean hasSpaceRemaining(@NonNull LocalDate onDate) {
+    boolean hasSpaceRemaining(@NonNull LocalDate onDate) {
         return getTown().getPopulation(onDate) < getExpectedPopulation();
     }
 

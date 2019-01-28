@@ -112,7 +112,47 @@ public class GenerationService {
             result.add(family);
         }
 
+        for (String englishLastName : generationPost.getRequiredLastNames()) {
+            familyParameters.setFounderLastName(englishLastName);
+
+            Family family = familyGenerator.generate(familyParameters);
+            if (family == null) {
+                continue;
+            }
+            family.getHusband().setFounder(true);
+            family = familyService.save(family);
+            if (family.getHusband().getSocialClass().getRank() >= SocialClass.BARONET.getRank()) {
+                addRandomTitleToFounder(family.getHusband(), Peerage.ENGLAND);
+            }
+
+            result.add(family);
+        }
+
+        for (String scottishLastName : generationPost.getRequiredScottishLastNames()) {
+            familyParameters.setFounderLastName(scottishLastName);
+
+            Family family = familyGenerator.generate(familyParameters);
+            if (family == null) {
+                continue;
+            }
+            family.getHusband().setFounder(true);
+            family = familyService.save(family);
+            if (family.getHusband().getSocialClass().getRank() >= SocialClass.BARONET.getRank()) {
+                addRandomTitleToFounder(family.getHusband(), Peerage.SCOTLAND);
+            }
+
+            result.add(family);
+        }
+
         updateTitles();
+
+        if (generationPost.getNumNextGenerations() != null && generationPost.getNumNextGenerations() > 0) {
+            GenerationPost nextGenerationPost = new GenerationPost();
+            nextGenerationPost.setPersonFamilyPost(generationPost.getNextGenerationPost());
+            for (int i = 0; i < generationPost.getNumNextGenerations(); i++) {
+                result.addAll(processGeneration(nextGenerationPost));
+            }
+        }
 
         if (generationPost.getOutputToFile() != null) {
             writeGenerationsToFile(generationPost.getOutputToFile());

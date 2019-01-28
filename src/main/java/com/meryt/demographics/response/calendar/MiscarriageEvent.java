@@ -15,7 +15,7 @@ public class MiscarriageEvent extends CalendarDayEvent {
     public MiscarriageEvent(@NonNull LocalDate date, @NonNull Person person) {
         super(date);
         setType(CalendarEventType.MISCARRIAGE);
-        this.mother = new PersonResponse(person);
+        this.mother = new PersonResponse(person, date);
     }
 
 }

@@ -26,7 +26,7 @@ public class BirthEvent extends CalendarDayEvent {
     public BirthEvent(@NonNull LocalDate date, @NonNull Person person, @Nullable Person father, @Nullable Person mother) {
         super(date);
         setType(CalendarEventType.BIRTH);
-        this.person = new PersonResponse(person);
+        this.person = new PersonResponse(person, date);
         this.child = person;
         this.father = father == null ? null : new PersonReference(father, date);
         this.mother = mother == null ? null : new PersonReference(mother, date);

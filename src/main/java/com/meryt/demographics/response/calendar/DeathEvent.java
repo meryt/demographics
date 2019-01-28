@@ -15,7 +15,7 @@ public class DeathEvent extends CalendarDayEvent {
     public DeathEvent(@NonNull LocalDate date, @NonNull Person person) {
         super(date);
         setType(CalendarEventType.DEATH);
-        this.person = new PersonResponse(person);
+        this.person = new PersonResponse(person, date);
     }
 
 }
