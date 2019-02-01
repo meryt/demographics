@@ -40,6 +40,7 @@ import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.fertility.Fertility;
 import com.meryt.demographics.domain.person.fertility.Maternity;
 import com.meryt.demographics.domain.person.fertility.Paternity;
+import com.meryt.demographics.domain.place.Dwelling;
 import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.DwellingPlaceOwnerPeriod;
 import com.meryt.demographics.domain.place.Household;
@@ -48,6 +49,7 @@ import com.meryt.demographics.domain.place.HouseholdLocationPeriod;
 import com.meryt.demographics.domain.story.Storyline;
 import com.meryt.demographics.domain.timeline.TimelineEntry;
 import com.meryt.demographics.domain.title.Title;
+import com.meryt.demographics.response.PersonReference;
 import com.meryt.demographics.time.FormatPeriod;
 import com.meryt.demographics.time.LocalDateComparator;
 
@@ -587,7 +589,28 @@ public class Person {
         } else {
             newPeriod.setToDate(getDeathDate());
         }
+        if (newPeriod.getToDate() != null && newPeriod.getFromDate().isAfter(newPeriod.getToDate())) {
+            throw new IllegalArgumentException(String.format(
+                    "For person %d, occupation to date of %s is before from date of %s", getId(),
+                    newPeriod.getToDate(), newPeriod.getFromDate()));
+        }
         getOccupations().add(newPeriod);
+    }
+
+    /**
+     * Quit any job that the person has on the given date, as of the given date.
+     */
+    public void quitJob(@NonNull LocalDate onDate) {
+        for (PersonOccupationPeriod period : getOccupations()) {
+            if (period.contains(onDate)) {
+                period.setToDate(onDate);
+            }
+        }
+    }
+
+    public boolean isDomesticServant(@NonNull LocalDate onDate) {
+        Occupation occ = getOccupation(onDate);
+        return (occ != null && occ.isDomesticServant());
     }
 
     /**
@@ -731,6 +754,14 @@ public class Person {
         return household.getDwellingPlace(onDate);
     }
 
+    public boolean livesInScotland(@NonNull LocalDate onDate) {
+        DwellingPlace residence = getResidence(onDate);
+        if (residence == null || residence.getParish() == null || residence.getParish().getParent() == null) {
+            return false;
+        }
+        return residence.getParish().getParent().getName().toLowerCase().equals("scotland");
+    }
+
     /**
      * Gets a person's capital in cash. May be negative if he is in debt. May be null if he has no record of having
      * capital. This may be treated as 0.0, but is left as null to distinguish from someone with exactly 0.0.
@@ -754,6 +785,23 @@ public class Person {
                 .filter(o -> o.contains(onDate))
                 .findFirst()
                 .orElse(null);
+    }
+
+    public double getIncomeOrProjectedIncome(@NonNull LocalDate onDate) {
+        Double lastYearCapital = getCapital(LocalDate.of(onDate.getYear() - 1, 1, 1));
+        Double thisYearCapital = getCapital(LocalDate.of(onDate.getYear(), 1, 1));
+        double currentCapital = getCapitalNullSafe(onDate);
+        if (lastYearCapital == null && thisYearCapital != null) {
+            return Math.max(thisYearCapital * 0.04, currentCapital * 0.04);
+        } else if (lastYearCapital != null && thisYearCapital == null) {
+            return lastYearCapital * 0.04;
+        } else if (lastYearCapital == null) {
+            return currentCapital;
+        } else {
+            // If they lost money  or made little money over the last year, rather than returning a negative value,
+            // return the projected interest on capital.
+            return Math.max(thisYearCapital - lastYearCapital, currentCapital * 0.04);
+        }
     }
 
     /**

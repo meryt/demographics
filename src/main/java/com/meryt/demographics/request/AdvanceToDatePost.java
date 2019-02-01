@@ -38,6 +38,7 @@ public class AdvanceToDatePost {
 
     private List<String> suppressedEventTypes;
     private List<String> farmNames;
+    private RandomTitleParameters titleParameters;
 
     public void validate() {
         if (date == null && advanceDays == null) {

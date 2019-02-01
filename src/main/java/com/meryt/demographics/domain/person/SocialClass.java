@@ -1,6 +1,7 @@
 package com.meryt.demographics.domain.person;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -100,7 +101,8 @@ public enum SocialClass {
     }
 
     /**
-     * Gets a random social class between an optional min and optional max.
+     * Gets a random social class between an optional min and optional max. This is not evenly distributed; that is,
+     * it is highly more likely to generate a lower class person than higher class.
      *
      * @param minSocialClass minimum or null for no minimum
      * @param maxSocialClass maximum or null for no maximum
@@ -120,6 +122,16 @@ public enum SocialClass {
                 (maxSocialClass != null && maxSocialClass.getRank() < random.getRank()));
 
         return random;
+    }
+
+    @NonNull
+    public static List<SocialClass> listFromClassToClass(@NonNull SocialClass minSocialClass,
+                                                   @NonNull SocialClass maxSocialClass) {
+        List<SocialClass> results = new ArrayList<>();
+        for (int i = minSocialClass.getRank(); i <= maxSocialClass.getRank(); i++) {
+            results.add(SocialClass.fromRank(i));
+        }
+        return results;
     }
 
     /**

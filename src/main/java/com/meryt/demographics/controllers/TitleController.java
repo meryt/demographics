@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.title.Title;
 import com.meryt.demographics.domain.title.TitleInheritanceStyle;
+import com.meryt.demographics.request.RandomTitleParameters;
 import com.meryt.demographics.request.TitlePost;
 import com.meryt.demographics.response.RelatedPersonResponse;
 import com.meryt.demographics.response.TitleReference;
@@ -84,6 +85,12 @@ public class TitleController {
     public TitleResponse createTitle(@RequestBody TitlePost titlePost) {
         Title title = titlePost.toTitle(personService);
         return new TitleResponse(titleService.save(title), ancestryService, null);
+    }
+
+    @RequestMapping(value = "/api/random-title", method = RequestMethod.POST)
+    public TitleResponse createTitle(@RequestBody RandomTitleParameters titlePost) {
+        Title newTitle = titleService.createRandomTitle(titlePost, controllerHelperService.parseDate("current"));
+        return new TitleResponse(newTitle, ancestryService, null);
     }
 
     @RequestMapping(value = "/api/titles/{titleId}", method = RequestMethod.PATCH)

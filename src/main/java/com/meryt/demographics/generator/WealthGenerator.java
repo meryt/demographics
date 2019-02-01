@@ -1,8 +1,11 @@
 package com.meryt.demographics.generator;
 
+import javax.annotation.Nullable;
 import lombok.NonNull;
 import org.springframework.data.util.Pair;
 
+import com.meryt.demographics.domain.Occupation;
+import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.generator.random.BetweenDie;
 import com.meryt.demographics.generator.random.Die;
@@ -147,6 +150,27 @@ public class WealthGenerator {
             }
         }
         return SocialClass.PAUPER;
+    }
+
+    /**
+     * Gets the yearly income value range for a person with the given occupation. Since the income depends on social
+     * class, both the person's social class and the occupation's max social class are compared, and the highest
+     * one is taken as the social class for the calculation.
+     * @param person
+     * @param occupation
+     * @return
+     */
+    public static Pair<Integer, Integer> getYearlyIncomeValueRangeForPersonWithOccupation(@NonNull Person person,
+                                                                                          @Nullable Occupation occupation) {
+        SocialClass socialClass;
+        if (occupation == null) {
+            socialClass = person.getSocialClass();
+        } else {
+            socialClass = person.getSocialClass().getRank() > occupation.getMaxClass().getRank()
+                    ? occupation.getMaxClass()
+                    : person.getSocialClass();
+        }
+        return getYearlyIncomeValueRange(socialClass);
     }
 
     public static Pair<Integer, Integer> getYearlyIncomeValueRange(@NonNull SocialClass socialClass) {

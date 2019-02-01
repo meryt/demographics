@@ -139,8 +139,7 @@ public class HouseholdService {
     @Nullable
     public Person resetHeadAsOf(@NonNull Household household, @NonNull LocalDate onDate) {
         List<Person> inhabitantsByAge = household.getInhabitants(onDate).stream()
-                .filter(p -> p.getBirthDate() != null && p.isLiving(onDate) &&
-                        p.getAgeInYears(onDate) >= MIN_HEAD_OF_HOUSEHOLD_AGE)
+                .filter(p -> p.getBirthDate() != null && p.isLiving(onDate))
                 .sorted(Comparator.comparing(Person::getGender).thenComparing(Person::getBirthDate))
                 .collect(Collectors.toList());
         if (inhabitantsByAge.isEmpty()) {

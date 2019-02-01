@@ -13,6 +13,7 @@ import org.apache.commons.math3.distribution.NormalDistribution;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
@@ -106,7 +107,7 @@ public class FamilyGenerator {
 
         for (Person p : Arrays.asList(family.getWife(), family.getHusband())) {
             if (p != null && familyParameters.getReferenceDate() != null && !p.isLiving(familyParameters.getReferenceDate())) {
-                log.info(String.format("%s died on %s", p.getName(), p.getDeathDate()));
+                log.info(String.format("%s died on %s", p.getIdAndName(), p.getDeathDate()));
             }
         }
 
@@ -251,6 +252,14 @@ public class FamilyGenerator {
                     family.setWeddingDate(currentDate);
                     family.addSpouse(potentialSpouse);
                     family.getWife().getMaternity().setFather(family.getHusband());
+                    Occupation husbandOcc = family.getHusband().getOccupation(currentDate);
+                    if (husbandOcc != null && !husbandOcc.isMayMarry()) {
+                        family.getHusband().quitJob(currentDate);
+                    }
+                    Occupation wifeOcc = family.getWife().getOccupation(currentDate);
+                    if (wifeOcc != null && !wifeOcc.isMayMarry()) {
+                        family.getWife().quitJob(currentDate);
+                    }
                     return family;
                 }
             }

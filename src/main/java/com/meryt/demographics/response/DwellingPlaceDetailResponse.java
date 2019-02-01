@@ -28,6 +28,8 @@ public class DwellingPlaceDetailResponse extends DwellingPlaceResponse {
 
     private List<DwellingPlaceOwnerResponse> owners;
 
+    private List<PersonResponse> beautifulResidents;
+
     public DwellingPlaceDetailResponse(@NonNull DwellingPlace dwellingPlace,
                                        @Nullable LocalDate onDate,
                                        @Nullable AncestryService ancestryService) {
@@ -64,6 +66,19 @@ public class DwellingPlaceDetailResponse extends DwellingPlaceResponse {
             households = dwellingPlace.getHouseholds(onDate).stream()
                     .map(h -> new HouseholdResponse(h, onDate, ancestryService))
                     .collect(Collectors.toList());
+
+            List<Person> beautifulPeople = dwellingPlace.getAllResidents(onDate).stream()
+                    .filter(p -> p.getAgeInYears(onDate) >= 14 && p.getComeliness() >= 0.8)
+                    .sorted(Comparator.comparing(Person::getComeliness).reversed())
+                    .collect(Collectors.toList());
+            if (beautifulPeople.size() > 5) {
+                beautifulPeople = beautifulPeople.subList(0, 5);
+            }
+            if (!beautifulPeople.isEmpty()) {
+                beautifulResidents = beautifulPeople.stream()
+                        .map(p -> new PersonResponse(p, onDate))
+                        .collect(Collectors.toList());
+            }
         }
     }
 }

@@ -93,7 +93,8 @@ public class InheritanceService {
             return;
         }
 
-        List<Person> heirs = heirService.findHeirsForCashInheritance(person, onDate);
+        // Find heirs, but don't pass a debt to an unrelated heir.
+        List<Person> heirs = heirService.findHeirsForCashInheritance(person, onDate, (cash > 0));
 
         if (heirs.isEmpty()) {
             log.info("Failed to find any heirs. Inheritance will be lost.");
@@ -120,21 +121,25 @@ public class InheritanceService {
 
     /**
      * After an inheritance that may change social rank, check the person's occupation to ensure it is still
-     * compatible with his social class, and quite if not.
+     * compatible with his social class, and quite if not. Also ensure that he does not now have so much money that
+     * he no longer needs to work.
      */
     private void maybeQuitJob(@NonNull Person person, @NonNull LocalDate onDate) {
         Occupation occupation = person.getOccupation(onDate);
         if (occupation == null) {
             return;
         }
-        if (occupation.getMaxClass().getRank() < person.getSocialClassRank()) {
+        Integer expectedWage = WealthGenerator.getYearlyIncomeValueRangeForPersonWithOccupation(person, occupation)
+                .getFirst();
+        double expectedInterest = person.getCapitalNullSafe(onDate) * 0.04;
+        if (expectedWage < expectedInterest || occupation.getMaxClass().getRank() < person.getSocialClassRank()) {
             List<PersonOccupationPeriod> periods = person.getOccupations().stream()
                     .filter(p -> p.contains(onDate)
                             && p.getOccupation().getMaxClass().getRank() < person.getSocialClassRank())
                     .collect(Collectors.toList());
             for (PersonOccupationPeriod period : periods) {
-                log.info(String.format("%d %s is quitting job as %s as their social class of %s is too high",
-                        person.getId(), person.getName(), occupation.getName(), person.getSocialClass().getFriendlyName()));
+                log.info(String.format("%s is quitting job as %s after an inheritance",
+                        person.getIdAndName(), occupation.getName()));
                 period.setToDate(onDate);
             }
         }
@@ -150,29 +155,49 @@ public class InheritanceService {
                                                 @NonNull Person deceased,
                                                 @NonNull LocalDate onDate,
                                                 double inheritedCapital) {
-        if (heir.getAgeInYears(onDate) < 16) {
-            // Youngsters don't get to move
-            return;
-        }
-        DwellingPlace currentDwelling = heir.getResidence(onDate);
-        // If he doesn't live in the parish, or if he owns his dwelling and it's entailed, don't move away from it.
-        if (currentDwelling == null || (currentDwelling.isEntailed() && heir.equals(currentDwelling.getOwner(onDate)))) {
-            return;
-        }
-
         // If the person has enough money to buy an estate, he will try to, or maybe move away
         SocialClass pretension = WealthGenerator.getSocialClassForWealth(heir.getCapital(onDate));
         double minAcceptableHouseValue = WealthGenerator.getHouseValueRange(pretension).getFirst();
         double capital = heir.getCapital(onDate);
+
+        DwellingPlace bestOwnedPlace = heir.getOwnedDwellingPlaces(onDate).stream()
+                .filter(d -> d.isHouse() && d.getNullSafeValueIncludingAttachedParent() >= minAcceptableHouseValue)
+                .max(Comparator.comparing(DwellingPlace::getValue)).orElse(null);
+
+        double bestOwnedPlaceValue = bestOwnedPlace == null ? 0 : bestOwnedPlace.getNullSafeValue();
+        DwellingPlace currentDwelling = heir.getResidence(onDate);
+
+        if (heir.getAgeInYears(onDate) < 16) {
+            // Youngsters don't get to move unless they own a dwelling worth over 1000 and it's better than their
+            // current dwelling
+            if (bestOwnedPlace != null && bestOwnedPlace.getNullSafeValue() >= 1000
+                    && (currentDwelling == null
+                            || currentDwelling.getNullSafeValue() < bestOwnedPlace.getNullSafeValue())) {
+                Household hh = heir.getHousehold(onDate);
+                if (hh == null) {
+                    hh = householdService.createHouseholdForHead(heir, onDate, true);
+                }
+                if (hh != null) {
+                    log.info(String.format("Moving %d %s and household to a better house that they own, %d %s",
+                            heir.getId(), heir.getName(), bestOwnedPlace.getId(), bestOwnedPlace.getFriendlyName()));
+                    householdDwellingPlaceService.addToDwellingPlace(hh, bestOwnedPlace, onDate, null);
+                    return;
+                }
+            }
+            return;
+        }
+
+        // If he doesn't live in the parish, or if he owns his dwelling and it's entailed, don't move away from it.
+        if ((currentDwelling == null && bestOwnedPlaceValue < 1000)
+                || (currentDwelling == null || currentDwelling.isEntailed() && heir.equals(currentDwelling.getOwner(onDate)))) {
+            return;
+        }
 
         if (currentDwelling.getValue() > minAcceptableHouseValue || inheritedCapital < minAcceptableHouseValue) {
             // His house is already nice enough for him, or he can't afford to move anyway.
             return;
         }
 
-        DwellingPlace bestOwnedPlace = heir.getOwnedDwellingPlaces(onDate).stream()
-                .filter(d -> d.isHouse() && d.getNullSafeValueIncludingAttachedParent() >= minAcceptableHouseValue)
-                .max(Comparator.comparing(DwellingPlace::getValue)).orElse(null);
         if (bestOwnedPlace == null) {
             // He doesn't currently own any house. He might buy one, build one, or move away.
 
@@ -223,7 +248,7 @@ public class InheritanceService {
             if (hh != null) {
                 log.info(String.format("Moving %d %s and household to a better house that they own, %d %s",
                         heir.getId(), heir.getName(), bestOwnedPlace.getId(), bestOwnedPlace.getFriendlyName()));
-                householdDwellingPlaceService.addToDwellingPlace(heir.getHousehold(onDate), bestOwnedPlace, onDate, null);
+                householdDwellingPlaceService.addToDwellingPlace(hh, bestOwnedPlace, onDate, null);
             }
         }
     }
@@ -432,7 +457,7 @@ public class InheritanceService {
         }
 
         List<Person> livingNonRelatives = personService.findBySocialClassAndGenderAndIsLiving(
-                formerOwner.getSocialClass(), Gender.MALE, onDate).stream()
+                Collections.singletonList(formerOwner.getSocialClass()), Gender.MALE, onDate).stream()
                 .filter(p -> p.getHouseholds().isEmpty())
                 .collect(Collectors.toList());
         if (!livingNonRelatives.isEmpty()) {
@@ -552,7 +577,7 @@ public class InheritanceService {
                         newOwner.getName()));
 
                 return householdDwellingPlaceService.buyOrCreateOrMoveIntoEmptyHouse((Parish) parish,
-                        oldHousehold, onDate, DwellingPlaceOwnerPeriod.ReasonToPurchase.EVICTION);
+                        oldHousehold, onDate, DwellingPlaceOwnerPeriod.ReasonToPurchase.EVICTION, true);
             }
         }
         return new ArrayList<>();

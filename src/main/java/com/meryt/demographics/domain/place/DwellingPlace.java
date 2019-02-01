@@ -125,6 +125,10 @@ public abstract class DwellingPlace {
         return getType() == DwellingPlaceType.FARM;
     }
 
+    public boolean isTown() {
+        return getType() == DwellingPlaceType.TOWN;
+    }
+
     public boolean isEstateOrFarm() {
         return isEstate() || isFarm();
     }
@@ -280,6 +284,17 @@ public abstract class DwellingPlace {
         return getHouseholdPeriods().stream()
                 .filter(hp -> hp.contains(onDate))
                 .map(HouseholdLocationPeriod::getHousehold)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get all households in this dwelling place that do not contain at least one domestic servant and do not contain
+     * the owner of the dwelling place
+     */
+    public List<Household> getTenantHouseholds(@NonNull LocalDate onDate) {
+        return getHouseholds(onDate).stream()
+                .filter(hh -> hh.getInhabitants(onDate).stream()
+                        .anyMatch(p -> p.isDomesticServant(onDate) || p.equals(getOwner(onDate))))
                 .collect(Collectors.toList());
     }
 
@@ -439,4 +454,7 @@ public abstract class DwellingPlace {
         }
     }
 
+    public boolean hasInhabitantOfAtLeastClass(@NonNull LocalDate onDate, @NonNull SocialClass socialClass) {
+        return getAllResidents(onDate).stream().anyMatch(p -> p.getSocialClassRank() >= socialClass.getRank());
+    }
 }

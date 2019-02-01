@@ -454,20 +454,16 @@ public class PersonController {
             updates.remove(SOCIAL_CLASS);
         }
         if (updates.containsKey(LAST_NAME)) {
-            person.setLastName((String) updates.get(LAST_NAME));
-            updates.remove(LAST_NAME);
-
+            boolean recurse = false;
             if (updates.containsKey(IS_LAST_NAME_RECURSIVE)) {
-                if ((boolean)(updates.get(IS_LAST_NAME_RECURSIVE))) {
-                    for (Person child : person.getChildren()) {
-                        log.info(String.format("Setting last name of child %d %s from %s to %s", child.getId(),
-                                child.getName(), child.getLastName(), person.getLastName()));
-                        child.setLastName(person.getLastName());
-                        personService.save(child);
-                    }
-                }
+                recurse = ((boolean)(updates.get(IS_LAST_NAME_RECURSIVE)));
                 updates.remove(IS_LAST_NAME_RECURSIVE);
             }
+            String newLastName = ((String) updates.get(LAST_NAME));
+            updates.remove(LAST_NAME);
+
+            // This method saves the person right away
+            personService.updatePersonLastName(person, newLastName, recurse, false);
         }
 
         if (updates.containsKey(FIRST_NAME)) {

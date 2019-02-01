@@ -17,6 +17,7 @@ import lombok.Setter;
 
 import com.meryt.demographics.domain.family.Relationship;
 import com.meryt.demographics.domain.place.DwellingPlace;
+import com.meryt.demographics.domain.title.Title;
 import com.meryt.demographics.time.DateRange;
 
 @Entity
@@ -39,6 +40,10 @@ public class PersonCapitalPeriod implements DateRange {
 
         public static String startingCapitalMessage() {
             return "Starting capital";
+        }
+
+        public static String grantedWithTitle(@NonNull Title title) {
+            return String.format("Granted with title %d %s", title.getId(), title.getName());
         }
 
         public static String builtNewDwellingPlaceMessage(@NonNull DwellingPlace property) {

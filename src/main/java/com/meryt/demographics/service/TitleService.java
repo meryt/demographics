@@ -10,20 +10,28 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 
+import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.PersonCapitalPeriod;
 import com.meryt.demographics.domain.person.PersonTitlePeriod;
+import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.DwellingPlaceOwnerPeriod;
+import com.meryt.demographics.domain.title.Peerage;
 import com.meryt.demographics.domain.title.Title;
+import com.meryt.demographics.domain.title.TitleInheritanceStyle;
+import com.meryt.demographics.generator.WealthGenerator;
+import com.meryt.demographics.generator.random.BetweenDie;
 import com.meryt.demographics.generator.random.PercentDie;
 import com.meryt.demographics.repository.TitleRepository;
+import com.meryt.demographics.request.RandomTitleParameters;
 import com.meryt.demographics.response.calendar.CalendarDayEvent;
 import com.meryt.demographics.response.calendar.PropertyTransferEvent;
 import com.meryt.demographics.response.calendar.TitleAbeyanceEvent;
@@ -34,6 +42,9 @@ import com.meryt.demographics.time.LocalDateComparator;
 @Slf4j
 @Service
 public class TitleService {
+
+    private static final int NUM_NEW_TITLE_PER_CENTURY = 5;
+    private static final double CHANCE_NEW_TITLE_PER_DAY = (NUM_NEW_TITLE_PER_CENTURY / 100) / 365;
 
     private final TitleRepository titleRepository;
     private final PersonService personService;
@@ -430,6 +441,164 @@ public class TitleService {
         }
 
         return heir;
+    }
+
+    Title checkNewTitleCreation(@NonNull RandomTitleParameters titleParameters,
+                                @NonNull LocalDate onDate) {
+        if (new PercentDie().roll() > CHANCE_NEW_TITLE_PER_DAY) {
+            return null;
+        }
+        return createRandomTitle(titleParameters, onDate);
+    }
+
+    public Title createRandomTitle(@NonNull RandomTitleParameters titleParameters,
+                                   @NonNull LocalDate onDate) {
+
+        // A new title was created today. First generate the title.
+        Title title = randomTitle(titleParameters);
+        final Peerage peerage = title.getPeerage();
+        final SocialClass socialClass = title.getSocialClass();
+
+        List<String> namesList = title.getPeerage() == Peerage.SCOTLAND
+                ? titleParameters.getScottishNames()
+                : titleParameters.getNames();
+        String randomName = randomTitleName(namesList, title.getSocialClass());
+
+        // We might have created a new title with a rank higher than an existing one with the same name. If so, the
+        // current holder will get the new title instead of the random person above.
+        Title existing = findByNameEndsWith(randomName);
+        Person person = null;
+        if (existing != null) {
+            Person newPerson = title.getHolder(onDate);
+            if (newPerson != null) {
+                person = newPerson;
+            }
+        }
+
+        if (person == null) {
+            // Find a person for the title
+            List<SocialClass> validClasses = SocialClass.listFromClassToClass(SocialClass.GENTLEMAN, SocialClass.DUKE);
+            List<Person> possiblePeople = personService.findBySocialClassAndGenderAndIsLiving(validClasses, Gender.MALE,
+                    onDate).stream()
+                    // Don't give titles to kids
+                    .filter(p -> p.getAgeInYears(onDate) >= 20)
+                    // Don't give someone a title when his father is still alive
+                    .filter(p -> p.getFather() == null || !p.getFather().isLiving(onDate))
+                    // Make sure he either lives nowhere or lives in the appropriate kingdom
+                    .filter(p -> p.getResidence(onDate) == null
+                            || (p.livesInScotland(onDate) && peerage == Peerage.SCOTLAND)
+                            || (!p.livesInScotland(onDate) && peerage == Peerage.ENGLAND))
+                    // Remove anyone who already has a title higher than the given title... no lesser titles are randomly
+                    // given to those already with a title.
+                    .filter(p -> p.getTitles(onDate).stream()
+                            .noneMatch(t -> t.getTitle().getSocialClass().getRank() > socialClass.getRank()))
+                    .collect(Collectors.toList());
+            if (possiblePeople.isEmpty()) {
+                return null;
+            }
+            person = possiblePeople.get(new BetweenDie().roll(0, possiblePeople.size() -1));
+        }
+
+        switch (title.getSocialClass()) {
+            case BARONET:
+                if (onDate.getYear() < 1660) {
+                    if (title.getPeerage() == Peerage.SCOTLAND) {
+                        title.setName("Baron " + randomName);
+                    } else if (title.getPeerage() == Peerage.ENGLAND) {
+                        title.setName("Lord " + randomName);
+                    }
+                } else {
+                    title.setName("Baronet " + randomName);
+                }
+                break;
+            case BARON:
+                if (title.getPeerage() == Peerage.SCOTLAND) {
+                    title.setName("Lord of " + randomName);
+                } else if (title.getPeerage() == Peerage.ENGLAND) {
+                    title.setName("Baron " + randomName);
+                }
+                break;
+            case VISCOUNT:
+                if (title.getPeerage() == Peerage.SCOTLAND) {
+                    title.setName("Viscount of " + randomName);
+                } else if (title.getPeerage() == Peerage.ENGLAND) {
+                    title.setName("Viscount " + randomName);
+                }
+                break;
+            case EARL:
+                title.setName("Earl of " + randomName);
+                break;
+            case MARQUESS:
+                if (onDate.getYear() < 1450) {
+                    title.setName("Earl of " + randomName);
+                } else {
+                    title.setName("Marquess of " + randomName);
+                }
+                break;
+            case DUKE:
+                if (onDate.getYear() < 1350) {
+                    title.setName("Earl of " + randomName);
+                } else {
+                    title.setName("Duke of " + randomName);
+                }
+            default:
+                return null;
+        }
+        title = save(title);
+        person.addOrUpdateTitle(title, onDate, null);
+        person = personService.save(person);
+
+        double currentCapital = person.getCapitalNullSafe(onDate);
+        double minCapital = WealthGenerator.getRandomStartingCapital(person.getSocialClass(),
+                person.getOccupation(onDate) != null);
+        if (currentCapital < minCapital) {
+            person.addCapital(minCapital - currentCapital, onDate, PersonCapitalPeriod.Reason.grantedWithTitle(title));
+            personService.save(person);
+        }
+        return title;
+    }
+
+    /**
+     * Gets the highest ranking non-extinct title such that its name ends with the given string
+     * @param name the string used to match the ending
+     * @return the highest matching title, or null if there were none
+     */
+    private Title findByNameEndsWith(@NonNull String name) {
+        return Lists.newArrayList(findAll()).stream()
+                .filter(t -> t.getName().endsWith(name) && !t.isExtinct())
+                .max(Comparator.comparing(Title::getSocialClass).reversed())
+                .orElse(null);
+    }
+
+    @Nullable
+    private String randomTitleName(@Nullable List<String> names, @NonNull SocialClass forClass) {
+        if (names == null || names.isEmpty()) {
+            return null;
+        }
+        List<String> newList = new ArrayList<>(names);
+        Collections.shuffle(newList);
+        while (!newList.isEmpty()) {
+            String name = newList.remove(0);
+            Title existingTitle = findByNameEndsWith(name);
+            if (existingTitle == null) {
+                return name;
+            }
+            if (existingTitle.getSocialClass().getRank() < forClass.getRank()) {
+                return name;
+            }
+        }
+        return null;
+    }
+
+    private Title randomTitle(@NonNull RandomTitleParameters titleParameters) {
+        Peerage peerage = titleParameters.getRandomPeerage();
+        TitleInheritanceStyle inheritanceStyle = TitleInheritanceStyle.randomFavoringMaleOnly();
+
+        Title title = new Title();
+        title.setPeerage(peerage);
+        title.setInheritance(inheritanceStyle);
+        title.setSocialClass(titleParameters.getRandomSocialClass());
+        return title;
     }
 
     /**

@@ -20,23 +20,11 @@ public class Estate extends DwellingPlace {
     }
 
     /**
-     * Gets the number of domestic servants this estate's manor house is expected to have. Returns the value of the
-     * manor house divided by 1000, or DEFAULT_NUM_SERVANTS if there is no manor house or no value
-     */
-    public int getExpectedNumServantHouseholds() {
-        Dwelling manorHouse = getManorHouse();
-        if (manorHouse == null || manorHouse.getValue() == null) {
-            return DEFAULT_MIN_NUM_SERVANTS;
-        }
-        return Math.max(DEFAULT_MIN_NUM_SERVANTS, (int) Math.round(manorHouse.getValue() / 2000));
-    }
-
-    /**
      * Gets the number of farm laborers this estate is expected to have. Returns the value of the estate divided by
-     * 1000, or DEFAULT_NUM_SERVANTS if there is no manor house or no value
+     * 10_000, or DEFAULT_NUM_SERVANTS if there is no value
      */
     public int getExpectedNumFarmLaborerHouseholds() {
-        return Math.max(DEFAULT_MIN_NUM_SERVANTS, (int) Math.round(getNullSafeValue() / 2000));
+        return Math.max(DEFAULT_MIN_NUM_SERVANTS, (int) Math.round(getNullSafeValue() / 10_000));
     }
 
     /**

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.rest.BadRequestException;
 import com.meryt.demographics.rest.ConflictException;
 import com.meryt.demographics.rest.ResourceNotFoundException;
@@ -18,11 +19,14 @@ public class ControllerHelperService {
 
     private final ConfigurationService configurationService;
     private final PersonService personService;
+    private final DwellingPlaceService dwellingPlaceService;
 
     public ControllerHelperService(@NonNull @Autowired ConfigurationService configurationService,
-                                   @NonNull @Autowired PersonService personService) {
+                                   @NonNull @Autowired PersonService personService,
+                                   @NonNull @Autowired DwellingPlaceService dwellingPlaceService) {
         this.configurationService = configurationService;
         this.personService = personService;
+        this.dwellingPlaceService = dwellingPlaceService;
     }
 
     @Nullable
@@ -56,6 +60,18 @@ public class ControllerHelperService {
             throw new ResourceNotFoundException("No person found for ID " + personId);
         }
         return person;
+    }
+
+    @NonNull
+    public DwellingPlace loadDwellingPlace(Long dwellingPlaceId) {
+        if (dwellingPlaceId == null) {
+            throw new BadRequestException("place ID may not be null");
+        }
+        DwellingPlace place = dwellingPlaceService.load(dwellingPlaceId);
+        if (place == null) {
+            throw new ResourceNotFoundException("No place found for ID " + dwellingPlaceId);
+        }
+        return place;
     }
 
 }

@@ -41,6 +41,16 @@ public class Occupation {
     private boolean isFarmOwner;
     private boolean isDomesticServant;
     private boolean isFarmLaborer;
+    private boolean mayMarry;
+    /**
+     * Only valid for domestic servants, tells how much a household must earn before it can hire one of these.
+     */
+    private Double minIncomeRequired;
+    /**
+     * Only valid for domestic servants. Tells how many a household may hire if they earn at least the "max" income
+     * for servants, namely 4000.
+     */
+    private int maxPerHousehold;
 
     /**
      * How many of this occupation we expect to find per person in the population. Obviously this number is always less

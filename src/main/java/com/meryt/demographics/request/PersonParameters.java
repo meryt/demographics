@@ -3,15 +3,20 @@ package com.meryt.demographics.request;
 import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
+
+import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.SocialClass;
 
 import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.NonNull;
 import lombok.Setter;
 
 @Getter
 @Setter
+@NoArgsConstructor
 public class PersonParameters {
 
     public static final String NO_LAST_NAME = "NO_LAST_NAME";
@@ -67,6 +72,19 @@ public class PersonParameters {
     private SocialClass minSocialClass;
 
     private SocialClass maxSocialClass;
+
+    /**
+     * Gets a parameters object that can be used to create a person who can take the given occupation on the given
+     * date.
+     */
+    public PersonParameters(@NonNull Occupation occupation, @NonNull LocalDate onDate) {
+        setGender(occupation.getRequiredGender());
+        setAliveOnDate(onDate);
+        setMinAge(16);
+        setMaxAge(50);
+        setMinSocialClass(occupation.getMinClass());
+        setMaxSocialClass(occupation.getMaxClass());
+    }
 
     public void validate() {
         if (birthDate == null && aliveOnDate == null) {

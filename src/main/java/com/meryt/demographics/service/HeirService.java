@@ -164,7 +164,7 @@ public class HeirService {
     }
 
     @NonNull
-    List<Person> findHeirsForCashInheritance(@NonNull Person person, @NonNull LocalDate onDate) {
+    List<Person> findHeirsForCashInheritance(@NonNull Person person, @NonNull LocalDate onDate, boolean allowUnrelated) {
         final List<Person> heirs = new ArrayList<>();
         if (person.isMarried(onDate)) {
             heirs.add(person.getSpouse(onDate));
@@ -225,7 +225,7 @@ public class HeirService {
             }
         }
 
-        if (heirs.isEmpty()) {
+        if (heirs.isEmpty() && allowUnrelated) {
             log.info(String.format("Unable to find any living natural heirs for %d %s on %s. " +
                     "Will try to find a random neighbor.", person.getId(), person.getName(), onDate));
 
@@ -310,7 +310,7 @@ public class HeirService {
         }
 
         // If there is neither spouse nor living children, look for other heirs.
-        heirs.addAll(findHeirsForCashInheritance(person, onDate));
+        heirs.addAll(findHeirsForCashInheritance(person, onDate, true));
         return heirs;
     }
 

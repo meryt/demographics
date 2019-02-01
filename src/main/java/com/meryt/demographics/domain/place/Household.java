@@ -161,10 +161,33 @@ public class Household {
                 .orElse(null);
     }
 
+    public boolean hasInhabitantOfAtLeastClass(@NonNull LocalDate onDate, @NonNull SocialClass socialClass) {
+        SocialClass maxClass = getMaxSocialClass(onDate);
+        return maxClass != null && socialClass.getRank() <= maxClass.getRank();
+    }
+
     @NonNull
     public Double getCapital(@NonNull LocalDate onDate) {
         return getInhabitants(onDate).stream()
                 .mapToDouble(p -> p.getCapitalNullSafe(onDate))
                 .sum();
+    }
+
+    /**
+     * Get the change in capital of the inhabitants living in the household (on toDate), from fromDate to toDate.
+     *
+     * This is not the same as calling getCapital on the different dates, since the inhabitants may have changed in
+     * between the dates.
+     *
+     * @param onDate look at the people living in the household on this date, and find out their income on this date
+     */
+    public double getIncome(@NonNull LocalDate onDate) {
+        return getInhabitants(onDate).stream()
+                .mapToDouble(p -> p.getIncomeOrProjectedIncome(onDate))
+                .sum();
+    }
+
+    public boolean mayHireServants(@NonNull LocalDate onDate) {
+        return hasInhabitantOfAtLeastClass(onDate, SocialClass.YEOMAN_OR_MERCHANT);
     }
 }

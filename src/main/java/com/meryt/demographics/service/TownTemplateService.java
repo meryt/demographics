@@ -1,6 +1,7 @@
 package com.meryt.demographics.service;
 
 import lombok.NonNull;
+import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -18,5 +19,9 @@ public class TownTemplateService {
 
     public String getUnusedMapId(@NonNull Region region) {
         return townTemplateRepository.getUnusedMapId(region.getName().toLowerCase().equals("england"));
+    }
+
+    Pair<String, Double> getClosestAvailablePolygonForMapId(@NonNull String mapId, double desiredValue) {
+        return townTemplateRepository.getClosestAvailablePolygonForMapId(mapId, desiredValue);
     }
 }

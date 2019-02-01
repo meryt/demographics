@@ -31,10 +31,10 @@ import com.meryt.demographics.response.DwellingPlaceDetailResponse;
 import com.meryt.demographics.response.DwellingPlaceOwnerResponse;
 import com.meryt.demographics.response.DwellingPlaceReference;
 import com.meryt.demographics.response.DwellingPlaceResponse;
+import com.meryt.demographics.response.HouseholdResponseWithLocations;
 import com.meryt.demographics.response.PersonReference;
 import com.meryt.demographics.response.PersonResidencePeriodResponse;
 import com.meryt.demographics.rest.BadRequestException;
-import com.meryt.demographics.rest.ResourceNotFoundException;
 import com.meryt.demographics.service.AncestryService;
 import com.meryt.demographics.service.ControllerHelperService;
 import com.meryt.demographics.service.DwellingPlaceService;
@@ -68,23 +68,14 @@ public class PlacesController {
     @RequestMapping("/api/places/{placeId}")
     public DwellingPlaceDetailResponse getPlace(@PathVariable long placeId,
                                                 @RequestParam(value = "onDate", required = false) String onDate) {
-        DwellingPlace place = dwellingPlaceService.load(placeId);
-
-        if (place == null) {
-            throw new ResourceNotFoundException("No place found for ID " + placeId);
-        } else {
-            LocalDate date = controllerHelperService.parseDate(onDate);
-            return new DwellingPlaceDetailResponse(place, date, ancestryService);
-        }
+        DwellingPlace place = controllerHelperService.loadDwellingPlace(placeId);
+        LocalDate date = controllerHelperService.parseDate(onDate);
+        return new DwellingPlaceDetailResponse(place, date, ancestryService);
     }
 
     @RequestMapping("/api/places/{placeId}/owners")
     public List<DwellingPlaceOwnerResponse> getPlaceOwners(@PathVariable long placeId) {
-        DwellingPlace place = dwellingPlaceService.load(placeId);
-
-        if (place == null) {
-            throw new ResourceNotFoundException("No place found for ID " + placeId);
-        }
+        DwellingPlace place = controllerHelperService.loadDwellingPlace(placeId);
 
         return place.getOwnerPeriods().stream()
                 .sorted(Comparator.comparing(DwellingPlaceOwnerPeriod::getFromDate)
@@ -93,14 +84,30 @@ public class PlacesController {
                 .collect(Collectors.toList());
     }
 
-    @RequestMapping("/api/places/{placeId}/residents")
+    /**
+     * Gets the recursive residents of a place as a list of households with their locations
+     */
+    @RequestMapping("/api/places/{placeId}/households")
     @SuppressWarnings("unchecked")
-    public List<PersonResidencePeriodResponse> getPlaceResidents(@PathVariable long placeId) {
-        DwellingPlace place = dwellingPlaceService.load(placeId);
-
-        if (place == null) {
-            throw new ResourceNotFoundException("No place found for ID " + placeId);
+    public List<HouseholdResponseWithLocations> getPlaceHouseholds(@PathVariable long placeId,
+                                                                   @RequestParam(value = "onDate") String onDate) {
+        DwellingPlace place = controllerHelperService.loadDwellingPlace(placeId);
+        LocalDate date = controllerHelperService.parseDate(onDate);
+        if (date == null) {
+            throw new BadRequestException("onDate is required and must be a valid date");
         }
+        return place.getRecursiveHouseholds(date).stream()
+                .map(hh -> new HouseholdResponseWithLocations(hh, date, ancestryService))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Gets the non-recursive residents of a place over time as individual persons.
+     */
+    @RequestMapping("/api/places/{placeId}/residents-timeline")
+    @SuppressWarnings("unchecked")
+    public List<PersonResidencePeriodResponse> getPlaceResidentsTimeline(@PathVariable long placeId) {
+        DwellingPlace place = controllerHelperService.loadDwellingPlace(placeId);
 
         Map<Long, List<PersonResidencePeriodResponse>> personPeriods = new HashMap<>();
         for (HouseholdLocationPeriod householdPeriod : place.getHouseholdPeriods()) {

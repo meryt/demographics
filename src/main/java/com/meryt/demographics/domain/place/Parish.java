@@ -35,6 +35,14 @@ public class Parish extends DwellingPlace {
     public double getChanceOfEmigrating(@NonNull LocalDate onDate) {
         double x = getPopulationPerSquareMile(onDate);
 
+        // Tweak x so that we allow greater population density as time goes by
+        int numYears = 1900 - onDate.getYear();
+        if (numYears < 0) {
+            numYears = 0;
+        }
+        double factor = numYears / (1900 - 1280);
+        x = x - (30 * (1 - factor));
+
         // https://mycurvefit.com/
         /*
                   0                0

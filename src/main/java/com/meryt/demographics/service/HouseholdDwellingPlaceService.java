@@ -4,12 +4,15 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import com.google.common.collect.Comparators;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
@@ -31,9 +34,11 @@ import com.meryt.demographics.domain.place.Parish;
 import com.meryt.demographics.domain.title.Title;
 import com.meryt.demographics.generator.ParishPopulator;
 import com.meryt.demographics.generator.WealthGenerator;
+import com.meryt.demographics.generator.person.PersonGenerator;
 import com.meryt.demographics.generator.random.BetweenDie;
 import com.meryt.demographics.generator.random.Die;
 import com.meryt.demographics.request.EstatePost;
+import com.meryt.demographics.request.PersonParameters;
 import com.meryt.demographics.request.RandomFamilyParameters;
 import com.meryt.demographics.response.calendar.CalendarDayEvent;
 import com.meryt.demographics.response.calendar.NewHouseEvent;
@@ -51,17 +56,23 @@ public class HouseholdDwellingPlaceService {
     private final PersonService personService;
     private final OccupationService occupationService;
     private final ParishPopulator parishPopulator;
+    private final TownTemplateService townTemplateService;
+    private final PersonGenerator personGenerator;
 
     public HouseholdDwellingPlaceService(@Autowired @NonNull HouseholdService householdService,
                                          @Autowired @NonNull DwellingPlaceService dwellingPlaceService,
                                          @Autowired @NonNull PersonService personService,
                                          @Autowired @NonNull OccupationService occupationService,
-                                         @Autowired @NonNull @Lazy ParishPopulator parishPopulator) {
+                                         @Autowired @NonNull @Lazy ParishPopulator parishPopulator,
+                                         @Autowired @NonNull TownTemplateService townTemplateService,
+                                         @Autowired @NonNull PersonGenerator personGenerator) {
         this.householdService = householdService;
         this.dwellingPlaceService = dwellingPlaceService;
         this.personService = personService;
         this.occupationService = occupationService;
         this.parishPopulator = parishPopulator;
+        this.townTemplateService = townTemplateService;
+        this.personGenerator = personGenerator;
     }
 
     public DwellingPlace addToDwellingPlace(@NonNull Household household,
@@ -189,15 +200,38 @@ public class HouseholdDwellingPlaceService {
         }
     }
 
+    /**
+     * Moves the given household to the parish on the given date.
+     *
+     * @param parish the parish to move to
+     * @param household the household
+     * @param date the date to start the residency
+     * @param reason the reason to use if a house must be purchased
+     * @param prioritizeBestOwnedHouse if true, and if the household head owns a house in any parish, moves to the
+     *                                 best owned house instead of trying to buy or find something something new
+     * @return events, in some cases
+     */
     public List<CalendarDayEvent> buyOrCreateOrMoveIntoEmptyHouse(@NonNull Parish parish,
                                                                   @NonNull Household household,
                                                                   @NonNull LocalDate date,
-                                                                  @NonNull DwellingPlaceOwnerPeriod.ReasonToPurchase reason) {
+                                                                  @NonNull DwellingPlaceOwnerPeriod.ReasonToPurchase reason,
+                                                                  boolean prioritizeBestOwnedHouse) {
         List<CalendarDayEvent> results = new ArrayList<>();
 
         Person head = household.getHead(date);
         if (head == null) {
             throw new IllegalArgumentException("The household had no head on the date");
+        }
+
+        if (prioritizeBestOwnedHouse && !head.getOwnedDwellingPlaces(date).isEmpty()) {
+            DwellingPlace place = head.getOwnedDwellingPlaces(date).stream()
+                    .filter(DwellingPlace::isHouse)
+                    .max(Comparator.comparing(DwellingPlace::getValue))
+                    .orElse(null);
+            if (place != null) {
+                addToDwellingPlace(household, place, date, null);
+                return results;
+            }
         }
 
         double capital = head.getCapital(date) == null ? 0.0 : head.getCapital(date);
@@ -263,6 +297,9 @@ public class HouseholdDwellingPlaceService {
     void maybeMoveHouseholdToCheapestEmptyHouse(@NonNull Parish parish,
                                                 @NonNull Household household,
                                                 @NonNull LocalDate onDate) {
+        if (household.getInhabitants(onDate).stream().anyMatch(p -> p.isDomesticServant(onDate))) {
+            return;
+        }
         Dwelling cheapestHouse = parish.getEmptyHouses(onDate).stream()
                 .min(Comparator.comparing(Dwelling::getValue))
                 .orElse(null);
@@ -376,15 +413,7 @@ public class HouseholdDwellingPlaceService {
                     .max(Comparator.comparing(Person::getSocialClassRank).reversed())
                     .orElse(null);
         }
-        if (value != null) {
-            house.setValue(value);
-        } else {
-            if (head != null) {
-                house.setValue(WealthGenerator.getRandomHouseValue(head.getSocialClass()));
-            } else {
-                house.setValue(WealthGenerator.getRandomHouseValue(SocialClass.LABORER));
-            }
-        }
+        setHouseValueAndMapId(house, dwellingPlace, value, head);
         house = (Dwelling) dwellingPlaceService.save(house);
         dwellingPlace.addDwellingPlace(house);
         dwellingPlaceService.save(dwellingPlace);
@@ -397,6 +426,32 @@ public class HouseholdDwellingPlaceService {
         log.info(String.format("Moved %s into new house in %s", household.getFriendlyName(moveInDate),
                 (dwellingPlace.getName() == null ? "a " + dwellingPlace.getType() : dwellingPlace.getName())));
         return house;
+    }
+
+    private void setHouseValueAndMapId(@NonNull Dwelling house,
+                                       @NonNull DwellingPlace location,
+                                       @Nullable Double desiredValue,
+                                       @Nullable Person head) {
+        Double value;
+        if (desiredValue != null) {
+            value = desiredValue;
+        } else {
+            SocialClass forClass = head == null ? SocialClass.LABORER : head.getSocialClass();
+            value = WealthGenerator.getRandomHouseValue(forClass);
+        }
+
+        if (location.isTown() && location.getMapId() != null) {
+            Pair<String, Double> mapIdAndValue = townTemplateService.getClosestAvailablePolygonForMapId(
+                    location.getMapId(), value);
+            if (mapIdAndValue != null) {
+                house.setMapId(mapIdAndValue.getLeft());
+                value = mapIdAndValue.getRight();
+            } else {
+                log.warn("No empty polygons available for town " + location.getLocationString());
+            }
+        }
+
+        house.setValue(value);
     }
 
     /**
@@ -789,21 +844,12 @@ public class HouseholdDwellingPlaceService {
         RandomFamilyParameters parameters = new RandomFamilyParameters();
         parameters.setReferenceDate(onDate);
 
-        List<Occupation> domesticServants = occupationService.findByIsDomesticServant();
         List<Occupation> farmLaborers = occupationService.findByIsFarmLaborer();
 
         Household household;
-        int expectedNumServants = estate.getExpectedNumServantHouseholds();
+        // Add the gardeners, laborers, etc.
+        int expectedNumServants = estate.getExpectedNumFarmLaborerHouseholds();
         for (int i = 0; i < expectedNumServants; i++) {
-            household = parishPopulator.createHouseholdToFillOccupation(parameters, estate,
-                    domesticServants.get(i % domesticServants.size()), false, null);
-            if (household != null) {
-                DwellingPlace currentPlace = household.getDwellingPlace(onDate);
-                if (currentPlace != null && !currentPlace.isHouse()) {
-                    moveHomelessHouseholdIntoHouse(household, onDate, onDate,
-                            DwellingPlaceOwnerPeriod.ReasonToPurchase.MOVE_TO_PARISH);
-                }
-            }
             household = parishPopulator.createHouseholdToFillOccupation(parameters, estate,
                     farmLaborers.get(i % farmLaborers.size()), false, null);
             if (household != null) {
@@ -813,6 +859,11 @@ public class HouseholdDwellingPlaceService {
                             DwellingPlaceOwnerPeriod.ReasonToPurchase.MOVE_TO_PARISH);
                 }
             }
+        }
+
+        // Add the domestic servants that live in the manor house.
+        if (estate.getManorHouse() != null) {
+            hireDomesticServantsForHouse(estate.getManorHouse(), onDate);
         }
     }
 
@@ -828,6 +879,15 @@ public class HouseholdDwellingPlaceService {
         return occ != null && occ.isFarmOwner();
     }
 
+    /**
+     * On the given date, figure out how many of various types of estate employees this estate is supposed to have,
+     * and hire more if necessary.
+     *
+     * @param estate the estate
+     * @param date the date on which to check the occupations
+     * @param numExpectedServants the total number of servants expected
+     * @param servantOccupations the list of occupations we should hire for
+     */
     void hireEstateEmployees(@NonNull Estate estate,
                              @NonNull LocalDate date,
                              int numExpectedServants,
@@ -846,33 +906,16 @@ public class HouseholdDwellingPlaceService {
         }
     }
 
+    /**
+     * Given an estate and an occupation, hire a person for that occupation on that date. If no valid unemployed,
+     * unmarried person can be found, one will be generated.
+     */
     private void hireEstateEmployeeForOccupation(@NonNull Estate estate,
                                                  @NonNull Occupation occupation,
                                                  @NonNull LocalDate date) {
-        List<Person> people = personService.findUnmarriedUnemployedPeopleBySocialClassAndGenderAndAge(
-                occupation.getSocialClassesUpToMaxRank(), occupation.getRequiredGender(), 15, 50, date).stream()
-                .filter(p -> personResidesInParish(p, estate.getParish(), date))
-                .collect(Collectors.toList());
-        Collections.shuffle(people);
-        if (people.isEmpty()) {
-            return;
-        }
-        Person personToHire = people.get(0);
-        personToHire.addOccupation(occupation, date);
-        personService.save(personToHire);
-        Household currentHousehold = personToHire.getHousehold(date);
-        Household householdToMove;
-        if (currentHousehold != null) {
-            Person head = currentHousehold.getHead(date);
-            if (head != null && head.equals(personToHire)) {
-                householdToMove = currentHousehold;
-            } else {
-                movePersonsHouseholdAway(personToHire, date);
-                householdToMove = householdService.createHouseholdForHead(personToHire, date, false);
-            }
-        } else {
-            householdToMove = householdService.createHouseholdForHead(personToHire, date, false);
-        }
+        Pair<Person, Household> personHouseholdPair = hirePersonAndPrepareHouseholdToMove(occupation, date);
+        Person personToHire = personHouseholdPair.getLeft();
+        Household householdToMove = personHouseholdPair.getRight();
 
         if (occupation.isDomesticServant()) {
             addToDwellingPlace(householdToMove, estate.getManorHouse(), date, null);
@@ -881,15 +924,214 @@ public class HouseholdDwellingPlaceService {
         }
     }
 
-    private static boolean personResidesInParish(@NonNull Person person,
-                                                 @NonNull Parish parish,
-                                                 @NonNull LocalDate onDate) {
-        DwellingPlace residence = person.getResidence(onDate);
-        if (residence == null) {
-            return false;
+    /**
+     * Used by the Calendar Service, this class finds servants who are in houses that can no longer afford them and
+     * attempts to employee them in other houses who are now able to do so. If there are any left over, they lose their
+     * occupation. If there remain houses that need servants, new servants will be recruited or generated. This method
+     * differs from hireDomesticServants in that it assumes some houses may need to have servants removed.
+     */
+    void hireAndFireDomesticServants(@NonNull LocalDate onDate) {
+
+        Map<Occupation, List<Person>> servantsToFire = new HashMap<>();
+        Map<Dwelling, Map<Occupation, Integer>> servantsToHire = new HashMap<>();
+
+        for (Dwelling house : dwellingPlaceService.loadHouses()) {
+            List<Person> servants = house.getDomesticServants(onDate);
+            Double highestHouseholdIncome = house.getHouseholds(onDate).stream()
+                    .filter(hh -> hh.mayHireServants(onDate))
+                    .mapToDouble(hh -> hh.getIncome(onDate))
+                    .max()
+                    .orElse(0);
+            Map<Occupation, Integer> desiredServants = occupationService
+                    .domesticServantsForHouseholdIncome(highestHouseholdIncome);
+            for (Person servant : servants) {
+                Occupation occ = servant.getOccupation(onDate);
+                if (occ == null) {
+                    // should never happen
+                    continue;
+                }
+                if (!desiredServants.containsKey(occ)) {
+                    log.info(String.format("%s has highest household income of %f and must fire their %s, %s",
+                            house.getFriendlyName(), highestHouseholdIncome, occ.getName(), servant.getIdAndName()));
+                    if (!servantsToFire.containsKey(occ)) {
+                        servantsToFire.put(occ, new ArrayList<>());
+                    }
+                    servantsToFire.get(occ).add(servant);
+                } else {
+                    Integer numRequired = desiredServants.get(occ);
+                    if (numRequired - 1 <= 0) {
+                        desiredServants.remove(occ);
+                    } else {
+                        desiredServants.put(occ, numRequired - 1);
+                    }
+                }
+            }
+
+            if (!desiredServants.isEmpty()) {
+                servantsToHire.put(house, desiredServants);
+            }
         }
-        Parish personParish = residence.getParish();
-        return personParish != null && personParish.equals(parish);
+
+        // We now have a list of houses looking for servants, and a list of available servants. Hire new servants for
+        // houses looking for them, starting with available servants, if any.
+        for (Map.Entry<Dwelling, Map<Occupation, Integer>> houseEntry : servantsToHire.entrySet()) {
+            Dwelling house = houseEntry.getKey();
+            Map<Occupation, Integer> desiredServants = houseEntry.getValue();
+            for (Map.Entry<Occupation, Integer> occEntry : desiredServants.entrySet()) {
+                Occupation occ = occEntry.getKey();
+                Integer numNeeded = occEntry.getValue();
+                for (int i = 0; i < numNeeded; i++) {
+                    if (servantsToFire.containsKey(occ) && !servantsToFire.get(occ).isEmpty()) {
+                        // A person with this occupation is looking for a new job. Move them in.
+                        Person servantToHire = servantsToFire.get(occ).remove(0);
+                        if (servantsToFire.get(occ).isEmpty()) {
+                            servantsToFire.remove(occ);
+                        }
+                        log.info(String.format("%s needs a %s and is hiring %s, who is looking for a new position",
+                                house.getFriendlyName(), occ.getName(), servantToHire.getIdAndName()));
+                        Household householdToMove = prepareEmployeeHouseholdToMove(servantToHire, onDate);
+                        addToDwellingPlace(householdToMove, house, onDate, null);
+                    } else {
+                        log.info(String.format("%s needs a %s",
+                                house.getFriendlyName(), occ.getName()));
+                        // Hire a person
+                        Pair<Person, Household> personToHire = hirePersonAndPrepareHouseholdToMove(occ, onDate);
+                        // Add their household to the house
+                        addToDwellingPlace(personToHire.getRight(), house, onDate, null);
+                    }
+                }
+            }
+        }
+
+        // Any remaining servants lose their job and must move out.
+        for (Map.Entry<Occupation, List<Person>> servantEntry : servantsToFire.entrySet()) {
+            for (Person servant : servantEntry.getValue()) {
+                log.info(String.format("%s lost their job as a %s and must move out",
+                        servant.getIdAndName(), servantEntry.getKey().getName()));
+                servant.quitJob(onDate);
+                personService.save(servant);
+                DwellingPlace currentDwelling = servant.getDwellingPlace(onDate);
+                if (currentDwelling == null) {
+                    continue;
+                }
+                Parish currentParish = currentDwelling.getParish();
+                buyOrCreateOrMoveIntoEmptyHouse(currentParish, prepareEmployeeHouseholdToMove(servant, onDate),
+                        onDate, DwellingPlaceOwnerPeriod.ReasonToPurchase.EVICTION, true);
+            }
+        }
+    }
+
+
+    /**
+     * Used by the Parish Populator, this method loads all houses with at least one person of high enough social
+     * class, and hires any domestic servants that household needs to bring it up to the expectations of the class
+     * and the income level.
+     */
+    public void hireDomesticServants(@NonNull LocalDate date) {
+        // Find all dwellings that contain at least one household where there is at least one person of Yeoman class or
+        // higher.
+        List<Dwelling> houses = dwellingPlaceService.loadHouses().stream()
+                .filter(h -> h.mayHireServants(date))
+                .collect(Collectors.toList());
+
+        for (Dwelling house : houses) {
+            hireDomesticServantsForHouse(house, date);
+        }
+    }
+
+    /**
+     * Given a house and a date, determines whether any households have at least a Yeoman (the min social class that may
+     * hire servants) and if so, based on the household income, hires any servants necessary so that the house has
+     * enough servants of each type. If multiple wealthy households live in the same house, they effectively share
+     * servants, though their income is not combined to determine how many servants they can have.
+     *
+     * @param house the house containing 0 or more households on the date
+     * @param date the date to check for servants, and the date to start their service
+     */
+    private void hireDomesticServantsForHouse(@NonNull Dwelling house, @NonNull LocalDate date) {
+        List<Household> households = house.getHouseholds(date).stream()
+                .filter(hh -> hh.mayHireServants(date))
+                .collect(Collectors.toList());
+        Map<Occupation, List<Person>> existingServantsInHouse = house.getPeopleWithOccupations(date);
+        for (Household household : households) {
+            double income = household.getIncome(date);
+            if (income > 0) {
+                Map<Occupation, Integer> desiredServants = occupationService.domesticServantsForHouseholdIncome(income);
+                for (Map.Entry<Occupation, Integer> entry : desiredServants.entrySet()) {
+                    Occupation occupation = entry.getKey();
+                    List<Person> servantsInHouse = existingServantsInHouse.get(occupation);
+                    int numServantsInHouse = servantsInHouse == null ? 0 : servantsInHouse.size();
+                    int servantsToHire = entry.getValue() - numServantsInHouse;
+                    for (int i = 0; i < servantsToHire; i++) {
+                        log.info(String.format("%s needs to hire a %s", house.getFriendlyName(), occupation.getName()));
+                        // Hire the person
+                        Pair<Person, Household> personToHire = hirePersonAndPrepareHouseholdToMove(occupation, date);
+                        // Add their household to the house
+                        addToDwellingPlace(personToHire.getRight(), house, date, null);
+                        // Add them to the list we use to keep track so that a second household in the house does
+                        // not try to hire for this position again.
+                        if (!existingServantsInHouse.containsKey(occupation)) {
+                            existingServantsInHouse.put(occupation, new ArrayList<>());
+                        }
+                        existingServantsInHouse.get(occupation).add(personToHire.getLeft());
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Finds or generates a valid unmarried person to hold the given occupation on the given date. Also determines
+     * which household to move into the eventual location, based on whether the person already lives alone in a
+     * household or whether they need to move out and/or create a new household.
+     *
+     * @param occupation the occupation for which to find a candidate
+     * @param date the date on which to find the person and hire them for the job
+     * @return a pair containing the person and their (possibly new) household
+     */
+    private Pair<Person, Household> hirePersonAndPrepareHouseholdToMove(@NonNull Occupation occupation,
+                                                                        @NonNull LocalDate date) {
+
+        List<Person> people = personService.findUnmarriedUnemployedPeopleBySocialClassAndGenderAndAge(
+                SocialClass.listFromClassToClass(occupation.getMinClass(), occupation.getMaxClass()),
+                occupation.getRequiredGender(), 15, 50, date).stream()
+                // Filter out people who could expect to earn more from capital than labor.
+                .filter(p -> (p.getCapitalNullSafe(date) * 0.04) <
+                        WealthGenerator.getYearlyIncomeValueRangeForPersonWithOccupation(p, occupation).getFirst())
+                .collect(Collectors.toList());
+        Collections.shuffle(people);
+        if (people.isEmpty()) {
+            // Generate a new person if none could be found
+            Person newPerson = personGenerator.generate(new PersonParameters(occupation, date));
+            personService.save(newPerson);
+            log.info(String.format("Generated %s to fill occupation of %s", newPerson.getIdAndName(),
+                    occupation.getName()));
+            people.add(newPerson);
+        }
+        Person personToHire = people.get(0);
+        personToHire.addOccupation(occupation, date);
+        personService.save(personToHire);
+        log.info(String.format("Hired %s as %s", personToHire.getIdAndName(), occupation.getName()));
+        Household householdToMove = prepareEmployeeHouseholdToMove(personToHire, date);
+
+        return Pair.of(personToHire, householdToMove);
+    }
+
+    private Household prepareEmployeeHouseholdToMove(@NonNull Person newEmployee, @NonNull LocalDate onDate) {
+        Household currentHousehold = newEmployee.getHousehold(onDate);
+        Household householdToMove;
+        if (currentHousehold != null) {
+            Person head = currentHousehold.getHead(onDate);
+            if (head != null && head.equals(newEmployee)) {
+                householdToMove = currentHousehold;
+            } else {
+                householdService.endPersonResidence(currentHousehold, newEmployee, onDate);
+                householdToMove = householdService.createHouseholdForHead(newEmployee, onDate, false);
+            }
+        } else {
+            householdToMove = householdService.createHouseholdForHead(newEmployee, onDate, false);
+        }
+        return householdToMove;
     }
 
     private void moveHiredFarmLaborerOntoEstate(@NonNull Estate estate,

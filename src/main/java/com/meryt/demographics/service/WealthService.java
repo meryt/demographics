@@ -139,7 +139,7 @@ public class WealthService {
             return;
         }
         double rent = dwelling.getNullSafeValue() / 30;
-        List<Household> households = dwelling.getHouseholds(onDate);
+        List<Household> households = dwelling.getTenantHouseholds(onDate);
         double rentPerHousehold = rent / households.size();
         for (Household household : households) {
             householdPayExpense(household, rentPerHousehold, onDate, ExpenseType.RENT);
@@ -240,15 +240,9 @@ public class WealthService {
                                  @NonNull Person person,
                                  @NonNull LocalDate onDate,
                                  double goodYearFactor) {
-        SocialClass socialClass;
-        if (occupation == null) {
-            socialClass = person.getSocialClass();
-        } else {
-            socialClass = person.getSocialClass().getRank() > occupation.getMaxClass().getRank()
-                    ? occupation.getMaxClass()
-                    : person.getSocialClass();
-        }
-        Pair<Integer, Integer> range = WealthGenerator.getYearlyIncomeValueRange(socialClass);
+
+        Pair<Integer, Integer> range = WealthGenerator.getYearlyIncomeValueRangeForPersonWithOccupation(person,
+                occupation);
         int value = new BetweenDie().roll(range.getFirst(), range.getSecond());
         double adjustedWage = adjustForGoodOrBadYear(value, goodYearFactor);
         person.addCapital(adjustedWage, onDate, PersonCapitalPeriod.Reason.wagesMessage(adjustedWage));

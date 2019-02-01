@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Service;
 
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.PersonCapitalPeriod;
+import com.meryt.demographics.domain.place.Dwelling;
 import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.DwellingPlaceOwnerPeriod;
 import com.meryt.demographics.domain.place.DwellingPlaceType;
@@ -54,6 +56,12 @@ public class DwellingPlaceService {
 
     List<DwellingPlace> loadByName(@NonNull String name) {
         return dwellingPlaceRepository.findByName(name);
+    }
+
+    public List<Dwelling> loadHouses() {
+        return loadByType(DwellingPlaceType.DWELLING).stream()
+                .map(h -> (Dwelling) h)
+                .collect(Collectors.toList());
     }
 
     public List<DwellingPlace> getUnownedHousesEstatesAndFarms(@NonNull LocalDate onDate) {

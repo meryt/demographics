@@ -30,6 +30,7 @@ import com.meryt.demographics.generator.random.BetweenDie;
 import com.meryt.demographics.generator.random.PercentDie;
 import com.meryt.demographics.request.AdvanceToDatePost;
 import com.meryt.demographics.request.RandomFamilyParameters;
+import com.meryt.demographics.request.RandomTitleParameters;
 import com.meryt.demographics.response.calendar.BirthEvent;
 import com.meryt.demographics.response.calendar.CalendarDayEvent;
 import com.meryt.demographics.response.calendar.CalendarEventType;
@@ -38,6 +39,7 @@ import com.meryt.demographics.response.calendar.EmploymentEvent;
 import com.meryt.demographics.response.calendar.MarriageEvent;
 import com.meryt.demographics.response.calendar.NewFarmEvent;
 import com.meryt.demographics.response.calendar.PropertyTransferEvent;
+import com.meryt.demographics.response.calendar.TitleCreationEvent;
 import com.meryt.demographics.rest.BadRequestException;
 
 @Slf4j
@@ -102,6 +104,7 @@ public class CalendarService {
         configurationService.unpauseCheck();
 
         RandomFamilyParameters familyParameters = nextDatePost.getFamilyParameters();
+        RandomTitleParameters titleParameters = nextDatePost.getTitleParameters();
 
         Map<LocalDate, List<CalendarDayEvent>> results = new TreeMap<>();
         int i = 0;
@@ -143,6 +146,11 @@ public class CalendarService {
             Map<LocalDate, List<CalendarDayEvent>> titleEvents = processTitlesInAbeyance(date);
             results = mergeMaps(results, titleEvents);
 
+            if (titleParameters != null) {
+                Map<LocalDate, List<CalendarDayEvent>> newTitleEvents = processNewTitles(titleParameters, date);
+                results = mergeMaps(results, newTitleEvents);
+            }
+
             if (date.getMonthValue() == nextDatePost.getFirstMonthOfYearOrDefault()
                     && date.getDayOfMonth() == nextDatePost.getFirstDayOfYearOrDefault()) {
                 distributeCapital(date);
@@ -150,6 +158,7 @@ public class CalendarService {
             }
 
             if (isQuarterDay(date)) {
+                hireAndFireDomesticServants(date);
                 hireEstateEmployees(date);
             }
 
@@ -428,11 +437,20 @@ public class CalendarService {
         return date.getDayOfMonth() == 11 && date.getMonth() == Month.NOVEMBER;
     }
 
+    /**
+     * Hire and fire domestic servants. This includes those servants that live in the dwelling house itself, most or
+     * all of whom are not allowed to marry.
+     */
+    private void hireAndFireDomesticServants(@NonNull LocalDate date) {
+        householdDwellingPlaceService.hireAndFireDomesticServants(date);
+    }
+
+    /**
+     * Hire the outside employees (gardeners, farm laborers, etc.) who may have their own houses and households.
+     */
     private void hireEstateEmployees(@NonNull LocalDate date) {
         for (DwellingPlace place : dwellingPlaceService.loadByType(DwellingPlaceType.ESTATE)) {
             Estate estate = (Estate) place;
-            householdDwellingPlaceService.hireEstateEmployees(estate, date, estate.getExpectedNumServantHouseholds(),
-                    occupationService.findByIsDomesticServant());
             householdDwellingPlaceService.hireEstateEmployees(estate, date, estate.getExpectedNumFarmLaborerHouseholds(),
                     occupationService.findByIsFarmLaborer());
         }
@@ -444,5 +462,18 @@ public class CalendarService {
         } catch (RuntimeException e) {
             log.error("Failed to condemn old houses", e);
         }
+    }
+
+    private Map<LocalDate, List<CalendarDayEvent>> processNewTitles(@NonNull RandomTitleParameters titleParameters,
+                                                                    @NonNull LocalDate onDate) {
+        Map<LocalDate, List<CalendarDayEvent>> results = new HashMap<>();
+        List<CalendarDayEvent> events = new ArrayList<>();
+        Title newTitle = titleService.checkNewTitleCreation(titleParameters, onDate);
+        if (newTitle != null) {
+            CalendarDayEvent event = new TitleCreationEvent(onDate, newTitle);
+            results.put(onDate, events);
+            events.add(event);
+        }
+        return results;
     }
 }

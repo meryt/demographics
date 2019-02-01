@@ -9,8 +9,10 @@ import javax.annotation.Nullable;
 import lombok.NonNull;
 import org.apache.commons.math3.distribution.BetaDistribution;
 
+import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.domain.person.PersonOccupationPeriod;
 import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.domain.person.Trait;
 import com.meryt.demographics.generator.random.PercentDie;
@@ -95,6 +97,18 @@ public class MatchMaker {
                     (lastLivingSonDeathDate != null && onDate.isBefore(lastLivingSonDeathDate)))) {
             dailyAgeAdjustedDesirePercent /= numPreviousSpouses;
         }
+
+        Occupation occ = person.getOccupation(onDate);
+        if (occ != null && !occ.isMayMarry()) {
+            // Someone with a job that disallows them from marrying will not be motivated to marry.
+            dailyAgeAdjustedDesirePercent *= 0.15;
+        }
+
+        // A person with titles to pass on is highly motivated to marry
+        if (person.getTitles(onDate) != null) {
+            dailyAgeAdjustedDesirePercent *= 1.5;
+        }
+
         return dailyAgeAdjustedDesirePercent;
     }
 
@@ -117,6 +131,14 @@ public class MatchMaker {
         }
         if (potentialSpouse.isMarriedNowOrAfter(onDate)) {
             return false;
+        }
+
+        // If the person has or will ever have a job where they are not allowed to marry, do not allow the marriage.
+        for (PersonOccupationPeriod occupation : potentialSpouse.getOccupations()) {
+            if ((occupation.contains(onDate) || occupation.getFromDate().isAfter(onDate))
+                && !occupation.getOccupation().isMayMarry()) {
+                return false;
+            }
         }
 
         Person man = person.isMale() ? person : potentialSpouse;

@@ -86,7 +86,7 @@ public class PersonService {
     }
 
     @NonNull
-    List<Person> findBySocialClassAndGenderAndIsLiving(@NonNull SocialClass socialClass,
+    List<Person> findBySocialClassAndGenderAndIsLiving(@NonNull List<SocialClass> socialClass,
                                                        @NonNull Gender gender,
                                                        @NonNull LocalDate onDate) {
         return personRepository.findBySocialClassAndGenderAndIsLiving(socialClass, gender, onDate);
@@ -123,11 +123,11 @@ public class PersonService {
                                                                            @Nullable Gender gender,
                                                                            int minAgeInYears,
                                                                            int maxAgeInYears,
-                                                                           @NonNull LocalDate onDate) {
-        LocalDate minBirthDate = onDate.minusYears(maxAgeInYears);
-        LocalDate maxBirthDate = onDate.minusYears(minAgeInYears);
+                                                                           @NonNull LocalDate aliveOnDate) {
+        LocalDate minBirthDate = aliveOnDate.minusYears(maxAgeInYears);
+        LocalDate maxBirthDate = aliveOnDate.minusYears(minAgeInYears);
         return personRepository.findUnmarriedUnemployedPeopleBySocialClassAndGenderAndAge(socialClasses,
-                gender, minBirthDate, maxBirthDate);
+                gender, minBirthDate, maxBirthDate, aliveOnDate);
     }
 
     /**
@@ -220,6 +220,40 @@ public class PersonService {
         List<Person> relativePersons = new ArrayList<>();
         loadAll(relativeIds).forEach(relativePersons::add);
         return relativePersons;
+    }
+
+    /**
+     * Update the person's last name. If recursive is true, recursively updates all their descendants on the male line
+     * as well
+     * @param person the person whose last name should be changed
+     * @param newLastName the new last name to set
+     * @param recursive whether to recurse
+     * @param recurseOnlyIfNull used with recursive flag; if true, then recursion will only apply to descendants who
+     *                          have a null last name
+     */
+    public void updatePersonLastName(@NonNull Person person,
+                                             @Nullable String newLastName,
+                                             boolean recursive,
+                                             boolean recurseOnlyIfNull) {
+        person.setLastName(newLastName);
+        save(person);
+        if (!recursive) {
+            return;
+        }
+
+        for (Person child : person.getChildren()) {
+            if (recurseOnlyIfNull && child.getLastName() != null) {
+                continue;
+            }
+            if (child.isFemale()) {
+                // Don't recurse beyond the female children
+                child.setLastName(newLastName);
+                save(child);
+            } else {
+                // Boys should get their name plus any descendants updated
+                updatePersonLastName(child, newLastName, true, recurseOnlyIfNull);
+            }
+        }
     }
 
     /**
@@ -359,9 +393,9 @@ public class PersonService {
 
         return personRepository.findPotentialSpouses(spouseGender, searchDate, minBirthDate,
                 maxBirthDate, null).stream()
-                // Keep people in the same social bracket
-                .filter(p -> (p.getSocialClass().getRank() >= person.getSocialClass().getRank() - 2) &&
-                              p.getSocialClass().getRank() <= person.getSocialClass().getRank() + 2)
+                // Keep people in the same social bracket. Extremely attractive people can marry up to 4 levels above.
+                .filter(p -> (p.getSocialClass().getRank() >= person.getSocialClass().getRank() - 4) &&
+                              p.getSocialClass().getRank() <= person.getSocialClass().getRank() + 4)
                 // Filter out married people, women who were married more than once, and widows with children
                 .filter(p -> !p.isMarriedNowOrAfter(filterSearchDate) && !isWidowWithChildren(p, filterSearchDate))
                 // Convert to a data structure that includes the relationship

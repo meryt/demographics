@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.PersonCapitalPeriod;
@@ -123,6 +124,15 @@ public class FamilyService {
 
         Person husband = family.getHusband();
         Person wife = family.getWife();
+
+        Occupation husbandOcc = husband.getOccupation(weddingDate);
+        if (husbandOcc != null && !husbandOcc.isMayMarry()) {
+            husband.quitJob(weddingDate);
+        }
+        Occupation wifeOcc = wife.getOccupation(weddingDate);
+        if (wifeOcc != null && !wifeOcc.isMayMarry()) {
+            wife.quitJob(weddingDate);
+        }
 
         DwellingPlace husbandPlace = husband.getResidence(weddingDate);
         DwellingPlace wifePlace = wife.getResidence(weddingDate);
@@ -355,29 +365,9 @@ public class FamilyService {
         Person man = family.getHusband();
         Person wife = family.getWife();
 
-        // First check for any houses they already own. Pick the best one -- manor houses first, then the most
-        // expensive.
-        List<DwellingPlace> ownedResidences = new ArrayList<>();
-        ownedResidences.addAll(wife.getOwnedDwellingPlaces(date));
-        ownedResidences.addAll(man.getOwnedDwellingPlaces(date));
-        List<Dwelling> ownedResidencesOnEstates = ownedResidences.stream()
-                .filter(r -> r.getParent().isEstate() && r.isAttachedToParent() && r.isHouse())
-                .map(r -> (Dwelling) r)
-                .sorted(Comparator.comparing(DwellingPlace::getValue).reversed())
-                .collect(Collectors.toList());
-        if (!ownedResidencesOnEstates.isEmpty()) {
-            return ownedResidencesOnEstates.get(0);
-        }
-
-        if (!ownedResidences.isEmpty()) {
-            Dwelling house = ownedResidences.stream()
-                    .filter(DwellingPlace::isHouse)
-                    .map(h -> (Dwelling) h)
-                    .max(Comparator.comparing(DwellingPlace::getValue).reversed())
-                    .orElse(null);
-            if (house != null) {
-                return house;
-            }
+        Dwelling ownedHouse = findBestOwnedEmptyResidenceForNewCouple(man, wife, date, false);
+        if (ownedHouse != null) {
+            return ownedHouse;
         }
 
         // She has already moved to the husband's household so we need to get the house of the household she lived in
@@ -494,6 +484,46 @@ public class FamilyService {
         }
 
         return residence;
+    }
+
+    @Nullable
+    private Dwelling findBestOwnedEmptyResidenceForNewCouple(@NonNull Person man,
+                                                             @NonNull Person wife,
+                                                             @NonNull LocalDate onDate,
+                                                             boolean mustBeAtLeastMinimumValue) {
+
+        SocialClass maxSocialClass = SocialClass.fromRank(Math.max(man.getSocialClassRank(),
+                wife.getSocialClassRank()));
+
+        final double minValue = mustBeAtLeastMinimumValue
+                ? WealthGenerator.getHouseValueRange(maxSocialClass).getFirst()
+                : 0;
+
+        // Check for any houses they already own. Pick the best one -- manor houses first, then the most
+        // expensive.
+        List<DwellingPlace> ownedResidences = new ArrayList<>();
+        ownedResidences.addAll(wife.getOwnedDwellingPlaces(onDate));
+        ownedResidences.addAll(man.getOwnedDwellingPlaces(onDate));
+        List<Dwelling> ownedResidencesOnEstates = ownedResidences.stream()
+                .filter(r -> r.getParent().isEstate() && r.isAttachedToParent() && r.isHouse() && r.getValue() >= minValue)
+                .map(r -> (Dwelling) r)
+                .sorted(Comparator.comparing(DwellingPlace::getValue).reversed())
+                .collect(Collectors.toList());
+        if (!ownedResidencesOnEstates.isEmpty()) {
+            return ownedResidencesOnEstates.get(0);
+        }
+
+        if (!ownedResidences.isEmpty()) {
+            Dwelling house = ownedResidences.stream()
+                    .filter(h -> h.isHouse() && h.getValue() >= minValue)
+                    .map(h -> (Dwelling) h)
+                    .max(Comparator.comparing(DwellingPlace::getValue).reversed())
+                    .orElse(null);
+            if (house != null) {
+                return house;
+            }
+        }
+        return null;
     }
 
     private void applyMarriageSettlements(@NonNull Person wife, @NonNull LocalDate weddingDate) {

@@ -77,6 +77,9 @@ public class ImmigrationService {
             // ensures the founder is alive on the specified date.
             log.warn(String.format("No male head of immigrant household as of %s; skipping", date));
             return dayResults;
+        } else {
+            log.info(String.format("New household headed by %s has immigrated to %s", man.getIdAndName(),
+                    parish.getName()));
         }
         dayResults.add(new ImmigrationEvent(date, household, ancestryService));
 
@@ -91,7 +94,7 @@ public class ImmigrationService {
         }
 
         List<CalendarDayEvent> results = householdDwellingPlaceService.buyOrCreateOrMoveIntoEmptyHouse(
-                parish, household, date, DwellingPlaceOwnerPeriod.ReasonToPurchase.MOVE_TO_PARISH);
+                parish, household, date, DwellingPlaceOwnerPeriod.ReasonToPurchase.MOVE_TO_PARISH, false);
 
         dayResults.addAll(results);
 

@@ -27,9 +27,9 @@ public interface PersonRepository extends PagingAndSortingRepository<Person, Lon
             "WHERE p.gender = :gender " +
             "AND p.birthDate < :aliveOnDate " +
             "AND p.deathDate > :aliveOnDate " +
-            "AND p.socialClass = :socialClass " +
+            "AND p.socialClass IN (:socialClasses) " +
             "ORDER BY p.birthDate ")
-    List<Person> findBySocialClassAndGenderAndIsLiving(@Param("socialClass") @NonNull SocialClass socialClass,
+    List<Person> findBySocialClassAndGenderAndIsLiving(@Param("socialClasses") @NonNull List<SocialClass> socialClasses,
                                                        @Param("gender") @NonNull Gender gender,
                                                        @Param("aliveOnDate") @NonNull LocalDate onDate);
 
@@ -41,6 +41,7 @@ public interface PersonRepository extends PagingAndSortingRepository<Person, Lon
             "AND p.socialClass IN (:socialClasses) " +
             "AND (CAST(:minBirthDate AS date) IS NULL OR p.birthDate >= :minBirthDate) " +
             "AND (CAST(:maxBirthDate AS date) IS NULL OR p.birthDate <= :maxBirthDate) " +
+            "AND p.deathDate > :aliveOnDate " +
             "ORDER BY p.birthDate"
     )
     List<Person> findUnmarriedUnemployedPeopleBySocialClassAndGenderAndAge(@Param("socialClasses")
@@ -50,7 +51,9 @@ public interface PersonRepository extends PagingAndSortingRepository<Person, Lon
                                                                            @Param("minBirthDate")
                                                                               @Nullable LocalDate minBirthDate,
                                                                            @Param("maxBirthDate")
-                                                                              @Nullable LocalDate maxBirthDate);
+                                                                              @Nullable LocalDate maxBirthDate,
+                                                                           @Param("aliveOnDate")
+                                                                              @NonNull LocalDate aliveOnDate);
 
 
     @Query("SELECT p FROM Person p " +

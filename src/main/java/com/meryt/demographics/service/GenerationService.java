@@ -112,6 +112,7 @@ public class GenerationService {
             result.add(family);
         }
 
+        // Do the required families. These are always "Heirs of the Body" to prevent them from dying out as fast.
         for (String englishLastName : generationPost.getRequiredLastNames()) {
             familyParameters.setFounderLastName(englishLastName);
 
@@ -122,7 +123,7 @@ public class GenerationService {
             family.getHusband().setFounder(true);
             family = familyService.save(family);
             if (family.getHusband().getSocialClass().getRank() >= SocialClass.BARONET.getRank()) {
-                addRandomTitleToFounder(family.getHusband(), Peerage.ENGLAND);
+                addRandomTitleToFounder(family.getHusband(), Peerage.ENGLAND, TitleInheritanceStyle.HEIRS_OF_THE_BODY);
             }
 
             result.add(family);
@@ -138,7 +139,7 @@ public class GenerationService {
             family.getHusband().setFounder(true);
             family = familyService.save(family);
             if (family.getHusband().getSocialClass().getRank() >= SocialClass.BARONET.getRank()) {
-                addRandomTitleToFounder(family.getHusband(), Peerage.SCOTLAND);
+                addRandomTitleToFounder(family.getHusband(), Peerage.SCOTLAND, TitleInheritanceStyle.HEIRS_OF_THE_BODY);
             }
 
             result.add(family);
@@ -274,12 +275,21 @@ public class GenerationService {
     }
 
     /**
+     * Add a random title with a random inheritance style
+     */
+    private void addRandomTitleToFounder(@NonNull Person founder, @NonNull Peerage peerage) {
+        addRandomTitleToFounder(founder, peerage, TitleInheritanceStyle.random());
+    }
+
+    /**
      * Generates a title for the person, using his last name as the title name. The peerage and inheritance style
      * are random.
      *
      * @param founder the person who gets a title (does not need to be male)
      */
-    private void addRandomTitleToFounder(@NonNull Person founder, @NonNull Peerage peerage) {
+    private void addRandomTitleToFounder(@NonNull Person founder,
+                                         @NonNull Peerage peerage,
+                                         @NonNull TitleInheritanceStyle inheritanceStyle) {
         Title title = new Title();
         title.setSocialClass(founder.getSocialClass());
         title.setPeerage(peerage);
@@ -303,17 +313,8 @@ public class GenerationService {
                 break;
         }
         title.setName(namePrefix + founder.getLastName());
+        title.setInheritance(inheritanceStyle);
 
-        int roll = new Die(4).roll();
-        if (roll == 1) {
-            title.setInheritance(TitleInheritanceStyle.HEIRS_GENERAL);
-        } else if (roll == 2) {
-            title.setInheritance(TitleInheritanceStyle.HEIRS_MALE_GENERAL);
-        } else if (roll == 3) {
-            title.setInheritance(TitleInheritanceStyle.HEIRS_OF_THE_BODY);
-        } else {
-            title.setInheritance(TitleInheritanceStyle.HEIRS_MALE_OF_THE_BODY);
-        }
         title = titleService.save(title);
         int maxYear = founder.getDeathDate().getYear() - 1;
         int minYear = founder.getBirthDate().getYear() + 15;

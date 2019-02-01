@@ -13,6 +13,7 @@ import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.PersonOccupationPeriod;
+import com.meryt.demographics.domain.person.fertility.Maternity;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.HouseholdInhabitantPeriod;
 import com.meryt.demographics.domain.timeline.TimelineEntry;
@@ -23,9 +24,9 @@ import com.meryt.demographics.service.AncestryService;
  */
 @Getter
 @JsonPropertyOrder({"id", "firstName", "lastName", "gender", "age", "birthDate", "deathDate", "ageAtDeath",
-        "socialClass", "capital", "eyeColor", "hairColor", "height", "currentHeight", "domesticity", "charisma",
+        "socialClass", "capital", "eyeColor", "hairColor", "height", "pregnancy", "currentHeight", "domesticity",
         "comeliness", "intelligence", "morality", "strength", "traits", "titles", "families", "occupations",
-        "household", "households", "ownedProperties", "family", "timeline"})
+        "charisma", "household", "households", "ownedProperties", "family", "timeline"})
 public class PersonDetailResponse extends PersonResponse {
 
     private final Double capital;
@@ -39,6 +40,7 @@ public class PersonDetailResponse extends PersonResponse {
     private final List<PersonCapitalResponse> capitalHistory;
     private final List<ResidencePeriodResponse> residences;
     private final List<TimelineEntry> timeline;
+    private final String pregnancy;
 
     public PersonDetailResponse(@NonNull Person person) {
         this(person, null, null);
@@ -109,7 +111,23 @@ public class PersonDetailResponse extends PersonResponse {
                 ownedProperties = props;
             }
 
+            if (person.isFemale()) {
+                Maternity mat = person.getMaternity();
+                if (mat.isPregnant(onDate)) {
+                    if (mat.getMiscarriageDate() != null) {
+                        pregnancy = String.format("Pregnant, will miscarry on %s", mat.getMiscarriageDate());
+                    } else {
+                        pregnancy = String.format("Pregnant, due on %s", mat.getDueDate());
+                    }
+                } else {
+                    pregnancy = null;
+                }
+            } else {
+                pregnancy = null;
+            }
+
         } else {
+            pregnancy = null;
             capital = null;
             household = null;
             households = new ArrayList<>();
