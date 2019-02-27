@@ -1,0 +1,10 @@
+#!/bin/bash
+
+
+cp demographics-lothere-archive.pgdump demographics-archive.pgdump || exit
+
+psql < ./drop-db.sql || exit
+psql < ./create-db.sql || exit
+psql demographics < demographics-archive.pgdump
+
+

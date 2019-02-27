@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 
+import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.PersonCapitalPeriod;
@@ -28,9 +29,11 @@ import com.meryt.demographics.domain.title.Peerage;
 import com.meryt.demographics.domain.title.Title;
 import com.meryt.demographics.domain.title.TitleInheritanceStyle;
 import com.meryt.demographics.generator.WealthGenerator;
+import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.generator.random.BetweenDie;
 import com.meryt.demographics.generator.random.PercentDie;
 import com.meryt.demographics.repository.TitleRepository;
+import com.meryt.demographics.request.RandomFamilyParameters;
 import com.meryt.demographics.request.RandomTitleParameters;
 import com.meryt.demographics.response.calendar.CalendarDayEvent;
 import com.meryt.demographics.response.calendar.PropertyTransferEvent;
@@ -43,28 +46,31 @@ import com.meryt.demographics.time.LocalDateComparator;
 @Service
 public class TitleService {
 
-    private static final int NUM_NEW_TITLE_PER_CENTURY = 5;
-    private static final double CHANCE_NEW_TITLE_PER_DAY = (NUM_NEW_TITLE_PER_CENTURY / 100) / 365;
-
     private final TitleRepository titleRepository;
     private final PersonService personService;
     private final HeirService heirService;
     private final DwellingPlaceService dwellingPlaceService;
     private final AncestryService ancestryService;
     private final FertilityService fertilityService;
+    private final FamilyGenerator familyGenerator;
+    private final FamilyService familyService;
 
     public TitleService(@Autowired @NonNull TitleRepository titleRepository,
                         @Autowired @NonNull PersonService personService,
                         @Autowired @NonNull HeirService heirService,
                         @Autowired @NonNull DwellingPlaceService dwellingPlaceService,
                         @Autowired @NonNull AncestryService ancestryService,
-                        @Autowired @NonNull FertilityService fertilityService) {
+                        @Autowired @NonNull FertilityService fertilityService,
+                        @Autowired @NonNull FamilyGenerator familyGenerator,
+                        @Autowired @NonNull FamilyService familyService) {
         this.titleRepository = titleRepository;
         this.personService = personService;
         this.heirService = heirService;
         this.dwellingPlaceService = dwellingPlaceService;
         this.ancestryService = ancestryService;
         this.fertilityService = fertilityService;
+        this.familyGenerator = familyGenerator;
+        this.familyService = familyService;
     }
 
     @Nullable
@@ -184,9 +190,13 @@ public class TitleService {
      * new heir is found, otherwise null is returned.
      */
     @Nullable
-    public Person updateTitleHeirs(@NonNull Title title) {
+    public Person updateTitleHeirs(@NonNull Title title, @Nullable LocalDate untilDate) {
         Person currentHolder = getLatestHolder(title);
         if (currentHolder == null) {
+            return null;
+        }
+        if (untilDate != null &&
+                (currentHolder.isLiving(untilDate) || currentHolder.getBirthDate().isAfter(untilDate))) {
             return null;
         }
         Pair<LocalDate, List<Person>> nextHolders = getTitleHeirs(title);
@@ -352,9 +362,9 @@ public class TitleService {
         return results;
     }
 
-    List<CalendarDayEvent> checkForSingleTitleHeir(@NonNull Title title,
-                                                   @NonNull LocalDate date,
-                                                   @Nullable LocalDate heirMayBeBornOn) {
+    public List<CalendarDayEvent> checkForSingleTitleHeir(@NonNull Title title,
+                                                          @NonNull LocalDate date,
+                                                          @Nullable LocalDate heirMayBeBornOn) {
         Pair<LocalDate, List<Person>> heirs = getTitleHeirs(title);
         Person latestHolder = getLatestHolder(title);
         List<CalendarDayEvent> results = new ArrayList<>();
@@ -405,7 +415,7 @@ public class TitleService {
                                              @NonNull Person latestHolder,
                                              @NonNull LocalDate date) {
         Person heir = null;
-        if (new PercentDie().roll() < 0.5) {
+        if (PercentDie.roll() < 0.5) {
             // By definition the last holder has no male heirs. But perhaps a grandson can inherit the property.
             List<Person> grandsons = latestHolder.getChildren().stream()
                     .flatMap(p -> p.getChildren().stream())
@@ -445,10 +455,11 @@ public class TitleService {
 
     Title checkNewTitleCreation(@NonNull RandomTitleParameters titleParameters,
                                 @NonNull LocalDate onDate) {
-        if (new PercentDie().roll() > CHANCE_NEW_TITLE_PER_DAY) {
+        if (titleParameters.shouldCreateNewTitleOnDay()) {
+            return createRandomTitle(titleParameters, onDate);
+        } else {
             return null;
         }
-        return createRandomTitle(titleParameters, onDate);
     }
 
     public Title createRandomTitle(@NonNull RandomTitleParameters titleParameters,
@@ -494,9 +505,20 @@ public class TitleService {
                             .noneMatch(t -> t.getTitle().getSocialClass().getRank() > socialClass.getRank()))
                     .collect(Collectors.toList());
             if (possiblePeople.isEmpty()) {
-                return null;
+                // Generate a person
+                RandomFamilyParameters randomFamilyParameters = titleParameters.getFamilyParametersOrDefault();
+                randomFamilyParameters.setReferenceDate(onDate);
+                randomFamilyParameters.setMinSocialClass(title.getSocialClass());
+                randomFamilyParameters.setMaxSocialClass(title.getSocialClass());
+                Family family = familyGenerator.generate(randomFamilyParameters);
+                if (family == null) {
+                    return null;
+                }
+                familyService.save(family);
+                person = family.getHusband();
+            } else {
+                person = possiblePeople.get(BetweenDie.roll(0, possiblePeople.size() - 1));
             }
-            person = possiblePeople.get(new BetweenDie().roll(0, possiblePeople.size() -1));
         }
 
         switch (title.getSocialClass()) {
@@ -541,12 +563,23 @@ public class TitleService {
                 } else {
                     title.setName("Duke of " + randomName);
                 }
+                break;
             default:
                 return null;
         }
         title = save(title);
         person.addOrUpdateTitle(title, onDate, null);
+        if (person.getLastName() == null) {
+            if (title.getPeerage() == Peerage.ENGLAND) {
+                person.setLastName(randomName);
+            } else {
+                person.setLastName("of " + randomName);
+            }
+        }
         person = personService.save(person);
+
+        title.setInheritanceRoot(person);
+        save(title);
 
         double currentCapital = person.getCapitalNullSafe(onDate);
         double minCapital = WealthGenerator.getRandomStartingCapital(person.getSocialClass(),

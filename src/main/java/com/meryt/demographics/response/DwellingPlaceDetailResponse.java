@@ -13,8 +13,10 @@ import lombok.NonNull;
 
 import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.person.Person;
+import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.DwellingPlaceOwnerPeriod;
+import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.service.AncestryService;
 
 @Getter
@@ -31,7 +33,7 @@ public class DwellingPlaceDetailResponse extends DwellingPlaceResponse {
     private List<PersonResponse> beautifulResidents;
 
     public DwellingPlaceDetailResponse(@NonNull DwellingPlace dwellingPlace,
-                                       @Nullable LocalDate onDate,
+                                       @Nullable final LocalDate onDate,
                                        @Nullable AncestryService ancestryService) {
         super(dwellingPlace, onDate);
 
@@ -64,6 +66,8 @@ public class DwellingPlaceDetailResponse extends DwellingPlaceResponse {
             }
 
             households = dwellingPlace.getHouseholds(onDate).stream()
+                    .sorted(Comparator.comparing((Household h) ->
+                            h.getMaxSocialClassOrDefault(onDate, SocialClass.PAUPER)).reversed())
                     .map(h -> new HouseholdResponse(h, onDate, ancestryService))
                     .collect(Collectors.toList());
 

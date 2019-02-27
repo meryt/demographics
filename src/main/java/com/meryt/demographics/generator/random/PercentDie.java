@@ -7,9 +7,9 @@ import java.util.Random;
  */
 public class PercentDie {
 
-    private final Random random = new Random();
+    private static final Random random = new Random();
 
-    public double roll() {
+    public static double roll() {
         return random.nextFloat();
     }
 }

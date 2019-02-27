@@ -100,6 +100,14 @@ public class PersonCapitalPeriod implements DateRange {
             return String.format("Interest on investments of %.2f", amount);
         }
 
+        public static String majorEventMessage(double amount) {
+            if (amount > 0) {
+                return String.format("Windfall of %.2f", amount);
+            } else {
+                return String.format("Catastrophe costing %.2f", amount);
+            }
+        }
+
         public static String loweredSocialClassMessage() {
             return "Bankruptcy";
         }

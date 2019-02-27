@@ -51,7 +51,6 @@ public class OccupationService {
      * @return a list which may contain duplicates if there is more than one slot for a given occupation.
      */
     public List<Occupation> occupationsForTownPopulation(long population) {
-        PercentDie percentDie = new PercentDie();
         List<Occupation> results = new ArrayList<>();
         for (Occupation occupation : findAll()) {
             // The result of this calc will be a double like 3.56
@@ -60,7 +59,7 @@ public class OccupationService {
             int wholeNumber = (int) Math.floor(totalOfType);
             // And there is a 56% chance of another one
             double percent = totalOfType - wholeNumber;
-            if (percentDie.roll() <= percent) {
+            if (PercentDie.roll() <= percent) {
                 wholeNumber++;
             }
             // Add the occupation to the list once per time it appears
@@ -153,7 +152,6 @@ public class OccupationService {
             occupationsForSocialClass = parentsOccupation;
         }
 
-        PercentDie percentDie = new PercentDie();
         Map<Occupation, List<Person>> existingOccupationsInTown = householdDwellingPlace.getPeopleWithOccupations(onDate);
         for (Occupation occupation : occupationsForSocialClass) {
             List<Person> peopleWithOccupation = existingOccupationsInTown.get(occupation);
@@ -163,7 +161,7 @@ public class OccupationService {
             if (wholeNumberSupportedByTown > peopleWithThisOccupation) {
                 return occupation;
             } else if (wholeNumberSupportedByTown == peopleWithThisOccupation
-                    && percentDie.roll() <= (totalOfType - wholeNumberSupportedByTown)) {
+                    && PercentDie.roll() <= (totalOfType - wholeNumberSupportedByTown)) {
                 // If there are 3.2 required and exactly 3 at present, there is a 20% chance of getting another one.
                 return occupation;
             }

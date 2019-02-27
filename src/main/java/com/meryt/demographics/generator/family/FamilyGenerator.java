@@ -123,8 +123,7 @@ public class FamilyGenerator {
     Person generateFounder(RandomFamilyParameters familyParameters) {
         validate(familyParameters);
 
-        PercentDie die = new PercentDie();
-        Gender founderGender = (die.roll() < familyParameters.getPercentMaleFoundersOrDefault())
+        Gender founderGender = (PercentDie.roll() < familyParameters.getPercentMaleFoundersOrDefault())
                 ? Gender.MALE
                 : Gender.FEMALE;
 
@@ -181,15 +180,14 @@ public class FamilyGenerator {
      */
     @Nullable
     public Family attemptToFindSpouse(@NonNull LocalDate startDate,
-                                       @NonNull LocalDate endDate,
-                                       @NonNull Person person,
-                                       @NonNull RandomFamilyParameters familyParameters) {
+                                      @NonNull LocalDate endDate,
+                                      @NonNull Person person,
+                                      @NonNull RandomFamilyParameters familyParameters) {
 
         List<Person> previousSpouses = person.getSpouses();
         LocalDate lastSpouseDeathDate = previousSpouses.isEmpty()
                 ? null
                 : previousSpouses.get(previousSpouses.size() - 1).getDeathDate();
-        PercentDie die = new PercentDie();
         for (LocalDate currentDate = startDate;
                 currentDate.isBefore(endDate) || currentDate.equals(endDate);
                 currentDate = currentDate.plusDays(1)) {
@@ -204,7 +202,7 @@ public class FamilyGenerator {
                             .map(Person::getDeathDate)
                             .findFirst()
                             .orElse(null));
-            if (die.roll() <= percentPerDay) {
+            if (PercentDie.roll() <= percentPerDay) {
                 // He wants to get married. Can he find a spouse?
                 Person potentialSpouse;
                 if (familyParameters.getSpouse() != null) {
@@ -303,16 +301,15 @@ public class FamilyGenerator {
     private LocalDate getRandomSpouseBirthDate(@NonNull Person person, @NonNull LocalDate weddingDate,
                                                @NonNull RandomFamilyParameters familyParameters) {
         int personAge = person.getAgeInYears(weddingDate);
-        BetweenDie die = new BetweenDie();
         int spouseAge;
         if (person.isMale()) {
             int minAge = Math.min(familyParameters.getMinWifeAgeOrDefault(), personAge);
             int maxAge = Math.max(familyParameters.getMinWifeAgeOrDefault(), personAge + 2);
-            spouseAge = die.roll(minAge, maxAge);
+            spouseAge = BetweenDie.roll(minAge, maxAge);
         } else {
             int minAge = familyParameters.getMinHusbandAgeOrDefault(personAge);
             int maxAge = Math.max(familyParameters.getMaxHusbandAgeOrDefault(), minAge);
-            spouseAge = die.roll(minAge, maxAge);
+            spouseAge = BetweenDie.roll(minAge, maxAge);
         }
 
         // The birth date is this many years (minus a random number of days) ago.

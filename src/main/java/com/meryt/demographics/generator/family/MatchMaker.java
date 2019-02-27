@@ -133,11 +133,13 @@ public class MatchMaker {
             return false;
         }
 
-        // If the person has or will ever have a job where they are not allowed to marry, do not allow the marriage.
+        // If the person has or will ever have a job where they are not allowed to marry, greatly reduce the chance
+        // they will marry.
+        double occupationFactor = 1.0;
         for (PersonOccupationPeriod occupation : potentialSpouse.getOccupations()) {
             if ((occupation.contains(onDate) || occupation.getFromDate().isAfter(onDate))
                 && !occupation.getOccupation().isMayMarry()) {
-                return false;
+                occupationFactor = 0.1;
             }
         }
 
@@ -147,7 +149,6 @@ public class MatchMaker {
             return false;
         }
 
-        PercentDie die = new PercentDie();
         double comelinessDiff = Math.abs(person.getComeliness() - potentialSpouse.getComeliness());
         double charismaDiff = Math.abs(person.getCharisma() - potentialSpouse.getCharisma());
         double personDom = person.getDomesticity();
@@ -165,8 +166,11 @@ public class MatchMaker {
         // means one spouse was desirable and the other not particularly.
         double traitModifier = getTraitModifier(person, 0.03) + getTraitModifier(potentialSpouse, 0.03);
 
-        return (die.roll() < ((personDom + spouseDom + femaleAgeModifier + sharedTraitModifier + traitModifier)
-                - comelinessDiff - charismaDiff));
+        double percentChance = occupationFactor * (
+                (personDom + spouseDom + femaleAgeModifier + sharedTraitModifier + traitModifier)
+                    - Math.max(comelinessDiff, charismaDiff));
+
+        return (PercentDie.roll() < percentChance);
     }
 
     /**
@@ -207,8 +211,8 @@ public class MatchMaker {
             greater = man;
         }
 
-        // Get the average of comeliness and charisma
-        double attractiveness = (lesser.getComeliness() + lesser.getCharisma()) / 2.0;
+        // Get the max of comeliness and charisma
+        double attractiveness = Math.max(lesser.getComeliness(), lesser.getCharisma());
 
         // Get the ranking from the traits. Positive traits provide a bonus, negative traits a malus.
         attractiveness += getTraitModifier(lesser, 0.05);
@@ -222,7 +226,7 @@ public class MatchMaker {
         // rank diff = 4, min attractiveness = 0.9
         double minAttractiveness = 0.5 + (0.1 * diff);
 
-        return (new PercentDie().roll() < (attractiveness - minAttractiveness));
+        return (PercentDie.roll() < (attractiveness - minAttractiveness));
     }
 
     /**

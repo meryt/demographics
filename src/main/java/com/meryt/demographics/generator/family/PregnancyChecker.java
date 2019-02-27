@@ -30,7 +30,6 @@ public class PregnancyChecker {
     private static final double GESTATION_STD_DEV = 2.41;
     private static final int HUMAN_GESTATION_DAYS = 266;
 
-    private final PercentDie die;
     private final PersonGenerator personGenerator;
     private final Person father;
     private final Person mother;
@@ -42,7 +41,6 @@ public class PregnancyChecker {
     public PregnancyChecker(@NonNull PersonGenerator personGenerator,
                             @NonNull Family family,
                             boolean allowMaternalDeath) {
-        this.die = new PercentDie();
         this.family = family;
         this.father = family.getHusband();
         this.mother = family.getWife();
@@ -112,8 +110,9 @@ public class PregnancyChecker {
             maternity.setLastBirthDate(day);
         }
 
-        if (allowMaternalDeath && new PercentDie().roll() < CHILDBIRTH_MATERNAL_DEATH_PROBABILITY) {
+        if (allowMaternalDeath && PercentDie.roll() < CHILDBIRTH_MATERNAL_DEATH_PROBABILITY) {
             family.getWife().setDeathDate(day);
+            family.getWife().setCauseOfDeath("childbirth");
             results.add(new DeathEvent(day, family.getWife()));
             log.info(String.format("%s died in childbirth on %s", family.getWife().getName(), day));
         }
@@ -130,8 +129,9 @@ public class PregnancyChecker {
             maternity.setLastBirthDate(day);
         }
 
-        if (allowMaternalDeath && new PercentDie().roll() < MISCARRIAGE_DEATH_PROBABILITY) {
+        if (allowMaternalDeath && PercentDie.roll() < MISCARRIAGE_DEATH_PROBABILITY) {
             log.info(String.format("%s died due to a miscarriage on %s", family.getWife().getName(), day));
+            family.getWife().setCauseOfDeath("miscarriage");
             family.getWife().setDeathDate(day);
         }
 
@@ -174,7 +174,7 @@ public class PregnancyChecker {
         double percentChance = maternity.getConceptionProbability(mother.getBirthDate(), day);
         percentChance *= ((Paternity) father.getFertility()).getAdjustedFertilityFactor(father.getAgeInDays(day));
 
-        if (new PercentDie().roll() < percentChance) {
+        if (PercentDie.roll() < percentChance) {
             return conceive(father, day);
         }
         return null;
@@ -186,12 +186,12 @@ public class PregnancyChecker {
         maternity.setDueDate(maternity.getConceptionDate().plusDays(getRandomGestation()));
         attemptMiscarriage(day);
 
-        if (die.roll() < maternity.getFraternalTwinProbability(day, mother.getAgeInYears(day))) {
+        if (PercentDie.roll() < maternity.getFraternalTwinProbability(day, mother.getAgeInYears(day))) {
             maternity.setCarryingFraternalTwins(true);
             maternity.setDueDate(maternity.getDueDate().minusDays(15));
         }
 
-        if (die.roll() < Maternity.IDENTICAL_TWIN_PROBABILITY) {
+        if (PercentDie.roll() < Maternity.IDENTICAL_TWIN_PROBABILITY) {
             maternity.setCarryingIdenticalTwins(true);
             maternity.setDueDate(maternity.getDueDate().minusDays(15));
         }
@@ -211,7 +211,7 @@ public class PregnancyChecker {
     private void attemptMiscarriage(@NonNull LocalDate day) {
         double chanceMiscarriage = getMiscarriageProbabilityFirstEightWeeks(day);
 
-        if (die.roll() < chanceMiscarriage) {
+        if (PercentDie.roll() < chanceMiscarriage) {
             int daysOut = new Die(7 * 8).roll() - 1;
             maternity.setMiscarriageDate(day.plusDays(daysOut));
             return;
@@ -219,7 +219,7 @@ public class PregnancyChecker {
 
         chanceMiscarriage = getMiscarriageProbabilityEightToTwentyWeeks(day);
 
-        if (die.roll() < chanceMiscarriage) {
+        if (PercentDie.roll() < chanceMiscarriage) {
             int daysOut = (new Die(7 * 12).roll() - 1) + (7 * 8);
             maternity.setMiscarriageDate(day.plusDays(daysOut));
         }

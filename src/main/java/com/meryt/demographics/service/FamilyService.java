@@ -167,7 +167,7 @@ public class FamilyService {
         // The chance of moving away is based on the population per square mile. This is a parabolic function
         // that ranges from about 0 at 30 to about 1 at 100.
         double chanceOfEmigrating = parish.getChanceOfEmigrating(date);
-        double roll = new PercentDie().roll();
+        double roll = PercentDie.roll();
         if (roll < chanceOfEmigrating) {
             log.info(String.format(
                     "Current population per square mile of %s on %s is %.2f. New family will emigrate.",

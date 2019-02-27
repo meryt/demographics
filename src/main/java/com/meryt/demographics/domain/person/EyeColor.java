@@ -31,8 +31,7 @@ public enum EyeColor {
      * @return an eye color
      */
     public static EyeColor randomFromGenes(String genes) {
-        PercentDie percentDie = new PercentDie();
-        double roll = percentDie.roll();
+        double roll = PercentDie.roll();
         switch (genes) {
             case "CC":
                 if (roll <= 0.72) {

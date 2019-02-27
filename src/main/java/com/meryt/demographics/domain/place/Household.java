@@ -161,6 +161,12 @@ public class Household {
                 .orElse(null);
     }
 
+    @NonNull
+    public SocialClass getMaxSocialClassOrDefault(@NonNull LocalDate onDate, @NonNull SocialClass defaultClass) {
+        SocialClass maxClass = getMaxSocialClass(onDate);
+        return maxClass == null ? defaultClass : maxClass;
+    }
+
     public boolean hasInhabitantOfAtLeastClass(@NonNull LocalDate onDate, @NonNull SocialClass socialClass) {
         SocialClass maxClass = getMaxSocialClass(onDate);
         return maxClass != null && socialClass.getRank() <= maxClass.getRank();

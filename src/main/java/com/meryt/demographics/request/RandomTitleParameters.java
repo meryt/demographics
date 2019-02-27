@@ -11,11 +11,15 @@ import com.meryt.demographics.generator.random.PercentDie;
 @Getter
 @Setter
 public class RandomTitleParameters {
+    private static final int DEFAULT_NUM_NEW_TITLE_PER_CENTURY = 5;
+
+    private Integer numNewTitlesPerCentury;
     private Double percentScottish;
     private SocialClass minSocialClass;
     private SocialClass maxSocialClass;
     private List<String> names;
     private List<String> scottishNames;
+    private RandomFamilyParameters familyParameters;
 
     private double getPercentScottishOrDefault() {
         return getPercentScottish() == null
@@ -24,7 +28,7 @@ public class RandomTitleParameters {
     }
 
     public Peerage getRandomPeerage() {
-        return (new PercentDie().roll() <= getPercentScottishOrDefault())
+        return (PercentDie.roll() <= getPercentScottishOrDefault())
                 ? Peerage.SCOTLAND
                 : Peerage.ENGLAND;
     }
@@ -33,5 +37,29 @@ public class RandomTitleParameters {
         SocialClass min = minSocialClass == null ? SocialClass.BARONET : minSocialClass;
         SocialClass max = maxSocialClass == null ? SocialClass.DUKE : maxSocialClass;
         return SocialClass.randomBetween(min, max);
+    }
+
+    public RandomFamilyParameters getFamilyParametersOrDefault() {
+        if (familyParameters != null) {
+            return familyParameters;
+        }
+        RandomFamilyParameters params = new RandomFamilyParameters();
+        params.setPercentMaleFounders(1.0);
+        params.setPersist(true);
+        params.setCycleToDeath(false);
+        params.setMinSpouseSelection(3);
+        params.setAllowExistingSpouse(true);
+        params.setChanceGeneratedSpouse(0.8);
+        return params;
+    }
+
+    public boolean shouldCreateNewTitleOnDay() {
+        double percentChance = (getNumNewTitlesPerCenturyOrDefault() / 100.0) / 365.0;
+        double roll = PercentDie.roll();
+        return (roll <= percentChance);
+    }
+
+    private int getNumNewTitlesPerCenturyOrDefault() {
+        return numNewTitlesPerCentury == null ? DEFAULT_NUM_NEW_TITLE_PER_CENTURY : numNewTitlesPerCentury;
     }
 }

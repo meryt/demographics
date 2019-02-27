@@ -10,6 +10,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import com.google.common.base.Strings;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
@@ -45,15 +46,18 @@ public class GenerationService {
     private final FamilyService familyService;
     private final FamilyGenerator familyGenerator;
     private final TitleService titleService;
+    private final ConfigurationService configurationService;
 
     public GenerationService(@Autowired @NonNull PersonService personService,
                              @Autowired @NonNull FamilyService familyService,
                              @Autowired @NonNull FamilyGenerator familyGenerator,
-                             @Autowired @NonNull TitleService titleService) {
+                             @Autowired @NonNull TitleService titleService,
+                             @Autowired @NonNull ConfigurationService configurationService) {
         this.personService = personService;
         this.familyService = familyService;
         this.familyGenerator = familyGenerator;
         this.titleService = titleService;
+        this.configurationService = configurationService;
     }
 
     /**
@@ -82,7 +86,7 @@ public class GenerationService {
         for (int i = 0; i < numFamilies; i++) {
             Peerage peerage;
             double percentScottish = generationPost.getPercentScottish() == null ? 0.3 : generationPost.getPercentScottish();
-            if (new PercentDie().roll() <= percentScottish) {
+            if (PercentDie.roll() <= percentScottish) {
                 peerage = Peerage.SCOTLAND;
             } else {
                 peerage = Peerage.ENGLAND;
@@ -145,7 +149,7 @@ public class GenerationService {
             result.add(family);
         }
 
-        updateTitles();
+        updateTitles(null);
 
         if (generationPost.getNumNextGenerations() != null && generationPost.getNumNextGenerations() > 0) {
             GenerationPost nextGenerationPost = new GenerationPost();
@@ -158,6 +162,8 @@ public class GenerationService {
         if (generationPost.getOutputToFile() != null) {
             writeGenerationsToFile(generationPost.getOutputToFile());
         }
+
+        configurationService.setCurrentDate(generationPost.getFamilyParameters().getReferenceDate());
 
         return result;
     }
@@ -217,9 +223,9 @@ public class GenerationService {
                 RandomFamilyParameters familyParameters = new RandomFamilyParameters();
                 familyParameters.setMinHusbandAge(personFamilyPost.getMinHusbandAge());
                 familyParameters.setMinWifeAge(personFamilyPost.getMinWifeAge());
-                familyParameters.setReferenceDate(personFamilyPost.getUntilDate() == null
-                        ? person.getDeathDate()
-                        : personFamilyPost.getUntilDate());
+                familyParameters.setReferenceDate(shouldLoopUntilReferenceDate
+                        ? personFamilyPost.getUntilDate()
+                        : person.getDeathDate());
                 // Persisting during family generation causes hibernate to lose visibility of newly created persons when
                 // doing updateTitles and writing the output file. (The data is written to the DB but not visible to the
                 // Hibernate session here. That causes titles to be incorrectly inherited or marked extinct.)
@@ -227,7 +233,7 @@ public class GenerationService {
                 familyParameters.setAllowExistingSpouse(personFamilyPost.isAllowExistingSpouse());
                 familyParameters.setMinSpouseSelection(personFamilyPost.getMinSpouseSelection());
                 // Allows a woman pregnant at time of husband's death to give birth
-                familyParameters.setCycleToDeath(true);
+                familyParameters.setCycleToDeath(!shouldLoopUntilReferenceDate);
 
                 Family family = null;
                 if (person.isMale() || (person.getFamilies().size() < 2 &&
@@ -264,7 +270,7 @@ public class GenerationService {
         }
 
         if (generationPost.getSkipTitleUpdate() == null || !generationPost.getSkipTitleUpdate()) {
-            updateTitles();
+            updateTitles(untilDate);
         }
 
         if (generationPost.getOutputToFile() != null) {
@@ -318,18 +324,17 @@ public class GenerationService {
         title = titleService.save(title);
         int maxYear = founder.getDeathDate().getYear() - 1;
         int minYear = founder.getBirthDate().getYear() + 15;
-        BetweenDie betweenDie = new BetweenDie();
         // Get the first of the month
-        LocalDate fromDate = LocalDate.of(betweenDie.roll(minYear, maxYear),
-                betweenDie.roll(1, 12), 1);
+        LocalDate fromDate = LocalDate.of(BetweenDie.roll(minYear, maxYear),
+                BetweenDie.roll(1, 12), 1);
         // Get a random date in that month
         fromDate = LocalDate.of(fromDate.getYear(), fromDate.getMonthValue(),
-                betweenDie.roll(1, fromDate.getMonth().length(false)));
+                BetweenDie.roll(1, fromDate.getMonth().length(false)));
         founder.addOrUpdateTitle(title, fromDate, null);
         personService.save(founder);
     }
 
-    private void updateTitles() {
+    private void updateTitles(@Nullable LocalDate untilDate) {
         boolean foundAny;
         do {
             foundAny = false;
@@ -337,7 +342,7 @@ public class GenerationService {
                 if (title.isExtinct()) {
                     continue;
                 }
-                if (titleService.updateTitleHeirs(title) != null) {
+                if (titleService.updateTitleHeirs(title, untilDate) != null) {
                     foundAny = true;
                 }
             }

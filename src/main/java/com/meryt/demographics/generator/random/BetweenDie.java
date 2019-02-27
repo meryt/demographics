@@ -1,15 +1,17 @@
 package com.meryt.demographics.generator.random;
 
 import java.util.Random;
+import lombok.experimental.UtilityClass;
 
 /**
  * A die that rolls values between 2 ints, inclusive
  */
+@UtilityClass
 public class BetweenDie {
 
-    private final Random random = new Random();
+    private static final Random random = new Random();
 
-    public int roll(int lowerBound, int upperBound) {
+    public static int roll(int lowerBound, int upperBound) {
         if (lowerBound > upperBound) {
             throw new IllegalArgumentException("Lower bound cannot be greater than upper bound");
         }

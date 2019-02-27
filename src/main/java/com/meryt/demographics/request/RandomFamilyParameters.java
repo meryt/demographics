@@ -224,7 +224,7 @@ public class RandomFamilyParameters {
         if (chanceGeneratedSpouse >= 1.0) {
             return false;
         }
-        return new PercentDie().roll() > chanceGeneratedSpouse;
+        return PercentDie.roll() > chanceGeneratedSpouse;
     }
 
     public boolean isSkipGenerateChildren() {

@@ -31,7 +31,7 @@ public class PersonReference {
         this.birthDate = person.getBirthDate();
         this.deathDate = person.getDeathDate();
 
-        if (onDate != null && !person.getTitles(onDate).isEmpty()) {
+        if (onDate != null && person.isLiving(onDate) && !person.getTitles(onDate).isEmpty()) {
             titles = person.getTitles(onDate).stream()
                     .map(PersonTitleResponse::new)
                     .collect(Collectors.toList());

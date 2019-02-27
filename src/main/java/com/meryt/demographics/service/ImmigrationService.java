@@ -63,7 +63,7 @@ public class ImmigrationService {
 
         // Generate a new family.
         RandomFamilyParameters familyParameters = new RandomFamilyParameters(requestFamilyParameters);
-        familyParameters.setChanceGeneratedSpouse(0.0);
+        familyParameters.setAllowExistingSpouse(false);
         familyParameters.setCycleToDeath(false);
         familyParameters.setReferenceDate(date);
         familyParameters.setPersist(true);

@@ -234,9 +234,10 @@ public class ParishPopulator {
 
         if (headOfHousehold.getSocialClass().isAtLeast(SocialClass.GENTLEMAN)
                 && headOfHousehold.getOccupations().isEmpty() && mayCreateNewEstate) {
-            // An unemployed gentleman or better moves into an estate rather than directly into the town or parish.
-            return householdDwellingPlaceService.moveGentlemanIntoEstate(dwellingPlace, headOfHousehold, household,
-                    moveInDate, DwellingPlaceOwnerPeriod.ReasonToPurchase.MOVE_TO_PARISH.getMessage());
+            // An unemployed gentleman or better moves into an estate in the parish rather than directly into the town
+            // or parish.
+            return householdDwellingPlaceService.moveGentlemanIntoEstate(dwellingPlace.getParish(), headOfHousehold,
+                    household, moveInDate, DwellingPlaceOwnerPeriod.ReasonToPurchase.MOVE_TO_PARISH.getMessage());
 
         } else if (headOfHousehold.getSocialClass().isAtLeast(SocialClass.YEOMAN_OR_MERCHANT)
                 || (occupationOnDate != null &&

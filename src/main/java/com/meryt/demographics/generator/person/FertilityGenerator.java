@@ -57,7 +57,7 @@ public class FertilityGenerator {
     }
 
     private int randCycleLength() {
-        return new BetweenDie().roll(26,32);
+        return BetweenDie.roll(26,32);
     }
 
     private LocalDate randFirstCycleDate(@NonNull LocalDate birthDate) {

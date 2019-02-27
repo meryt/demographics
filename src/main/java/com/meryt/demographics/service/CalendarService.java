@@ -12,9 +12,11 @@ import java.util.stream.Collectors;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 
 import com.meryt.demographics.domain.Occupation;
+import com.meryt.demographics.domain.Plague;
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.place.Dwelling;
@@ -28,6 +30,7 @@ import com.meryt.demographics.domain.title.Title;
 import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.generator.random.BetweenDie;
 import com.meryt.demographics.generator.random.PercentDie;
+import com.meryt.demographics.repository.criteria.PersonCriteria;
 import com.meryt.demographics.request.AdvanceToDatePost;
 import com.meryt.demographics.request.RandomFamilyParameters;
 import com.meryt.demographics.request.RandomTitleParameters;
@@ -137,6 +140,10 @@ public class CalendarService {
                 results = mergeMaps(results, maternityEvents);
             }
 
+            if (isDuringPlague(date)) {
+                processPlagueDeathsOnDay(date);
+            }
+
             Map<LocalDate, List<CalendarDayEvent>> deathEvents = processDeathsOnDay(date);
             results = mergeMaps(results, deathEvents);
 
@@ -155,6 +162,7 @@ public class CalendarService {
                     && date.getDayOfMonth() == nextDatePost.getFirstDayOfYearOrDefault()) {
                 distributeCapital(date);
                 condemnRuinedHouses(date);
+                cleanUpEmptyHouseholds(date);
             }
 
             if (isQuarterDay(date)) {
@@ -322,12 +330,12 @@ public class CalendarService {
 
         for (DwellingPlace parish :  dwellingPlaceService.loadByType(DwellingPlaceType.PARISH)) {
             double chance = nextDatePost.getChanceNewFamilyPerYear() / 365.0;
-            if (new PercentDie().roll() < chance) {
+            if (PercentDie.roll() < chance) {
                 // Someone might want to immigrate. But if the population density is such that it is exerting outward
                 // pressure, they will not come after all. So only come if the density is low enough or the roll is
                 // high enough.
                 double chanceOfEmigrating = ((Parish) parish).getChanceOfEmigrating(date);
-                if (new PercentDie().roll() > chanceOfEmigrating) {
+                if (PercentDie.roll() > chanceOfEmigrating) {
                     dayResults.addAll(immigrationService.processImmigrantArrival((Parish) parish,
                             nextDatePost.getFamilyParameters(), date));
                 }
@@ -418,7 +426,7 @@ public class CalendarService {
     }
 
     private void distributeCapital(@NonNull LocalDate date) {
-        double goodYearFactor = (new BetweenDie()).roll(-20, 20) * 0.01;
+        double goodYearFactor = BetweenDie.roll(-20, 20) * 0.01;
         log.info(String.format("%d was a %s year with a factor of %s", date.getYear() - 1,
                 goodYearFactor > 0 ? "good" : "bad", goodYearFactor));
         wealthService.distributeCapital(date, goodYearFactor);
@@ -464,6 +472,10 @@ public class CalendarService {
         }
     }
 
+    private void cleanUpEmptyHouseholds(@NonNull LocalDate date) {
+        householdService.cleanUpHouseholdsWithoutInhabitantsInLocations(date);
+    }
+
     private Map<LocalDate, List<CalendarDayEvent>> processNewTitles(@NonNull RandomTitleParameters titleParameters,
                                                                     @NonNull LocalDate onDate) {
         Map<LocalDate, List<CalendarDayEvent>> results = new HashMap<>();
@@ -475,5 +487,28 @@ public class CalendarService {
             events.add(event);
         }
         return results;
+    }
+
+    private boolean isDuringPlague(@NonNull LocalDate date) {
+        return Plague.getPlagueForDate(date) != null;
+    }
+
+    private void processPlagueDeathsOnDay(@NonNull LocalDate date) {
+        Plague plague = Plague.getPlagueForDate(date);
+        if (plague == null) {
+            return;
+        }
+
+        for (Person p : personService.findAllLiving(date)) {
+            if (p.hasMarriageAfter(date) || p.hasChildAfter(date)) {
+                continue;
+            }
+            if (plague.didPersonDieOnDate(p, date)) {
+                log.info(String.format("%s died of %s on %s", p.getIdAndName(), plague.getName(), date));
+                p.setDeathDate(date);
+                p.setCauseOfDeath(plague.getName());
+                personService.save(p);
+            }
+        }
     }
 }

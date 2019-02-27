@@ -11,6 +11,7 @@ import javax.annotation.Nullable;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 
 import com.meryt.demographics.domain.Occupation;
@@ -27,6 +28,8 @@ import com.meryt.demographics.domain.place.HouseholdLocationPeriod;
 import com.meryt.demographics.generator.WealthGenerator;
 import com.meryt.demographics.generator.family.MatchMaker;
 import com.meryt.demographics.repository.PersonRepository;
+import com.meryt.demographics.repository.PersonSearchRepository;
+import com.meryt.demographics.repository.criteria.PersonCriteria;
 import com.meryt.demographics.request.RandomFamilyParameters;
 import com.meryt.demographics.response.calendar.CalendarDayEvent;
 import com.meryt.demographics.response.calendar.EmploymentEvent;
@@ -39,17 +42,24 @@ public class PersonService {
     private final PersonRepository personRepository;
     private final AncestryService ancestryService;
     private final HouseholdService householdService;
+    private final PersonSearchRepository personSearchRepository;
 
     public PersonService(@Autowired @NonNull PersonRepository personRepository,
                          @Autowired @NonNull AncestryService ancestryService,
-                         @Autowired @NonNull HouseholdService householdService) {
+                         @Autowired @NonNull HouseholdService householdService,
+                         @Autowired @NonNull PersonSearchRepository personSearchRepository) {
         this.personRepository = personRepository;
         this.ancestryService = ancestryService;
         this.householdService = householdService;
+        this.personSearchRepository = personSearchRepository;
     }
 
     public Person save(@NonNull Person person) {
         return personRepository.save(person);
+    }
+
+    public Page<Person> findAll(@NonNull PersonCriteria personCriteria) {
+        return personSearchRepository.findPersons(personCriteria);
     }
 
     /**
@@ -61,7 +71,7 @@ public class PersonService {
     }
 
     @NonNull
-    Iterable<Person> loadAll(List<Long> ids) {
+    private Iterable<Person> loadAll(List<Long> ids) {
         return personRepository.findAllById(ids);
     }
 
@@ -72,6 +82,11 @@ public class PersonService {
 
     public void delete(@NonNull Person person) {
         personRepository.delete(person);
+    }
+
+    @NonNull
+    List<Person> findAllLiving(@NonNull LocalDate onDate) {
+        return personRepository.findAllLiving(onDate);
     }
 
     /**
@@ -119,14 +134,14 @@ public class PersonService {
     }
 
     @NonNull
-    List<Person> findUnmarriedUnemployedPeopleBySocialClassAndGenderAndAge(@NonNull List<SocialClass> socialClasses,
-                                                                           @Nullable Gender gender,
-                                                                           int minAgeInYears,
-                                                                           int maxAgeInYears,
-                                                                           @NonNull LocalDate aliveOnDate) {
+    List<Person> findUnmarriedPeopleBySocialClassAndGenderAndAge(@NonNull List<SocialClass> socialClasses,
+                                                                 @Nullable Gender gender,
+                                                                 int minAgeInYears,
+                                                                 int maxAgeInYears,
+                                                                 @NonNull LocalDate aliveOnDate) {
         LocalDate minBirthDate = aliveOnDate.minusYears(maxAgeInYears);
         LocalDate maxBirthDate = aliveOnDate.minusYears(minAgeInYears);
-        return personRepository.findUnmarriedUnemployedPeopleBySocialClassAndGenderAndAge(socialClasses,
+        return personRepository.findUnmarriedPeopleBySocialClassAndGenderAndAge(socialClasses,
                 gender, minBirthDate, maxBirthDate, aliveOnDate);
     }
 
@@ -391,11 +406,13 @@ public class PersonService {
         final LocalDate filterSearchDate = searchDate;
         int minDegreesSeparation = familyParameters.getMinDegreesSeparationOrDefault();
 
+        final int maxRankPersonMayAspireToMarry = person.getMaxSocialClassMayAspireToMarry().getRank();
+
         return personRepository.findPotentialSpouses(spouseGender, searchDate, minBirthDate,
                 maxBirthDate, null).stream()
                 // Keep people in the same social bracket. Extremely attractive people can marry up to 4 levels above.
-                .filter(p -> (p.getSocialClass().getRank() >= person.getSocialClass().getRank() - 4) &&
-                              p.getSocialClass().getRank() <= person.getSocialClass().getRank() + 4)
+                .filter(p -> (person.getSocialClass().getRank() <= p.getMaxSocialClassMayAspireToMarry().getRank()) &&
+                              p.getSocialClass().getRank() <= maxRankPersonMayAspireToMarry)
                 // Filter out married people, women who were married more than once, and widows with children
                 .filter(p -> !p.isMarriedNowOrAfter(filterSearchDate) && !isWidowWithChildren(p, filterSearchDate))
                 // Convert to a data structure that includes the relationship

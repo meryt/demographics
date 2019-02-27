@@ -36,7 +36,7 @@ public class Parish extends DwellingPlace {
         double x = getPopulationPerSquareMile(onDate);
 
         // Tweak x so that we allow greater population density as time goes by
-        int numYears = 1900 - onDate.getYear();
+        double numYears = 1900.0 - onDate.getYear();
         if (numYears < 0) {
             numYears = 0;
         }

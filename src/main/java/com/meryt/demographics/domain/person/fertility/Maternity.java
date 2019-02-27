@@ -123,7 +123,12 @@ public class Maternity extends Fertility {
         }
 
         if (0 < getWithdrawalFactor()) {
-            double wdFactor = 1 - getWithdrawalFactor() * (1 - WITHDRAWAL_FACTOR);
+            double wd = getWithdrawalFactor();
+            int numChild = Math.min(getNumBirths(), 5);
+            if (numChild < 5) {
+                wd /= (5 - numChild);
+            }
+            double wdFactor = 1 - wd * (1 - WITHDRAWAL_FACTOR);
             percentChance *= wdFactor;
         }
 
@@ -148,7 +153,7 @@ public class Maternity extends Fertility {
         if (getLastCycleDate() == null) {
             return 0;
         }
-        LocalDate nextCycleDate = getLastCycleDate().plusDays(28);
+        LocalDate nextCycleDate = getLastCycleDate().plusDays(getCycleLength());
         int daysBeforeCycle = (int) LocalDateComparator.daysBetween(day, nextCycleDate);
         switch (daysBeforeCycle) {
             case 10: return 0.02;

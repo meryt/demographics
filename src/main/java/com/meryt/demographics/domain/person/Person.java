@@ -83,6 +83,8 @@ public class Person {
 
     private String deathPlace;
 
+    private String causeOfDeath;
+
     @Enumerated(EnumType.STRING)
     private SocialClass socialClass;
 
@@ -299,6 +301,32 @@ public class Person {
             }
         }
         return false;
+    }
+
+    /**
+     * Returns true if a person has a wedding date in the future
+     * @param onDate the reference date
+     */
+    public boolean hasMarriageAfter(@NonNull LocalDate onDate) {
+        return getFamilies().stream()
+                .anyMatch(f -> f.getWeddingDate() == null || f.getWeddingDate().isAfter(onDate));
+    }
+
+    /**
+     * Returns true if a person has a child born in the future
+     * @param onDate the reference date
+     */
+    public boolean hasChildAfter(@NonNull LocalDate onDate) {
+        return getFamilies().stream()
+                .flatMap(f -> f.getChildren().stream())
+                .anyMatch(p -> p.getBirthDate().isAfter(onDate));
+    }
+
+    public boolean isEmployedOnOrAfter(@NonNull LocalDate onDate) {
+        return getOccupations().stream()
+                .anyMatch(pop -> pop.getFromDate().isAfter(onDate)
+                            || pop.getFromDate().equals(onDate)
+                            || pop.contains(onDate));
     }
 
     public boolean isMarried(@NonNull LocalDate onDate) {
@@ -656,6 +684,22 @@ public class Person {
         }
     }
 
+    public SocialClass getMaxSocialClassMayAspireToMarry() {
+        int baseRank = isMale() ? getSocialClassRank() + 1 : getSocialClassRank() + 2;
+
+        if (isFemale() && getComeliness() > 0.8) {
+            baseRank++;
+        }
+        if (getComeliness() > 0.9) {
+            baseRank++;
+        }
+        if (baseRank > SocialClass.MONARCH.getRank()) {
+            return SocialClass.MONARCH;
+        } else {
+            return SocialClass.fromRank(baseRank);
+        }
+    }
+
     public void addFatheredFamily(@NonNull Family family) {
         fatheredFamilies.add(family);
     }
@@ -846,16 +890,6 @@ public class Person {
             }
         }
         getCapitalPeriods().add(newPeriod);
-
-        for (PersonCapitalPeriod period : getCapitalPeriods()) {
-            if (period.getToDate() != null) {
-                if (period.getToDate().isBefore(period.getFromDate())) {
-                    throw new IllegalStateException(String.format(
-                            "Can't save the capital period for %d %s: to date %s is before from date %s",
-                            getId(), getName(), period.getToDate(), period.getFromDate()));
-                }
-            }
-        }
     }
 
     public void addCapital(double capital, @NonNull LocalDate onDate, @Nullable String reason) {

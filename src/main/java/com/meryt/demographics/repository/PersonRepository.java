@@ -1,9 +1,8 @@
 package com.meryt.demographics.repository;
 
-import javax.annotation.Nullable;
 import java.time.LocalDate;
 import java.util.List;
-
+import javax.annotation.Nullable;
 import lombok.NonNull;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.PagingAndSortingRepository;
@@ -24,6 +23,12 @@ public interface PersonRepository extends PagingAndSortingRepository<Person, Lon
     List<Person> findByStoryCharacterIsTrue();
 
     @Query("SELECT p from Person p " +
+            "WHERE p.birthDate < :aliveOnDate " +
+            "AND p.deathDate > :aliveOnDate " +
+            "ORDER BY p.birthDate ")
+    List<Person> findAllLiving(@Param("aliveOnDate") @NonNull LocalDate onDate);
+
+    @Query("SELECT p from Person p " +
             "WHERE p.gender = :gender " +
             "AND p.birthDate < :aliveOnDate " +
             "AND p.deathDate > :aliveOnDate " +
@@ -37,22 +42,21 @@ public interface PersonRepository extends PagingAndSortingRepository<Person, Lon
             "WHERE (:gender IS NULL OR p.gender = :gender) " +
             "AND p.motheredFamilies IS EMPTY " +
             "AND p.fatheredFamilies IS EMPTY " +
-            "AND p.occupations IS EMPTY " +
             "AND p.socialClass IN (:socialClasses) " +
             "AND (CAST(:minBirthDate AS date) IS NULL OR p.birthDate >= :minBirthDate) " +
             "AND (CAST(:maxBirthDate AS date) IS NULL OR p.birthDate <= :maxBirthDate) " +
             "AND p.deathDate > :aliveOnDate " +
             "ORDER BY p.birthDate"
     )
-    List<Person> findUnmarriedUnemployedPeopleBySocialClassAndGenderAndAge(@Param("socialClasses")
+    List<Person> findUnmarriedPeopleBySocialClassAndGenderAndAge(@Param("socialClasses")
                                                                               @NonNull List<SocialClass> socialClasses,
-                                                                           @Param("gender")
+                                                                 @Param("gender")
                                                                               @Nullable Gender gender,
-                                                                           @Param("minBirthDate")
+                                                                 @Param("minBirthDate")
                                                                               @Nullable LocalDate minBirthDate,
-                                                                           @Param("maxBirthDate")
+                                                                 @Param("maxBirthDate")
                                                                               @Nullable LocalDate maxBirthDate,
-                                                                           @Param("aliveOnDate")
+                                                                 @Param("aliveOnDate")
                                                                               @NonNull LocalDate aliveOnDate);
 
 

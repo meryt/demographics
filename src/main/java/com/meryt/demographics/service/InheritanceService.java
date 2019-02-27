@@ -210,7 +210,7 @@ public class InheritanceService {
                         ancestryService.getPurchasedHouseUponInheritanceWithRelationshipMessage(heir, deceased));
             } else {
                 // A gentleman or less may build a new house of appropriate value, with a 5% chance
-                if (pretension.getRank() <= SocialClass.GENTLEMAN.getRank() && new PercentDie().roll() <= 0.05) {
+                if (pretension.getRank() <= SocialClass.GENTLEMAN.getRank() && PercentDie.roll() <= 0.05) {
                     double randomNewHouseValue = WealthGenerator.getRandomHouseValue(pretension);
                     if (capital > randomNewHouseValue) {
                         DwellingPlace placeToBuildHouse = currentDwelling.getTownOrParish();

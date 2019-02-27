@@ -22,6 +22,7 @@ public class PersonResponse extends PersonSummaryResponse {
     private final Gender gender;
     private final String birthPlace;
     private final String deathPlace;
+    private final String causeOfDeath;
     private final String ageAtDeath;
 
     private final String eyeColor;
@@ -50,6 +51,7 @@ public class PersonResponse extends PersonSummaryResponse {
         birthPlace = person.getBirthPlace();
         deathPlace = person.getDeathPlace();
         ageAtDeath = person.getAgeAtDeath();
+        causeOfDeath = person.getCauseOfDeath();
 
         eyeColor = person.getEyeColorName();
         hairColor = person.getHairColor();

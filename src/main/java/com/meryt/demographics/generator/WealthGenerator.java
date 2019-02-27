@@ -8,32 +8,30 @@ import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.generator.random.BetweenDie;
-import com.meryt.demographics.generator.random.Die;
 
 public class WealthGenerator {
 
-    private static final BetweenDie BETWEEN_DIE = new BetweenDie();
 
     public static double getRandomStartingCapital(@NonNull SocialClass socialClass, boolean isEmployed) {
         Pair<Integer, Integer> range = getStartingCapitalValueRange(socialClass);
         if (socialClass.getRank() <= SocialClass.YEOMAN_OR_MERCHANT.getRank() || isEmployed) {
             // Assume income is from labor. Take 1-5 years of income as total savings.
-            return BETWEEN_DIE.roll(1, 5) * (BETWEEN_DIE.roll(range.getFirst(), range.getSecond()));
+            return BetweenDie.roll(1, 5) * (BetweenDie.roll(range.getFirst(), range.getSecond()));
         } else {
             // Assume income is from rents. Take 1 year of income and consider it to be 4% of the total capital
-            double oneYearInterest = (BETWEEN_DIE.roll(range.getFirst(), range.getSecond()));
+            double oneYearInterest = (BetweenDie.roll(range.getFirst(), range.getSecond()));
             return oneYearInterest / 0.04;
         }
     }
 
     public static double getRandomHouseValue(@NonNull SocialClass socialClass) {
         Pair<Integer, Integer> range = getHouseValueRange(socialClass);
-        return (double) (BETWEEN_DIE.roll(range.getFirst(), range.getSecond()));
+        return (double) (BetweenDie.roll(range.getFirst(), range.getSecond()));
     }
 
     public static double getRandomLandValue(@NonNull SocialClass socialClass) {
         Pair<Integer, Integer> range = getEstateValueRange(socialClass);
-        return (double) (BETWEEN_DIE.roll(range.getFirst(), range.getSecond()));
+        return (double) (BetweenDie.roll(range.getFirst(), range.getSecond()));
     }
 
     public static Pair<Integer, Integer> getHouseValueRange(@NonNull SocialClass socialClass) {
@@ -156,9 +154,10 @@ public class WealthGenerator {
      * Gets the yearly income value range for a person with the given occupation. Since the income depends on social
      * class, both the person's social class and the occupation's max social class are compared, and the highest
      * one is taken as the social class for the calculation.
-     * @param person
-     * @param occupation
-     * @return
+     *
+     * @param person the person to check for -- uses their social class
+     * @param occupation the occupation, if any
+     * @return a min and max for the yearly income value range
      */
     public static Pair<Integer, Integer> getYearlyIncomeValueRangeForPersonWithOccupation(@NonNull Person person,
                                                                                           @Nullable Occupation occupation) {
@@ -173,7 +172,7 @@ public class WealthGenerator {
         return getYearlyIncomeValueRange(socialClass);
     }
 
-    public static Pair<Integer, Integer> getYearlyIncomeValueRange(@NonNull SocialClass socialClass) {
+    private static Pair<Integer, Integer> getYearlyIncomeValueRange(@NonNull SocialClass socialClass) {
         switch (socialClass) {
             case PAUPER:
                 return Pair.of(1, 5);

@@ -49,7 +49,10 @@ public class TownTemplateRepository {
 
         String query = "SELECT tht.polygon_id, tht.polygon_value " +
                 "FROM town_house_templates tht " +
-                "LEFT JOIN dwelling_places dp ON tht.polygon_id = dp.map_id AND dp.dwelling_place_type = 'DWELLING' " +
+                "LEFT JOIN dwelling_places town ON tht.town_map_id = town.map_id " +
+                "LEFT JOIN dwelling_places dp ON tht.polygon_id = dp.map_id " +
+                "    AND dp.dwelling_place_type = 'DWELLING' " +
+                "    AND dp.parent_id = town.id " +
                 "WHERE dp.id IS NULL " +
                 "AND tht.polygon_value <= :value " +
                 "AND tht.town_map_id = :mapId " +
@@ -71,7 +74,10 @@ public class TownTemplateRepository {
 
         String query = "SELECT tht.polygon_id, tht.polygon_value " +
                 "FROM town_house_templates tht " +
-                "LEFT JOIN dwelling_places dp ON tht.polygon_id = dp.map_id AND dp.dwelling_place_type = 'DWELLING' " +
+                "LEFT JOIN dwelling_places town ON tht.town_map_id = town.map_id " +
+                "LEFT JOIN dwelling_places dp ON tht.polygon_id = dp.map_id " +
+                "    AND dp.dwelling_place_type = 'DWELLING' " +
+                "    AND dp.parent_id = town.id " +
                 "WHERE dp.id IS NULL " +
                 "AND tht.polygon_value >= :value " +
                 "AND tht.town_map_id = :mapId " +

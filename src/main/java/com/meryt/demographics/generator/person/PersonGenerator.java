@@ -85,10 +85,9 @@ public class PersonGenerator {
         if (!PersonParameters.NO_LAST_NAME.equals(personParameters.getLastName())) {
             if (personParameters.getLastName() != null) {
                 person.setLastName(personParameters.getLastName());
-            } else if (personParameters.getFather() != null) {
-                person.setLastName(personParameters.getFather().getLastName());
-            } else if (nameDate.isAfter(LocalDate.of(LAST_NAME_BEGINNING_YEAR, 1, 1))) {
-                person.setLastName(nameService.randomLastName());
+            } else {
+                person.setLastName(getLastNameForNewPerson(nameDate, personParameters.getFather(),
+                        personParameters.getMother(), personParameters.isBornOutOfWedlock()));
             }
         }
 
@@ -139,6 +138,112 @@ public class PersonGenerator {
     }
 
     /**
+     * Get a last name for a new person. If he has a father and the father has a last name, use it, unless it's a name
+     * from nobility and the father is too far removed from a noble ancestor.
+     *
+     * If the year is after 1400 and the name would otherwise be null, generate a random last name.
+     *
+     * @param onDate the date on which the name should be generated (as they were not used before around 1400)
+     * @param father the father, if available
+     * @return a last name or null
+     */
+    private String getLastNameForNewPerson(@NonNull LocalDate onDate,
+                                           @Nullable Person father,
+                                           @Nullable Person mother,
+                                           boolean isOutOfWedlock) {
+
+        if (isOutOfWedlock && mother != null) {
+            String motherLastName = mother.getLastName();
+            // A child born out of wedlock to a noble woman has no last name
+            if (motherLastName != null && lastNameAppearsNoble(motherLastName)) {
+                return null;
+            } else {
+                return motherLastName;
+            }
+        }
+
+        String fatherLastName = father == null ? null : father.getLastName();
+        String motherLastName = mother == null ? null : mother.getLastName();
+
+        if (fatherLastName == null && motherLastName != null
+                && onDate.isAfter(LocalDate.of(LAST_NAME_START_ADOPTING_YEAR, 1, 1))) {
+            // When the date starts getting late, use the mother's last name if she has one and the father does not.
+            // But if the mother's name is noble and she is too far removed from nobility, don't use it.
+            if (lastNameAppearsNoble(motherLastName)) {
+                if (personHasTitleMatchingLastName(mother, motherLastName)
+                        || personOwnsEstateMatchingLastName(mother, motherLastName, onDate)) {
+                    return motherLastName;
+                }
+                Person grandfather = mother.getFather();
+                if (grandfather != null && personHasTitleMatchingLastName(grandfather, motherLastName)) {
+                    return motherLastName;
+                }
+                return null;
+            }
+            return motherLastName;
+        }
+
+        if (fatherLastName != null) {
+            if (lastNameAppearsNoble(fatherLastName) && father.getId() != 0) {
+                // A name indicating nobility or place name association is only retained if the person is a close and
+                // direct descendant of a person holding the title.
+                if (personHasTitleMatchingLastName(father, fatherLastName)) {
+                    return fatherLastName;
+                }
+                if (personOwnsEstateMatchingLastName(father, fatherLastName, onDate)) {
+                    return fatherLastName;
+                }
+                Person grandfather = father.getFather();
+                if (grandfather != null && personHasTitleMatchingLastName(grandfather, fatherLastName)) {
+                    return fatherLastName;
+                }
+            } else {
+                return fatherLastName;
+            }
+        }
+
+        if (onDate.isAfter(LocalDate.of(LAST_NAME_BEGINNING_YEAR, 1, 1))) {
+            return nameService.randomLastName();
+        }
+
+        return null;
+    }
+
+    private boolean lastNameAppearsNoble(@NonNull String name) {
+        String fln = name.toLowerCase();
+        return (fln.startsWith("of ") || fln.startsWith("de ") || fln.startsWith("du ") || fln.startsWith("d'")
+                || fln.startsWith("des ") || fln.startsWith("le "));
+    }
+
+    /**
+     * Returns true if any of the person's titles would have led to the given last name (e.g. "Lord of Foo" with the
+     * last name "of Foo")
+     * @param person a person who may have titles
+     * @param lastName a last name
+     * @return true if any of the titles ends with the given last name
+     */
+    private boolean personHasTitleMatchingLastName(@NonNull Person person, @NonNull String lastName) {
+        return person.getTitles().stream()
+                .anyMatch(t -> t.getTitle().getName().endsWith(lastName));
+    }
+
+    /**
+     * Returns true if any of the person's owned estates would have led to the given last name (e.g. an estate called
+     * "Foo" with the last name "of Foo")
+     *
+     * @param person a person who may own estates
+     * @param lastName a last name
+     * @param onDate the date on which the person might own the estate
+     * @return true if the last name ends with the name of any owned estate
+     */
+    private boolean personOwnsEstateMatchingLastName(@NonNull Person person,
+                                                     @NonNull String lastName,
+                                                     @NonNull LocalDate onDate) {
+        return person.getOwnedDwellingPlaces(onDate).stream()
+                .anyMatch(dp -> dp.isEstate() && lastName.endsWith(dp.getName()));
+    }
+
+    /**
      * Generates a child or children (if twins are requested) for this family, given a birth date. The new children will
      * be added to the existing list of children in the family object, and will also be returned from this method.
      *
@@ -167,21 +272,6 @@ public class PersonGenerator {
 
         PersonParameters personParameters = new PersonParameters();
         personParameters.setBirthDate(birthDate);
-        if (family.isMarriage()) {
-            personParameters.setLastName(family.getHusband().getLastName());
-        } else {
-            personParameters.setLastName(family.getWife().getLastName(birthDate));
-        }
-        if (personParameters.getLastName() == null) {
-            if (family.getWife().getLastName() != null &&
-                    birthDate.isAfter(LocalDate.of(LAST_NAME_START_ADOPTING_YEAR, 1, 1))) {
-                // When the date starts getting late, use the mother's last name if she has one and the father does not
-                personParameters.setLastName(family.getWife().getLastName());
-            } else {
-                // If there is no last name from the parents, do not invent last names for the children.
-                personParameters.setLastName(PersonParameters.NO_LAST_NAME);
-            }
-        }
 
         // Don't name kids after other kids already born and not yet dead
         Set<String> alreadyUsedNames = family.getChildren().stream()
@@ -192,6 +282,8 @@ public class PersonGenerator {
 
         personParameters.setFather(family.getHusband());
         personParameters.setMother(family.getWife());
+        personParameters.setBornOutOfWedlock(family.getWeddingDate() == null
+                || family.getWeddingDate().isAfter(birthDate));
 
         List<Person> children = new ArrayList<>();
         Person firstChild = generate(personParameters);
@@ -216,10 +308,9 @@ public class PersonGenerator {
         }
 
         // Chance of child death increases with number of children
-        PercentDie die = new PercentDie();
         double chanceDeath = children.size() * CHILDBIRTH_DEATH_PROBABILITY;
         for (Person child : children) {
-            if (die.roll() <= chanceDeath) {
+            if (PercentDie.roll() <= chanceDeath) {
                 child.setDeathDate(birthDate);
             }
             // Set social class in the same loop because a firstborn son may have higher class than the others

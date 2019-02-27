@@ -8,6 +8,9 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.util.Pair;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.family.LeastCommonAncestorRelationship;
 import com.meryt.demographics.domain.family.Relationship;
+import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.PersonCapitalPeriod;
 import com.meryt.demographics.domain.person.PersonTitlePeriod;
@@ -37,6 +41,7 @@ import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.generator.family.MatchMaker;
 import com.meryt.demographics.generator.person.FertilityGenerator;
 import com.meryt.demographics.generator.person.PersonGenerator;
+import com.meryt.demographics.repository.criteria.PersonCriteria;
 import com.meryt.demographics.request.PersonFamilyPost;
 import com.meryt.demographics.request.PersonFertilityPost;
 import com.meryt.demographics.request.PersonHouseholdPost;
@@ -171,6 +176,30 @@ public class PersonController {
         return new PersonDetailResponse(person, date, ancestryService);
     }
 
+    @RequestMapping(value = "/api/persons", method = RequestMethod.GET)
+    public Page<PersonResponse> getPeople(
+            @RequestParam(value = "page", required = false) Integer page,
+            @RequestParam(value = "pageSize", required = false) Integer pageSize,
+            @RequestParam(value = "sortBy", required = false) String sortBy,
+            @RequestParam(value = "aliveOnDate", required = false) String aliveOnDate,
+            @RequestParam(value = "gender", required = false) String gender) {
+
+        PersonCriteria personCriteria = new PersonCriteria();
+        personCriteria.setPage(page);
+        personCriteria.setPageSize(pageSize);
+        personCriteria.setSortBy(sortBy);
+
+        personCriteria.setAliveOnDate(controllerHelperService.parseDate(aliveOnDate));
+        if (gender != null) {
+            personCriteria.setGender(Gender.from(gender));
+        }
+
+        Page<Person> queryResult = personService.findAll(personCriteria);
+        return queryResult.map(p -> personCriteria.getAliveOnDate() != null
+                ? new PersonDetailResponse(p, personCriteria.getAliveOnDate(), ancestryService)
+                : new PersonDetailResponse(p));
+    }
+
     @RequestMapping(value = "/api/persons/{personId}", method = RequestMethod.DELETE)
     public PersonDetailResponse deletePerson(@PathVariable long personId) {
         Person person = controllerHelperService.loadPerson(personId);
@@ -280,11 +309,14 @@ public class PersonController {
                                                          @RequestParam(value = "minAge", required = false)
                                                             Integer minAge,
                                                          @RequestParam(value = "bornBefore", required = false)
-                                                            String bornBefore) {
+                                                            String bornBefore,
+                                                         @RequestParam(value = "onDate", required = false)
+                                                            String onDate) {
         Person person = controllerHelperService.loadPerson(personId);
         LocalDate bornBeforeDate = controllerHelperService.parseDate(bornBefore);
+        LocalDate referenceDate = controllerHelperService.parseDate(onDate);
 
-        return new PersonDescendantResponse(person, minAge, bornBeforeDate, 0,
+        return new PersonDescendantResponse(person, referenceDate, minAge, bornBeforeDate, 0,
                 numGenerations == null ? 3 : numGenerations);
     }
 

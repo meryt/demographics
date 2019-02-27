@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
-import com.google.common.collect.Comparators;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
@@ -263,7 +262,7 @@ public class HouseholdDwellingPlaceService {
         if (towns.isEmpty()) {
             townOrParish = parish;
         } else {
-            int whichTown = new BetweenDie().roll(1, towns.size() + 1);
+            int whichTown = BetweenDie.roll(1, towns.size() + 1);
             if (whichTown > towns.size()) {
                 // add ot parish
                 townOrParish = parish;
@@ -337,10 +336,10 @@ public class HouseholdDwellingPlaceService {
         }
     }
 
-    List<PropertyTransferEvent> buyAndMoveIntoHouse(@NonNull Dwelling house,
-                                                    @NonNull Person buyer,
-                                                    @NonNull LocalDate date,
-                                                    @NonNull String reason) {
+    public List<PropertyTransferEvent> buyAndMoveIntoHouse(@NonNull Dwelling house,
+                                                           @NonNull Person buyer,
+                                                           @NonNull LocalDate date,
+                                                           @NonNull String reason) {
         List<PropertyTransferEvent> results = new ArrayList<>();
         if (house.isAttachedToParent() && house.getParent() != null) {
             DwellingPlace parent = house.getParent();
@@ -472,7 +471,7 @@ public class HouseholdDwellingPlaceService {
         estate.setValue(WealthGenerator.getRandomLandValue(headOfHousehold.getSocialClass()));
         // A 100 acre estate in 1801 sold for about 3500 pounds (35 pounds per acre)
         estate.setAcres(estate.getValue() / 35.0);
-        boolean isEntailed = headOfHousehold.isMale() && new BetweenDie().roll(1, 100) > 30;
+        boolean isEntailed = headOfHousehold.isMale() && BetweenDie.roll(1, 100) > 30;
         estate = (Estate) dwellingPlaceService.save(estate);
         estate.setEntailed(isEntailed);
         dwellingPlace.addDwellingPlace(estate);
@@ -734,7 +733,7 @@ public class HouseholdDwellingPlaceService {
         estate.setValue(WealthGenerator.getRandomLandValue(owner.getSocialClass()));
         // A 100 acre estate in 1801 sold for about 3500 pounds (35 pounds per acre)
         estate.setAcres(estate.getValue() / 35.0);
-        boolean isEntailed = owner.isMale() && new BetweenDie().roll(1, 100) > 30;
+        boolean isEntailed = owner.isMale() && BetweenDie.roll(1, 100) > 30;
         estate = (Estate) dwellingPlaceService.save(estate);
         estate.setEntailed(isEntailed);
 
@@ -1006,19 +1005,43 @@ public class HouseholdDwellingPlaceService {
         // Any remaining servants lose their job and must move out.
         for (Map.Entry<Occupation, List<Person>> servantEntry : servantsToFire.entrySet()) {
             for (Person servant : servantEntry.getValue()) {
-                log.info(String.format("%s lost their job as a %s and must move out",
-                        servant.getIdAndName(), servantEntry.getKey().getName()));
-                servant.quitJob(onDate);
-                personService.save(servant);
-                DwellingPlace currentDwelling = servant.getDwellingPlace(onDate);
-                if (currentDwelling == null) {
-                    continue;
-                }
-                Parish currentParish = currentDwelling.getParish();
-                buyOrCreateOrMoveIntoEmptyHouse(currentParish, prepareEmployeeHouseholdToMove(servant, onDate),
-                        onDate, DwellingPlaceOwnerPeriod.ReasonToPurchase.EVICTION, true);
+                moveOutOrEmigrateFormerServant(servant, servantEntry.getKey(), onDate);
             }
         }
+    }
+
+    /**
+     * End the servant's employment and either move them into a new house (but not as an employee) or, if they have no
+     * family ties to the parish, move them away entirely.
+     *
+     * @param servant the person who is losing their job
+     * @param formerOccupation the job they used to hold
+     * @param onDate the date on which to fire them and make them move
+     */
+    private void moveOutOrEmigrateFormerServant(@NonNull Person servant,
+                                                @NonNull Occupation formerOccupation,
+                                                @NonNull LocalDate onDate) {
+        servant.quitJob(onDate);
+        personService.save(servant);
+        DwellingPlace currentDwelling = servant.getDwellingPlace(onDate);
+        if (currentDwelling == null) {
+            log.info(String.format("%s lost their job as a %s",
+                    servant.getIdAndName(), formerOccupation.getName()));
+            return;
+        }
+        // Don't keep randomly generated servants around, they can just move back to wherever they came from.
+        if (servant.getFamily() == null && servant.getFamilies().isEmpty()) {
+            log.info(String.format("%s lost their job as a %s and is moving away",
+                    servant.getIdAndName(), formerOccupation.getName()));
+            householdService.endPersonResidence(servant.getHousehold(onDate), servant, onDate);
+            return;
+        }
+
+        log.info(String.format("%s lost their job as a %s and must move to a new house",
+                servant.getIdAndName(), formerOccupation.getName()));
+        Parish currentParish = currentDwelling.getParish();
+        buyOrCreateOrMoveIntoEmptyHouse(currentParish, prepareEmployeeHouseholdToMove(servant, onDate),
+                onDate, DwellingPlaceOwnerPeriod.ReasonToPurchase.EVICTION, true);
     }
 
 
@@ -1092,13 +1115,20 @@ public class HouseholdDwellingPlaceService {
     private Pair<Person, Household> hirePersonAndPrepareHouseholdToMove(@NonNull Occupation occupation,
                                                                         @NonNull LocalDate date) {
 
-        List<Person> people = personService.findUnmarriedUnemployedPeopleBySocialClassAndGenderAndAge(
+        List<Person> people = personService.findUnmarriedPeopleBySocialClassAndGenderAndAge(
                 SocialClass.listFromClassToClass(occupation.getMinClass(), occupation.getMaxClass()),
                 occupation.getRequiredGender(), 15, 50, date).stream()
                 // Filter out people who could expect to earn more from capital than labor.
                 .filter(p -> (p.getCapitalNullSafe(date) * 0.04) <
                         WealthGenerator.getYearlyIncomeValueRangeForPersonWithOccupation(p, occupation).getFirst())
+                .filter(p -> !p.isEmployedOnOrAfter(date))
                 .collect(Collectors.toList());
+        List<Person> peopleWhoAlreadyHadOccupation = people.stream()
+                .filter(p -> p.getOccupations().stream().anyMatch(pop -> pop.getOccupation().getId() == occupation.getId()))
+                .collect(Collectors.toList());
+        if (!peopleWhoAlreadyHadOccupation.isEmpty()) {
+            people = peopleWhoAlreadyHadOccupation;
+        }
         Collections.shuffle(people);
         if (people.isEmpty()) {
             // Generate a new person if none could be found

@@ -22,6 +22,7 @@ import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.Parish;
 import com.meryt.demographics.generator.WealthGenerator;
 import com.meryt.demographics.generator.random.BetweenDie;
+import com.meryt.demographics.generator.random.PercentDie;
 
 @Slf4j
 @Service
@@ -45,6 +46,9 @@ public class WealthService {
     }
 
     void distributeCapital(@NonNull LocalDate onDate, double goodYearFactor) {
+
+        long start = System.currentTimeMillis();
+
         List<DwellingPlace> estatesAndFarms = dwellingPlaceService.loadByType(DwellingPlaceType.ESTATE);
         estatesAndFarms.addAll(dwellingPlaceService.loadByType(DwellingPlaceType.FARM));
 
@@ -52,7 +56,15 @@ public class WealthService {
             distributeEstateRentsAndFarmIncome(estateOrFarm, onDate, goodYearFactor);
         }
 
+        long estateAndFarmIncomeTime = System.currentTimeMillis() - start;
+
+        long wagesTime = 0;
+        long interestTime = 0;
+        long rentsTime = 0;
+        long expensesTime = 0;
+
         for (DwellingPlace parish : dwellingPlaceService.loadByType(DwellingPlaceType.PARISH)) {
+            start = System.currentTimeMillis();
             List<Person> peopleWithWages = parish.getAllResidents(onDate).stream()
                     .filter(p -> p.getOccupation(onDate) != null ||
                             (p.getSocialClassRank() <= SocialClass.YEOMAN_OR_MERCHANT.getRank()
@@ -62,7 +74,9 @@ public class WealthService {
             for (Person person : peopleWithWages) {
                 distributeWages(person.getOccupation(onDate), person, onDate, goodYearFactor);
             }
+            wagesTime += (System.currentTimeMillis() - start);
 
+            start = System.currentTimeMillis();
             List<Person> gentry = parish.getAllResidents(onDate).stream()
                     .filter(p -> p.getSocialClass().getRank() >= SocialClass.YEOMAN_OR_MERCHANT.getRank()
                         && p.getOccupation(onDate) == null)
@@ -70,15 +84,25 @@ public class WealthService {
             for (Person gentleman : gentry) {
                 distributeInterestOnCapital(gentleman, onDate);
             }
+            interestTime += (System.currentTimeMillis() - start);
 
+            start = System.currentTimeMillis();
             for (DwellingPlace dwelling : parish.getRecursiveDwellingPlaces(DwellingPlaceType.DWELLING)) {
                 distributeDwellingRents((Parish) parish, (Dwelling) dwelling, onDate);
             }
+            rentsTime += (System.currentTimeMillis() - start);
 
+            // Do expenses last since people may lose a social status rank if they are in debt too long
+            start = System.currentTimeMillis();
             for (Household household : parish.getRecursiveHouseholds(onDate)) {
                 payHouseholdExpenses(household, onDate);
             }
+            expensesTime += (System.currentTimeMillis() - start);
         }
+
+        log.info(String.format(
+                "Finished distributing capital on %s estateAndFarmIncomeTime=%d wagesTime=%d interestTime=%d rentsTime=%d expensesTime=%d",
+                onDate, estateAndFarmIncomeTime, wagesTime, interestTime, rentsTime, expensesTime));
     }
 
     private void payHouseholdExpenses(@NonNull Household household, @NonNull LocalDate onDate) {
@@ -88,8 +112,7 @@ public class WealthService {
         }
         double averageExpenses = WealthGenerator.getYearlyCostOfLivingPerHousehold(householdClass);
         // expenses are +/- 20% of the expected value
-        double actualExpenses = averageExpenses +
-                ((new BetweenDie()).roll(-2000, 2000) * 0.0001) * averageExpenses;
+        double actualExpenses = averageExpenses + (BetweenDie.roll(-2000, 2000) * 0.0001) * averageExpenses;
 
         if (log.isDebugEnabled()) {
             log.debug(String.format("%s of rank %s has %.2f in expenses and %.2f in capital",
@@ -226,7 +249,7 @@ public class WealthService {
         int maxReturn = estate.getType() == DwellingPlaceType.FARM ? 5 : 7;
 
         double value = estate.getValue();
-        double individualFactor = (new BetweenDie()).roll(minReturn * 100, maxReturn * 100) * 0.0001;
+        double individualFactor = BetweenDie.roll(minReturn * 100, maxReturn * 100) * 0.0001;
         double baseRent = value * individualFactor;
         double adjustedRent = adjustForGoodOrBadYear(baseRent, goodYearFactor);
 
@@ -243,7 +266,7 @@ public class WealthService {
 
         Pair<Integer, Integer> range = WealthGenerator.getYearlyIncomeValueRangeForPersonWithOccupation(person,
                 occupation);
-        int value = new BetweenDie().roll(range.getFirst(), range.getSecond());
+        int value = BetweenDie.roll(range.getFirst(), range.getSecond());
         double adjustedWage = adjustForGoodOrBadYear(value, goodYearFactor);
         person.addCapital(adjustedWage, onDate, PersonCapitalPeriod.Reason.wagesMessage(adjustedWage));
         log.debug(String.format("%d %s received %.2f from his wages as a %s", person.getId(), person.getName(),
@@ -257,11 +280,32 @@ public class WealthService {
             return;
         }
 
-        double rateOfReturn = new BetweenDie().roll(-200, 400) * 0.0001;
+        double chanceOfMajorEvent = 0.05;
+        boolean isMajorEvent = (PercentDie.roll() <= chanceOfMajorEvent);
+
+        double rateOfReturn = isMajorEvent
+                ? BetweenDie.roll(200, 800) * 0.001 * (PercentDie.roll() <= 0.5 ? 1 : -1)
+                : BetweenDie.roll(-200, 400) * 0.0001;
         double interest = currentCapital * rateOfReturn;
-        person.addCapital(interest, onDate, PersonCapitalPeriod.Reason.interestMessage(interest));
-        log.debug(String.format("%d %s received %.2f from interest on capital", person.getId(), person.getName(),
-                interest));
+        String message;
+        if (isMajorEvent) {
+            message = PersonCapitalPeriod.Reason.majorEventMessage(interest);
+        } else {
+            message = PersonCapitalPeriod.Reason.interestMessage(interest);
+        }
+        person.addCapital(interest, onDate, message);
+        if (isMajorEvent) {
+            if (interest >= 0) {
+                log.info(String.format("%d %s received a windfall of %.2f", person.getId(), person.getName(),
+                        interest));
+            } else {
+                log.info(String.format("%d %s suffered a catastrophe costing %.2f", person.getId(), person.getName(),
+                        (interest * -1)));
+            }
+        } else {
+            log.debug(String.format("%d %s received %.2f from interest on capital", person.getId(), person.getName(),
+                    interest));
+        }
         personService.save(person);
     }
 

@@ -153,7 +153,7 @@ public class TitleController {
     @RequestMapping(value = "api/titles/{titleId}/heirs", method = RequestMethod.POST)
     public TitleResponse postTitleHeirs(@PathVariable long titleId) {
         Title title = loadTitle(titleId);
-        titleService.updateTitleHeirs(title);
+        titleService.checkForSingleTitleHeir(title, controllerHelperService.parseDate("current"), null);
         return new TitleResponse(title, ancestryService, getTitleHeirs(title));
     }
 

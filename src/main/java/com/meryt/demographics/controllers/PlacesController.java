@@ -27,6 +27,7 @@ import com.meryt.demographics.domain.place.HouseholdInhabitantPeriod;
 import com.meryt.demographics.domain.place.HouseholdLocationPeriod;
 import com.meryt.demographics.domain.title.Title;
 import com.meryt.demographics.request.EstatePost;
+import com.meryt.demographics.request.HousePurchasePost;
 import com.meryt.demographics.response.DwellingPlaceDetailResponse;
 import com.meryt.demographics.response.DwellingPlaceOwnerResponse;
 import com.meryt.demographics.response.DwellingPlaceReference;
@@ -34,6 +35,7 @@ import com.meryt.demographics.response.DwellingPlaceResponse;
 import com.meryt.demographics.response.HouseholdResponseWithLocations;
 import com.meryt.demographics.response.PersonReference;
 import com.meryt.demographics.response.PersonResidencePeriodResponse;
+import com.meryt.demographics.response.calendar.PropertyTransferEvent;
 import com.meryt.demographics.rest.BadRequestException;
 import com.meryt.demographics.service.AncestryService;
 import com.meryt.demographics.service.ControllerHelperService;
@@ -187,6 +189,34 @@ public class PlacesController {
         }
 
     }
+
+    @RequestMapping(value = "/api/houses/{houseId}/purchase")
+    public List<PropertyTransferEvent> purchaseHouse(@PathVariable long houseId,
+                                                     @RequestBody HousePurchasePost housePurchaseRequest) {
+        DwellingPlace place = controllerHelperService.loadDwellingPlace(houseId);
+        if (!place.isHouse()) {
+            throw new IllegalArgumentException("Can only purchase a house. If the house has a Farm or Estate " +
+                    "attached, this will be purchased along with the house.");
+        }
+        Dwelling house = (Dwelling) place;
+
+        LocalDate onDate = controllerHelperService.parseDate(housePurchaseRequest.getOnDate());
+
+        Person buyer = controllerHelperService.loadPerson(housePurchaseRequest.getNewOwnerId());
+        if (!buyer.isLiving(onDate)) {
+            throw new IllegalArgumentException(String.format("%s is not living on %s", buyer.getIdAndName(),
+                    onDate));
+        }
+
+        double value = house.getNullSafeValueIncludingAttachedParent();
+        if (value > buyer.getCapitalNullSafe(onDate)) {
+            throw new IllegalArgumentException(String.format(
+                    "%s does not have the %f in cash necessary to buy this house", buyer.getIdAndName(), value));
+        }
+
+        return householdDwellingPlaceService.buyAndMoveIntoHouse(house, buyer, onDate, "Purchased");
+    }
+
 
     @RequestMapping("/api/places/estates")
     public List<DwellingPlaceReference> getEstates(@RequestParam(value = "onDate", required = false) String onDate) {

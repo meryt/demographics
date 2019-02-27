@@ -68,6 +68,7 @@ public class PersonParameters {
 
     private Long fatherId;
     private Long motherId;
+    private boolean bornOutOfWedlock;
 
     private SocialClass minSocialClass;
 

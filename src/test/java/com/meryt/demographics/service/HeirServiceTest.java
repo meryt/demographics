@@ -5,6 +5,7 @@ import java.util.List;
 import lombok.NonNull;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Mock;
 import org.springframework.data.util.Pair;
 
 import com.meryt.demographics.domain.family.Family;
@@ -17,8 +18,11 @@ import com.meryt.demographics.domain.title.TitleInheritanceStyle;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
 public class HeirServiceTest {
+
+    private PersonService mockPersonService;
 
     private HeirService service;
     private Title title;
@@ -31,7 +35,9 @@ public class HeirServiceTest {
 
     @Before
     public void setUp() {
-        service = new HeirService();
+        mockPersonService = mock(PersonService.class);
+
+        service = new HeirService(mockPersonService);
         title = new Title();
         title.setId(1);
         title.setName("Lord Foo");
