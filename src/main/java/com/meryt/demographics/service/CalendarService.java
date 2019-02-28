@@ -166,6 +166,7 @@ public class CalendarService {
             }
 
             if (isQuarterDay(date)) {
+                moveHouseholdsToBetterHouses(date);
                 hireAndFireDomesticServants(date);
                 hireEstateEmployees(date);
             }
@@ -451,6 +452,10 @@ public class CalendarService {
      */
     private void hireAndFireDomesticServants(@NonNull LocalDate date) {
         householdDwellingPlaceService.hireAndFireDomesticServants(date);
+    }
+
+    private void moveHouseholdsToBetterHouses(@NonNull LocalDate date) {
+        householdDwellingPlaceService.moveHouseholdsToBetterHouses(date);
     }
 
     /**

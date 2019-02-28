@@ -167,7 +167,7 @@ public class Household {
         return maxClass == null ? defaultClass : maxClass;
     }
 
-    public boolean hasInhabitantOfAtLeastClass(@NonNull LocalDate onDate, @NonNull SocialClass socialClass) {
+    private boolean hasInhabitantOfAtLeastClass(@NonNull LocalDate onDate, @NonNull SocialClass socialClass) {
         SocialClass maxClass = getMaxSocialClass(onDate);
         return maxClass != null && socialClass.getRank() <= maxClass.getRank();
     }
@@ -194,6 +194,12 @@ public class Household {
     }
 
     public boolean mayHireServants(@NonNull LocalDate onDate) {
-        return hasInhabitantOfAtLeastClass(onDate, SocialClass.YEOMAN_OR_MERCHANT);
+        return hasInhabitantOfAtLeastClass(onDate, SocialClass.YEOMAN_OR_MERCHANT)
+                && !hasInhabitantThatIsDomesticServant(onDate);
+    }
+
+    private boolean hasInhabitantThatIsDomesticServant(@NonNull LocalDate onDate) {
+        return getInhabitants(onDate).stream()
+                .anyMatch(p -> p.isDomesticServant(onDate));
     }
 }

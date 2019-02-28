@@ -31,7 +31,6 @@ import com.meryt.demographics.domain.place.Parish;
 import com.meryt.demographics.domain.title.Title;
 import com.meryt.demographics.generator.WealthGenerator;
 import com.meryt.demographics.generator.family.FamilyGenerator;
-import com.meryt.demographics.generator.random.PercentDie;
 import com.meryt.demographics.request.RandomFamilyParameters;
 import com.meryt.demographics.response.calendar.CalendarDayEvent;
 import com.meryt.demographics.response.calendar.PropertyTransferEvent;
@@ -115,7 +114,9 @@ public class InheritanceService {
             }
             personService.save(heir);
 
-            maybeMoveCashHeirToBetterHouse(heir, person, onDate, cashPerPerson);
+            householdDwellingPlaceService.maybeMoveHouseholdToBetterHouse(heir, onDate,
+                    ancestryService.getNewHouseUponInheritanceMessageWithRelationship(heir, person),
+                    ancestryService.getPurchasedHouseUponInheritanceWithRelationshipMessage(heir, person));
         }
     }
 
@@ -141,114 +142,6 @@ public class InheritanceService {
                 log.info(String.format("%s is quitting job as %s after an inheritance",
                         person.getIdAndName(), occupation.getName()));
                 period.setToDate(onDate);
-            }
-        }
-    }
-
-    /**
-     * When a person receives an inheritance, he might want to use the money to get a new and better house.
-     *
-     * @param heir a person who just received cash
-     * @param onDate the date he received the cash
-     */
-    private void maybeMoveCashHeirToBetterHouse(@NonNull Person heir,
-                                                @NonNull Person deceased,
-                                                @NonNull LocalDate onDate,
-                                                double inheritedCapital) {
-        // If the person has enough money to buy an estate, he will try to, or maybe move away
-        SocialClass pretension = WealthGenerator.getSocialClassForWealth(heir.getCapital(onDate));
-        double minAcceptableHouseValue = WealthGenerator.getHouseValueRange(pretension).getFirst();
-        double capital = heir.getCapital(onDate);
-
-        DwellingPlace bestOwnedPlace = heir.getOwnedDwellingPlaces(onDate).stream()
-                .filter(d -> d.isHouse() && d.getNullSafeValueIncludingAttachedParent() >= minAcceptableHouseValue)
-                .max(Comparator.comparing(DwellingPlace::getValue)).orElse(null);
-
-        double bestOwnedPlaceValue = bestOwnedPlace == null ? 0 : bestOwnedPlace.getNullSafeValue();
-        DwellingPlace currentDwelling = heir.getResidence(onDate);
-
-        if (heir.getAgeInYears(onDate) < 16) {
-            // Youngsters don't get to move unless they own a dwelling worth over 1000 and it's better than their
-            // current dwelling
-            if (bestOwnedPlace != null && bestOwnedPlace.getNullSafeValue() >= 1000
-                    && (currentDwelling == null
-                            || currentDwelling.getNullSafeValue() < bestOwnedPlace.getNullSafeValue())) {
-                Household hh = heir.getHousehold(onDate);
-                if (hh == null) {
-                    hh = householdService.createHouseholdForHead(heir, onDate, true);
-                }
-                if (hh != null) {
-                    log.info(String.format("Moving %d %s and household to a better house that they own, %d %s",
-                            heir.getId(), heir.getName(), bestOwnedPlace.getId(), bestOwnedPlace.getFriendlyName()));
-                    householdDwellingPlaceService.addToDwellingPlace(hh, bestOwnedPlace, onDate, null);
-                    return;
-                }
-            }
-            return;
-        }
-
-        // If he doesn't live in the parish, or if he owns his dwelling and it's entailed, don't move away from it.
-        if ((currentDwelling == null && bestOwnedPlaceValue < 1000)
-                || (currentDwelling == null || currentDwelling.isEntailed() && heir.equals(currentDwelling.getOwner(onDate)))) {
-            return;
-        }
-
-        if (currentDwelling.getValue() > minAcceptableHouseValue || inheritedCapital < minAcceptableHouseValue) {
-            // His house is already nice enough for him, or he can't afford to move anyway.
-            return;
-        }
-
-        if (bestOwnedPlace == null) {
-            // He doesn't currently own any house. He might buy one, build one, or move away.
-
-            Dwelling bestBuyablePlace = householdDwellingPlaceService.findBestBuyableHouseFarmOrEstate(
-                    currentDwelling.getParish(), onDate, capital, minAcceptableHouseValue);
-            if (bestBuyablePlace != null) {
-                log.info(String.format("%d %s can afford to buy and move to a better house, %d %s",
-                        heir.getId(), heir.getName(), bestBuyablePlace.getId(), bestBuyablePlace.getFriendlyName()));
-                householdDwellingPlaceService.buyAndMoveIntoHouse(bestBuyablePlace, heir, onDate,
-                        ancestryService.getPurchasedHouseUponInheritanceWithRelationshipMessage(heir, deceased));
-            } else {
-                // A gentleman or less may build a new house of appropriate value, with a 5% chance
-                if (pretension.getRank() <= SocialClass.GENTLEMAN.getRank() && PercentDie.roll() <= 0.05) {
-                    double randomNewHouseValue = WealthGenerator.getRandomHouseValue(pretension);
-                    if (capital > randomNewHouseValue) {
-                        DwellingPlace placeToBuildHouse = currentDwelling.getTownOrParish();
-                        if (placeToBuildHouse != null) {
-                            Dwelling house = householdDwellingPlaceService.moveFamilyIntoNewHouse(
-                                    placeToBuildHouse, heir.getHousehold(onDate),
-                                    onDate, randomNewHouseValue,
-                                    ancestryService.getNewHouseUponInheritanceMessageWithRelationship(heir, deceased));
-                            heir.addCapital(-1.0 * randomNewHouseValue, onDate,
-                                    PersonCapitalPeriod.Reason.builtNewDwellingPlaceMessage(house));
-                            personService.save(heir);
-                            log.info(String.format("%d %s built a new house in %s, worth %.2f",
-                                    heir.getId(), heir.getName(), placeToBuildHouse.getFriendlyName(),
-                                    randomNewHouseValue));
-                        }
-                    }
-                // If no buyable house could be found, and the rank of the family is high, they will move away
-                // rather than settle for a cheap house.
-                } else if (pretension.getRank() >= SocialClass.GENTLEMAN.getRank()) {
-                    log.info(String.format("No house could be found suitable for a %s; heir will move away",
-                            pretension.getFriendlyName()));
-                    householdDwellingPlaceService.movePersonsHouseholdAway(heir, onDate);
-                    if (heir.isMarried(onDate)) {
-                        Person husband = heir.isMale() ? heir : heir.getSpouse(onDate);
-                        Person wife = heir.isFemale() ? heir : heir.getSpouse(onDate);
-                        familyService.maybeDisableMaternityCheckingForNonResidentFamily(husband, wife);
-                    }
-                }
-            }
-        } else if (!(currentDwelling.equals(bestOwnedPlace) || currentDwelling.getParent().equals(bestOwnedPlace))
-                && bestOwnedPlace.isHouse()) {
-            // If he's not already living in the best place that he owns, and assuming the best owned place is a house,
-            // move there.
-            Household hh = heir.getHousehold(onDate);
-            if (hh != null) {
-                log.info(String.format("Moving %d %s and household to a better house that they own, %d %s",
-                        heir.getId(), heir.getName(), bestOwnedPlace.getId(), bestOwnedPlace.getFriendlyName()));
-                householdDwellingPlaceService.addToDwellingPlace(hh, bestOwnedPlace, onDate, null);
             }
         }
     }

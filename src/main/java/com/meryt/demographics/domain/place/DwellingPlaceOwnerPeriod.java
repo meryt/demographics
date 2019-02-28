@@ -53,6 +53,14 @@ public class DwellingPlaceOwnerPeriod implements DateRange {
                     relationship == null ? "no relation" : relationship.getName());
         }
 
+        public static String builtNewHouseMessage() {
+            return "Built new house";
+        }
+
+        public static String purchasedHouseMessage() {
+            return "Purchased house";
+        }
+
         public static String purchasedHouseUponInheritanceMessage(@NonNull Person deceased, @Nullable Relationship relationship) {
             return String.format("Purchased after inheriting money from %d %s, %s", deceased.getId(), deceased.getName(),
                     relationship == null ? "no relation" : relationship.getName());

@@ -36,6 +36,7 @@ import com.meryt.demographics.generator.WealthGenerator;
 import com.meryt.demographics.generator.person.PersonGenerator;
 import com.meryt.demographics.generator.random.BetweenDie;
 import com.meryt.demographics.generator.random.Die;
+import com.meryt.demographics.generator.random.PercentDie;
 import com.meryt.demographics.request.EstatePost;
 import com.meryt.demographics.request.PersonParameters;
 import com.meryt.demographics.request.RandomFamilyParameters;
@@ -323,7 +324,7 @@ public class HouseholdDwellingPlaceService {
      * @param person the person whose household we will move away (if he is in a household)
      * @param onDate the date on which to move
      */
-    void movePersonsHouseholdAway(@NonNull Person person, @NonNull LocalDate onDate) {
+    private void movePersonsHouseholdAway(@NonNull Person person, @NonNull LocalDate onDate) {
         Household hh = person.getHousehold(onDate);
         if (hh == null || person.getResidence(onDate) == null) {
             return;
@@ -378,7 +379,7 @@ public class HouseholdDwellingPlaceService {
     }
 
     @Nullable
-    Dwelling findBestBuyableHouseFarmOrEstate(@NonNull DwellingPlace parentPlace,
+    private Dwelling findBestBuyableHouseFarmOrEstate(@NonNull DwellingPlace parentPlace,
                                               @NonNull LocalDate onDate,
                                               double availableCapital,
                                               double minAcceptableValue) {
@@ -1200,6 +1201,145 @@ public class HouseholdDwellingPlaceService {
         } else {
             moveFamilyIntoNewHouse(estate, household, onDate, null,
                     DwellingPlaceOwnerPeriod.Reason.purchasedHouseUponEmploymentMessage());
+        }
+    }
+
+    /**
+     * Looks at all households living in all houses. If they are living in a household greatly below their standard
+     * of living based on their social class and their fortune, they will try to find a better house.
+     *
+     * @param onDate the date on which to check
+     */
+    void moveHouseholdsToBetterHouses(@NonNull LocalDate onDate) {
+        for (Dwelling house : dwellingPlaceService.loadHouses()) {
+            Household householdWithHighestIncome = house.getHouseholds(onDate).stream()
+                    .filter(hh -> hh.mayHireServants(onDate))
+                    .max(Comparator.comparingDouble(hh -> hh.getIncome(onDate)))
+                    .orElse(null);
+            if (householdWithHighestIncome == null) {
+                continue;
+            }
+
+            Person head = householdWithHighestIncome.getHead(onDate);
+            if (head == null) {
+                continue;
+            }
+
+            maybeMoveHouseholdToBetterHouse(head, onDate, DwellingPlaceOwnerPeriod.Reason.builtNewHouseMessage(),
+                    DwellingPlaceOwnerPeriod.Reason.purchasedHouseMessage());
+        }
+    }
+
+    /**
+     * Given a person and a date, determine whether the person can afford and would want to buy a better house, or
+     * move into a better house that he already owns.
+     *
+     * @param person the person
+     * @param onDate the date
+     * @param reasonForBuildingNew the string message stored with the person capital update in the event a new house is
+     *                             built
+     * @param reasonForBuyingExisting the string message stored with the person capital update in the event an existing
+     *                                house is purchased
+     */
+    void maybeMoveHouseholdToBetterHouse(@NonNull Person person,
+                                         @NonNull LocalDate onDate,
+                                         @NonNull String reasonForBuildingNew,
+                                         @NonNull String reasonForBuyingExisting) {
+        SocialClass pretension = WealthGenerator.getSocialClassForWealth(person.getCapitalNullSafe(onDate));
+        pretension = SocialClass.fromRank(Math.max(pretension.getRank(), person.getSocialClassRank()));
+        double minAcceptableHouseValue = WealthGenerator.getHouseValueRange(pretension).getFirst();
+        // Don't spend more than 50% of capital on a house
+        double capital = person.getCapitalNullSafe(onDate) * 0.5;
+
+        DwellingPlace bestOwnedPlace = person.getOwnedDwellingPlaces(onDate).stream()
+                .filter(d -> d.isHouse() && d.getNullSafeValueIncludingAttachedParent() >= minAcceptableHouseValue)
+                .max(Comparator.comparing(DwellingPlace::getValue)).orElse(null);
+
+        double bestOwnedPlaceValue = bestOwnedPlace == null ? 0 : bestOwnedPlace.getNullSafeValue();
+        DwellingPlace currentDwelling = person.getResidence(onDate);
+
+        if (person.getAgeInYears(onDate) < 16) {
+            // Youngsters don't get to move unless they own a dwelling worth over 1000 and it's better than their
+            // current dwelling
+            if (bestOwnedPlace != null && bestOwnedPlace.getNullSafeValue() >= 1000
+                    && (currentDwelling == null
+                    || currentDwelling.getNullSafeValue() < bestOwnedPlace.getNullSafeValue())) {
+                Household hh = person.getHousehold(onDate);
+                if (hh == null) {
+                    hh = householdService.createHouseholdForHead(person, onDate, true);
+                }
+                if (hh != null) {
+                    log.info(String.format("Moving %d %s and household to a better house that they own, %d %s",
+                            person.getId(), person.getName(), bestOwnedPlace.getId(), bestOwnedPlace.getFriendlyName()));
+                    addToDwellingPlace(hh, bestOwnedPlace, onDate, null);
+                    return;
+                }
+            }
+            return;
+        }
+
+        // If he doesn't live in the parish and his best owned house isn't that great, or if he owns his current
+        // dwelling and it's entailed, don't move away from it.
+        if ((currentDwelling == null && bestOwnedPlaceValue < 1000)
+                || (currentDwelling != null && currentDwelling.isEntailed() && person.equals(currentDwelling.getOwner(onDate)))) {
+            return;
+        }
+
+        if ((currentDwelling != null && currentDwelling.getValue() > minAcceptableHouseValue)
+                || capital < minAcceptableHouseValue) {
+            // His house is already nice enough for him, or he can't afford to move anyway.
+            return;
+        }
+
+        if (bestOwnedPlace == null) {
+            // He doesn't currently own any house. He might buy one, build one, or move away.
+
+            Dwelling bestBuyablePlace = findBestBuyableHouseFarmOrEstate(
+                    currentDwelling.getParish(), onDate, capital, minAcceptableHouseValue);
+            if (bestBuyablePlace != null) {
+                log.info(String.format("%d %s can afford to buy and move to a better house, %d %s",
+                        person.getId(), person.getName(), bestBuyablePlace.getId(), bestBuyablePlace.getFriendlyName()));
+                buyAndMoveIntoHouse(bestBuyablePlace, person, onDate, reasonForBuyingExisting);
+            } else {
+                // A gentleman or less may build a new house of appropriate value, with a 5% chance
+                if (pretension.getRank() <= SocialClass.GENTLEMAN.getRank() && PercentDie.roll() <= 0.05) {
+                    double randomNewHouseValue = WealthGenerator.getRandomHouseValue(pretension);
+                    if (capital > randomNewHouseValue) {
+                        DwellingPlace placeToBuildHouse = currentDwelling.getTownOrParish();
+                        if (placeToBuildHouse != null) {
+                            Dwelling house = moveFamilyIntoNewHouse(placeToBuildHouse, person.getHousehold(onDate),
+                                    onDate, randomNewHouseValue, reasonForBuildingNew);
+                            person.addCapital(-1.0 * randomNewHouseValue, onDate,
+                                    PersonCapitalPeriod.Reason.builtNewDwellingPlaceMessage(house));
+                            personService.save(person);
+                            log.info(String.format("%d %s built a new house in %s, worth %.2f",
+                                    person.getId(), person.getName(), placeToBuildHouse.getFriendlyName(),
+                                    randomNewHouseValue));
+                        }
+                    }
+                    // If no buyable house could be found, and the rank of the family is high, they will move away
+                    // rather than settle for a cheap house.
+                } else if (pretension.getRank() >= SocialClass.GENTLEMAN.getRank()) {
+                    log.info(String.format("No house could be found suitable for a %s; %s will move away",
+                            pretension.getFriendlyName(), person.getIdAndName()));
+                    movePersonsHouseholdAway(person, onDate);
+                    if (person.isMarried(onDate)) {
+                        Person husband = person.isMale() ? person : person.getSpouse(onDate);
+                        Person wife = person.isFemale() ? person : person.getSpouse(onDate);
+                        personService.maybeDisableMaternityCheckingForNonResidentFamily(husband, wife);
+                    }
+                }
+            }
+        } else if (!(currentDwelling != null && (currentDwelling.equals(bestOwnedPlace) || currentDwelling.getParent().equals(bestOwnedPlace)))
+                && bestOwnedPlace.isHouse()) {
+            // If he's not already living in the best place that he owns, and assuming the best owned place is a house,
+            // move there.
+            Household hh = person.getHousehold(onDate);
+            if (hh != null) {
+                log.info(String.format("Moving %d %s and household to a better house that they own, %d %s",
+                        person.getId(), person.getName(), bestOwnedPlace.getId(), bestOwnedPlace.getFriendlyName()));
+                addToDwellingPlace(hh, bestOwnedPlace, onDate, null);
+            }
         }
     }
 }

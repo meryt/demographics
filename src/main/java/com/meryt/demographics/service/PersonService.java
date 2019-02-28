@@ -487,4 +487,26 @@ public class PersonService {
             }
         }
     }
+
+    /**
+     * Disables maternity checking by setting the father to null, if the woman is not pregnant and if neither has
+     * a social class of at least yeoman or merchant.
+     * @param husband the husband of the family
+     * @param wife the wife of the family
+     */
+    void maybeDisableMaternityCheckingForNonResidentFamily(@NonNull Person husband, @NonNull Person wife) {
+        // Don't disable checking if she is actually pregnant
+        if (wife.getMaternity().getConceptionDate() != null) {
+            return;
+        }
+        if (husband.getSocialClassRank() <= SocialClass.YEOMAN_OR_MERCHANT.getRank()
+                && wife.getSocialClassRank() <= SocialClass.YEOMAN_OR_MERCHANT.getRank()) {
+            // If they move away and are not higher-class we do not want to track their families.
+            // Setting the father to null will cause the maternity checker to skip them.
+            log.info(String.format("Disabling maternity check for nonresident woman %d %s, married to %d %s",
+                    wife.getId(), wife.getName(), husband.getId(), husband.getName()));
+            wife.getMaternity().setFather(null);
+            save(wife);
+        }
+    }
 }
