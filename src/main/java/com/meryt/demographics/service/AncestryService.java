@@ -1,11 +1,13 @@
 package com.meryt.demographics.service;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.util.StringUtils;
@@ -141,6 +143,31 @@ public class AncestryService {
     @Nullable
     public LeastCommonAncestorRelationship getLeastCommonAncestor(@NonNull Person person1, @NonNull Person person2) {
         return ancestryRepository.getLeastCommonAncestorInfo(person1.getId(), person2.getId());
+    }
+
+    /**
+     * Filters a list of persons to remove people who are too closely related to a target person for the purpose of
+     * marriage.
+     *
+     * Given a list of person IDs, gets a filtered list of IDs such that the remaining people have a degree of
+     * separation from personId of at least minDegreesSeparation.
+     *
+     * @param personId the target person
+     * @param potentialSpouseIds a list of potential spouses
+     * @param minDegreesSeparation the minimum relationship distance
+     * @return a possibly-empty list of potential spouse IDs such that they are not too closely related to the target
+     */
+    List<Long> getMarriageablePersonIds(long personId,
+                                        @NonNull List<Long> potentialSpouseIds,
+                                        int minDegreesSeparation) {
+        if (potentialSpouseIds.isEmpty()) {
+            return new ArrayList<>();
+        }
+        List<Long> relatives = ancestryRepository.getTooCloselyRelatedPeople(personId, potentialSpouseIds,
+                minDegreesSeparation);
+        List<Long> marriageablePeople = new ArrayList<>(potentialSpouseIds);
+        marriageablePeople.removeAll(relatives);
+        return marriageablePeople;
     }
 
     /**

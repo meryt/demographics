@@ -23,6 +23,7 @@ import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.PersonCapitalPeriod;
 import com.meryt.demographics.domain.person.PersonTitlePeriod;
 import com.meryt.demographics.domain.person.SocialClass;
+import com.meryt.demographics.domain.person.fertility.Maternity;
 import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.DwellingPlaceOwnerPeriod;
 import com.meryt.demographics.domain.title.Peerage;
@@ -251,7 +252,7 @@ public class TitleService {
         person.addOrUpdateTitle(title, dateObtained, null);
         if (Strings.isNullOrEmpty(person.getLastName())) {
             String lastNameFromTitle = title.getName().replaceAll("^[^ ]+ ", "");
-            person.setLastName(lastNameFromTitle);
+            personService.updatePersonLastName(person, lastNameFromTitle, true, true);
         }
         personService.save(person);
 
@@ -262,6 +263,23 @@ public class TitleService {
                     DwellingPlaceOwnerPeriod.Reason.inheritedAsTitleHolderMessage(title));
             if (event != null) {
                 results.add(event);
+            }
+        }
+
+        if (person.isMarried(dateObtained)) {
+            Person wife = person.isFemale() ? person : person.getSpouse(dateObtained);
+            Person husband = person.isMale() ? person : person.getSpouse(dateObtained);
+            Maternity mat = wife == null ? null : wife.getMaternity();
+            // If they were a lower class couple before the new title was obtained, maybe need to reactivate the
+            // maternity record.
+            if (mat != null && (mat.getLastCheckDate() == null ||
+                    mat.getLastCheckDate().isBefore(dateObtained) ||
+                    mat.getLastCheckDate().equals(dateObtained))) {
+                if (mat.getFatherId() == null || !mat.isHavingRelations()) {
+                    mat.setFather(husband);
+                    mat.setHavingRelations(true);
+                    personService.save(wife);
+                }
             }
         }
 
@@ -362,6 +380,17 @@ public class TitleService {
         return results;
     }
 
+    /**
+     * Attempt to find a single heir for a title on the given date. If no heir exists, the title is set to extinct.
+     * If multiple potential heirs exist, the next abeyance check date is set. If a single heir exists and there is no
+     * chance for a more direct heir to be born, the single heir is given the title.
+     *
+     * @param title the title for whom the latest holder has just died
+     * @param date the death date of the latest holder
+     * @param heirMayBeBornOn the date a heir may be born, if the title-holder's wife is pregnant at the time of his
+     *                        death
+     * @return a list of events describing any changes made
+     */
     public List<CalendarDayEvent> checkForSingleTitleHeir(@NonNull Title title,
                                                           @NonNull LocalDate date,
                                                           @Nullable LocalDate heirMayBeBornOn) {

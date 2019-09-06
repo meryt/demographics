@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.List;
 import javax.annotation.Nullable;
 import lombok.NonNull;
+import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -106,6 +107,39 @@ public class AncestryRepository  {
         params.addValue("maxDistance", maxDistance);
         try {
             return jdbcTemplate.query(query, params, new LeastCommonAncestorRelationshipMapper());
+        } catch (EmptyResultDataAccessException e) {
+            return Collections.emptyList();
+        }
+    }
+
+    /**
+     * Given the ID of a person and a list of IDs of other people, return a list of the other people's IDs such that
+     * the person's degree of separation is equal to or less than the given minDegreeSeparation. That is, we want
+     * to return all people too closely related to the person to marry that person.
+     *
+     * @param personId the target person
+     * @param otherPeopleIds a list of other people's IDs, from some source
+     * @param minDegreeSeparation the minimum degree of separation for marriage; any relationship this close or less
+     *                            will cause the person's ID to be returned as an invalid person to marry
+     * @return a list of IDs of the people who are too closely related to the target person to marry
+     */
+    public List<Long> getTooCloselyRelatedPeople(long personId,
+                                                 @NonNull List<Long> otherPeopleIds,
+                                                 int minDegreeSeparation) {
+        String query = "SELECT " +
+                "subject_2 AS person_id " +
+                "FROM least_common_ancestors " +
+                "WHERE subject_1 = :personId " +
+                "AND subject_2 IN (:otherIds) " +
+                "GROUP BY subject_2 " +
+                "HAVING MIN(subject_1_distance + subject_2_distance) <= :minDegreeSeparation ";
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        params.addValue("personId", personId);
+        params.addValue("otherIds", otherPeopleIds);
+        params.addValue("minDegreeSeparation", minDegreeSeparation);
+
+        try {
+            return jdbcTemplate.queryForList(query, params, Long.class);
         } catch (EmptyResultDataAccessException e) {
             return Collections.emptyList();
         }

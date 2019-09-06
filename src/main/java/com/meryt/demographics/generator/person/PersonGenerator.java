@@ -17,6 +17,7 @@ import com.meryt.demographics.domain.person.EyeColor;
 import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.SocialClass;
+import com.meryt.demographics.generator.random.BetweenDie;
 import com.meryt.demographics.generator.random.Die;
 import com.meryt.demographics.generator.random.PercentDie;
 import com.meryt.demographics.math.FunkyBetaDistribution;
@@ -66,11 +67,13 @@ public class PersonGenerator {
      */
     @NonNull
     public Person generate(@NonNull PersonParameters personParameters) {
-        validatePersonParameters(personParameters);
+        personParameters.validate();
 
-        LocalDate nameDate = personParameters.getBirthDate() == null
+        LocalDate nameDate = (personParameters.getBirthDate() == null && personParameters.getBirthYear() == null)
                 ? personParameters.getAliveOnDate()
-                : personParameters.getBirthDate();
+                : (personParameters.getBirthDate() == null
+                    ? LocalDate.of(personParameters.getBirthYear(), 1, 1)
+                    : personParameters.getBirthDate());
 
         Person person = new Person();
         person.setGender(personParameters.getGender() == null ? Gender.random() : personParameters.getGender());
@@ -324,17 +327,28 @@ public class PersonGenerator {
     private void generatePersonLifespan(@NonNull PersonParameters personParameters, @NonNull Person person) {
         LocalDate aliveOnDate = personParameters.getAliveOnDate();
         Integer minAge = personParameters.getMinAge() == null ? 0 : personParameters.getMinAge();
-        if (personParameters.getBirthDate() != null) {
-            person.setBirthDate(personParameters.getBirthDate());
-            if (personParameters.getDeathDate() != null) {
-                person.setDeathDate(personParameters.getDeathDate());
+        if (personParameters.getBirthDate() != null || personParameters.getBirthYear() != null) {
+            if (personParameters.getBirthDate() != null) {
+                person.setBirthDate(personParameters.getBirthDate());
+            } else {
+                int dayOfYear = BetweenDie.roll(0, 364);
+                person.setBirthDate(LocalDate.of(personParameters.getBirthYear(), 1, 1).plusDays(dayOfYear));
+            }
+
+            if (personParameters.getDeathDate() != null || personParameters.getDeathYear() != null) {
+                if (personParameters.getDeathDate() != null) {
+                    person.setDeathDate(personParameters.getDeathDate());
+                } else {
+                    int dayOfYear = BetweenDie.roll(0, 364);
+                    person.setDeathDate(LocalDate.of(personParameters.getDeathYear(), 1, 1).plusDays(dayOfYear));
+                }
             } else {
                 // Get a random death date such that the person is alive on the reference date if born on this
                 // date
                 long lifespan;
                 Integer minAgeYears = aliveOnDate != null ? person.getBirthDate().until(aliveOnDate).getYears() : null;
                 do {
-                    lifespan = lifeTableService.randomLifeExpectancy(personParameters.getBirthDate(),
+                    lifespan = lifeTableService.randomLifeExpectancy(person.getBirthDate(),
                             minAgeYears, null, person.getGender());
                 } while (aliveOnDate != null && person.getBirthDate().plusDays(lifespan).isBefore(aliveOnDate));
                 person.setDeathDate(person.getBirthDate().plusDays(lifespan));
@@ -500,19 +514,6 @@ public class PersonGenerator {
             mean -= diff;
         }
         return new NormalDistribution(mean, 0.1).sample();
-    }
-
-    /**
-     * Validate the person parameters used to generate a new person.
-     *
-     * @throws IllegalArgumentException if the parameters are missing required values or have invalid combinations of
-     * values
-     */
-    private void validatePersonParameters(@NonNull PersonParameters personParameters) {
-        if (personParameters.getBirthDate() == null && personParameters.getAliveOnDate() == null) {
-            throw new IllegalArgumentException(
-                    "Cannot generate a person without at least one of birthDate or aliveOnDate");
-        }
     }
 
     private String getEyeGenesFromParents(Person father, Person mother) {

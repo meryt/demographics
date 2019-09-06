@@ -31,19 +31,8 @@ public class ControllerHelperService {
 
     @Nullable
     public LocalDate parseDate(@Nullable String date) {
-        if (StringUtils.isEmpty(date)) {
-            return null;
-        }
-        if (date.equalsIgnoreCase("current")) {
-            LocalDate currentDate = configurationService.getCurrentDate();
-            if (currentDate == null) {
-                throw new ConflictException("Unable to use current date: No current date is set in the database");
-            }
-            return currentDate;
-        }
-
         try {
-            return LocalDate.parse(date);
+            return configurationService.parseDate(date);
         } catch (DateTimeParseException e) {
             throw new BadRequestException("Invalid date: " + e.getMessage());
         }

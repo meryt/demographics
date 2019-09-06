@@ -117,36 +117,40 @@ public class GenerationService {
         }
 
         // Do the required families. These are always "Heirs of the Body" to prevent them from dying out as fast.
-        for (String englishLastName : generationPost.getRequiredLastNames()) {
-            familyParameters.setFounderLastName(englishLastName);
+        if (generationPost.getRequiredLastNames() != null) {
+            for (String englishLastName : generationPost.getRequiredLastNames()) {
+                familyParameters.setFounderLastName(englishLastName);
 
-            Family family = familyGenerator.generate(familyParameters);
-            if (family == null) {
-                continue;
-            }
-            family.getHusband().setFounder(true);
-            family = familyService.save(family);
-            if (family.getHusband().getSocialClass().getRank() >= SocialClass.BARONET.getRank()) {
-                addRandomTitleToFounder(family.getHusband(), Peerage.ENGLAND, TitleInheritanceStyle.HEIRS_OF_THE_BODY);
-            }
+                Family family = familyGenerator.generate(familyParameters);
+                if (family == null) {
+                    continue;
+                }
+                family.getHusband().setFounder(true);
+                family = familyService.save(family);
+                if (family.getHusband().getSocialClass().getRank() >= SocialClass.BARONET.getRank()) {
+                    addRandomTitleToFounder(family.getHusband(), Peerage.ENGLAND, TitleInheritanceStyle.HEIRS_OF_THE_BODY);
+                }
 
-            result.add(family);
+                result.add(family);
+            }
         }
 
-        for (String scottishLastName : generationPost.getRequiredScottishLastNames()) {
-            familyParameters.setFounderLastName(scottishLastName);
+        if (generationPost.getRequiredScottishLastNames() != null) {
+            for (String scottishLastName : generationPost.getRequiredScottishLastNames()) {
+                familyParameters.setFounderLastName(scottishLastName);
 
-            Family family = familyGenerator.generate(familyParameters);
-            if (family == null) {
-                continue;
-            }
-            family.getHusband().setFounder(true);
-            family = familyService.save(family);
-            if (family.getHusband().getSocialClass().getRank() >= SocialClass.BARONET.getRank()) {
-                addRandomTitleToFounder(family.getHusband(), Peerage.SCOTLAND, TitleInheritanceStyle.HEIRS_OF_THE_BODY);
-            }
+                Family family = familyGenerator.generate(familyParameters);
+                if (family == null) {
+                    continue;
+                }
+                family.getHusband().setFounder(true);
+                family = familyService.save(family);
+                if (family.getHusband().getSocialClass().getRank() >= SocialClass.BARONET.getRank()) {
+                    addRandomTitleToFounder(family.getHusband(), Peerage.SCOTLAND, TitleInheritanceStyle.HEIRS_OF_THE_BODY);
+                }
 
-            result.add(family);
+                result.add(family);
+            }
         }
 
         updateTitles(null);
@@ -180,7 +184,7 @@ public class GenerationService {
     public List<Family> processGeneration(@NonNull GenerationPost generationPost) {
         generationPost.validate();
 
-        LocalDate untilDate = generationPost.getPersonFamilyPost().getUntilDate();
+        LocalDate untilDate = configurationService.parseDate(generationPost.getPersonFamilyPost().getUntilDate());
         boolean onlyNonResidents = untilDate != null && generationPost.getOnlyNonResidents() != null
                 && generationPost.getOnlyNonResidents();
 
@@ -210,7 +214,7 @@ public class GenerationService {
             throw new IllegalArgumentException("Cannot process generation unless persist is true");
         }
 
-        LocalDate untilDate = generationPost.getPersonFamilyPost().getUntilDate();
+        LocalDate untilDate = configurationService.parseDate(personFamilyPost.getUntilDate());
         boolean shouldLoopUntilReferenceDate = untilDate != null;
 
         List<Family> results = new ArrayList<>();
@@ -224,7 +228,7 @@ public class GenerationService {
                 familyParameters.setMinHusbandAge(personFamilyPost.getMinHusbandAge());
                 familyParameters.setMinWifeAge(personFamilyPost.getMinWifeAge());
                 familyParameters.setReferenceDate(shouldLoopUntilReferenceDate
-                        ? personFamilyPost.getUntilDate()
+                        ? configurationService.parseDate(personFamilyPost.getUntilDate())
                         : person.getDeathDate());
                 // Persisting during family generation causes hibernate to lose visibility of newly created persons when
                 // doing updateTitles and writing the output file. (The data is written to the DB but not visible to the

@@ -234,7 +234,8 @@ public class PersonController {
             personService.save(person);
         }
 
-        LocalDate cycleToDate = post.getCycleToDateAsDate();
+        String dateString = post.getCycleToDate();
+        LocalDate cycleToDate = controllerHelperService.parseDate(dateString);
         if (cycleToDate != null) {
             if (!person.isFemale()) {
                 throw new BadRequestException("cycleToDate applies only to women");
@@ -444,7 +445,7 @@ public class PersonController {
         familyParameters.setMinWifeAge(personFamilyPost.getMinWifeAge());
         familyParameters.setReferenceDate(personFamilyPost.getUntilDate() == null
                 ? person.getDeathDate()
-                : personFamilyPost.getUntilDate());
+                : controllerHelperService.parseDate(personFamilyPost.getUntilDate()));
         familyParameters.setPersist(personFamilyPost.isPersist());
         familyParameters.setSpouseLastName(personFamilyPost.getSpouseLastName());
         if (personFamilyPost.getSpouseId() != null) {
@@ -555,7 +556,11 @@ public class PersonController {
                                                            @RequestParam(value = "minWifeAge", required = false)
                                                                         Integer minWifeAge,
                                                            @RequestParam(value = "maxWifeAge", required = false)
-                                                                         Integer maxWifeAge) {
+                                                                         Integer maxWifeAge,
+                                                           @RequestParam(value = "minSocialClass", required = false)
+                                                                         String minSocialClass,
+                                                           @RequestParam(value = "maxSocialClass", required = false)
+                                                                         String maxSocialClass) {
         final Person person = controllerHelperService.loadPerson(personId);
         LocalDate date = controllerHelperService.parseDate(onDate);
         LocalDate searchDate = MatchMaker.getDateToStartMarriageSearch(person, minHusbandAge, minWifeAge);
@@ -570,10 +575,20 @@ public class PersonController {
         familyParameters.setMinHusbandAge(minHusbandAge);
         familyParameters.setMaxWifeAge(maxWifeAge);
 
+        if (minSocialClass != null && !StringUtils.isEmpty(minSocialClass)) {
+            SocialClass minClass = SocialClass.valueOf(minSocialClass);
+            familyParameters.setMinSocialClass(minClass);
+        }
+        if (maxSocialClass != null && !StringUtils.isEmpty(maxSocialClass)) {
+            SocialClass maxClass = SocialClass.valueOf(maxSocialClass);
+            familyParameters.setMaxSocialClass(maxClass);
+        }
+
         // If a specific date is given, include only people eligible on that day. Otherwise include people eligible
         // in the future.
         boolean includeFuture = onDate == null;
-        return personService.findPotentialSpouses(person, searchDate, includeFuture, familyParameters).stream()
+        return personService.findPotentialSpouseWithRelationship(person, searchDate, includeFuture, familyParameters)
+                .stream()
                 .map(pr -> new PersonPotentialSpouseResponse(person, pr.getPerson(), finalSearchDate,
                         pr.getRelationship()))
                 .collect(Collectors.toList());

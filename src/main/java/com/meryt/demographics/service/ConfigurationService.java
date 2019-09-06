@@ -1,12 +1,16 @@
 package com.meryt.demographics.service;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import javax.annotation.Nullable;
 import lombok.NonNull;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import com.meryt.demographics.repository.CheckDateRepository;
 import com.meryt.demographics.repository.ConfigurationRepository;
+import com.meryt.demographics.rest.BadRequestException;
+import com.meryt.demographics.rest.ConflictException;
 
 @Service
 public class ConfigurationService {
@@ -18,6 +22,22 @@ public class ConfigurationService {
                                 @NonNull ConfigurationRepository configurationRepository) {
         this.checkDateRepository = checkDateRepository;
         this.configurationRepository = configurationRepository;
+    }
+
+    @Nullable
+    public LocalDate parseDate(@Nullable String date) {
+        if (StringUtils.isEmpty(date)) {
+            return null;
+        }
+        if (date.equalsIgnoreCase("current")) {
+            LocalDate currentDate = getCurrentDate();
+            if (currentDate == null) {
+                throw new ConflictException("Unable to use current date: No current date is set in the database");
+            }
+            return currentDate;
+        }
+
+        return LocalDate.parse(date);
     }
 
     @Nullable

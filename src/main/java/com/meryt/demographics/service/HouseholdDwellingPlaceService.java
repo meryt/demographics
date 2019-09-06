@@ -383,6 +383,9 @@ public class HouseholdDwellingPlaceService {
                                               @NonNull LocalDate onDate,
                                               double availableCapital,
                                               double minAcceptableValue) {
+        if (availableCapital < minAcceptableValue) {
+            return null;
+        }
         return findBuyableHousesFarmsAndEstates(parentPlace, onDate, availableCapital)
                 .stream()
                 .filter(d -> d.getValue() >= minAcceptableValue)
@@ -1278,21 +1281,25 @@ public class HouseholdDwellingPlaceService {
             return;
         }
 
-        // If he doesn't live in the parish and his best owned house isn't that great, or if he owns his current
-        // dwelling and it's entailed, don't move away from it.
-        if ((currentDwelling == null && bestOwnedPlaceValue < 1000)
-                || (currentDwelling != null && currentDwelling.isEntailed() && person.equals(currentDwelling.getOwner(onDate)))) {
+        // If he doesn't live in the parish and his best owned house isn't that great, don't move into that house.
+        // Just stay out of the parish.
+        if (currentDwelling == null && bestOwnedPlaceValue < 1000) {
             return;
         }
 
-        if ((currentDwelling != null && currentDwelling.getValue() > minAcceptableHouseValue)
-                || capital < minAcceptableHouseValue) {
-            // His house is already nice enough for him, or he can't afford to move anyway.
+        // If he owns his current dwelling and it's entailed, don't move away from it.
+        if (currentDwelling != null && currentDwelling.isEntailed() && person.equals(currentDwelling.getOwner(onDate))) {
+            return;
+        }
+
+        // If he already lives in the parish in a rented house and the house is nice enough for him, don't move
+        if (currentDwelling != null && !person.equals(currentDwelling.getOwner(onDate))
+                && currentDwelling.getValue() > minAcceptableHouseValue) {
             return;
         }
 
         if (bestOwnedPlace == null) {
-            // He doesn't currently own any house. He might buy one, build one, or move away.
+            // He doesn't currently own any house of high enough value. He might buy one, build one, or move away.
 
             Dwelling bestBuyablePlace = findBestBuyableHouseFarmOrEstate(
                     currentDwelling.getParish(), onDate, capital, minAcceptableHouseValue);
@@ -1302,7 +1309,8 @@ public class HouseholdDwellingPlaceService {
                 buyAndMoveIntoHouse(bestBuyablePlace, person, onDate, reasonForBuyingExisting);
             } else {
                 // A gentleman or less may build a new house of appropriate value, with a 5% chance
-                if (pretension.getRank() <= SocialClass.GENTLEMAN.getRank() && PercentDie.roll() <= 0.05) {
+                if (capital > minAcceptableHouseValue && pretension.getRank() <= SocialClass.GENTLEMAN.getRank()
+                        && PercentDie.roll() <= 0.05) {
                     double randomNewHouseValue = WealthGenerator.getRandomHouseValue(pretension);
                     if (capital > randomNewHouseValue) {
                         DwellingPlace placeToBuildHouse = currentDwelling.getTownOrParish();

@@ -17,15 +17,15 @@ import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
-import com.meryt.demographics.domain.person.RelatedPerson;
 import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.domain.person.fertility.Maternity;
 import com.meryt.demographics.generator.person.PersonGenerator;
 import com.meryt.demographics.generator.random.BetweenDie;
 import com.meryt.demographics.generator.random.Die;
 import com.meryt.demographics.generator.random.PercentDie;
-import com.meryt.demographics.request.RandomFamilyParameters;
+import com.meryt.demographics.profiler.Profiler;
 import com.meryt.demographics.request.PersonParameters;
+import com.meryt.demographics.request.RandomFamilyParameters;
 import com.meryt.demographics.service.PersonService;
 
 @Slf4j
@@ -169,7 +169,7 @@ public class FamilyGenerator {
                 familyParameters.getMinHusbandAgeOrDefault(),
                 familyParameters.getMinWifeAgeOrDefault());
 
-        return attemptToFindSpouse(startDate, endDate, person, familyParameters);
+        return attemptToFindSpouse(startDate, endDate, person, familyParameters, null);
     }
 
     /**
@@ -182,7 +182,8 @@ public class FamilyGenerator {
     public Family attemptToFindSpouse(@NonNull LocalDate startDate,
                                       @NonNull LocalDate endDate,
                                       @NonNull Person person,
-                                      @NonNull RandomFamilyParameters familyParameters) {
+                                      @NonNull RandomFamilyParameters familyParameters,
+                                      @Nullable Profiler profiler) {
 
         List<Person> previousSpouses = person.getSpouses();
         LocalDate lastSpouseDeathDate = previousSpouses.isEmpty()
@@ -191,17 +192,24 @@ public class FamilyGenerator {
         for (LocalDate currentDate = startDate;
                 currentDate.isBefore(endDate) || currentDate.equals(endDate);
                 currentDate = currentDate.plusDays(1)) {
+
+            if (profiler != null) profiler.start("lastLivingSonDeathDate");
+            LocalDate lastLivingSonDeathDate = person.getLivingChildren(startDate).stream()
+                    .filter(p -> p.isMale() && p.getDeathDate() != null)
+                    .sorted(Comparator.comparing(Person::getDeathDate).reversed())
+                    .map(Person::getDeathDate)
+                    .findFirst()
+                    .orElse(null);
+            if (profiler != null) profiler.stop();
+
+            if (profiler != null) profiler.start("getDesireToMarryProbability");
             double percentPerDay = MatchMaker.getDesireToMarryProbability(
                     person,
                     currentDate,
                     previousSpouses.size(),
                     lastSpouseDeathDate,
-                    person.getLivingChildren(startDate).stream()
-                            .filter(p -> p.isMale() && p.getDeathDate() != null)
-                            .sorted(Comparator.comparing(Person::getDeathDate).reversed())
-                            .map(Person::getDeathDate)
-                            .findFirst()
-                            .orElse(null));
+                    lastLivingSonDeathDate);
+            if (profiler != null) profiler.stop();
             if (PercentDie.roll() <= percentPerDay) {
                 // He wants to get married. Can he find a spouse?
                 Person potentialSpouse;
@@ -214,9 +222,12 @@ public class FamilyGenerator {
                         return null;
                     }
                 } else if (familyParameters.shouldAttemptToFindExistingSpouse()) {
+                    if (profiler != null) profiler.start("attemptToFindExistingSpouse");
                     // We're not given a spouse, but are allowed to chose an eligible one from the database.
-                    List<RelatedPerson> potentialSpouses = personService.findPotentialSpouses(person, currentDate,
-                            false, familyParameters);
+                    if (profiler != null) profiler.start("findPotentialSpouses");
+                    List<Person> potentialSpouses = personService.findPotentialSpouses(person, currentDate,
+                            false, familyParameters, profiler);
+                    if (profiler != null) profiler.stop();
                     if (familyParameters.getMinSpouseSelection() != null &&
                             potentialSpouses.size() < familyParameters.getMinSpouseSelection()) {
                         // If there are fewer potential spouses than the min selection size, we may need to generate
@@ -226,20 +237,31 @@ public class FamilyGenerator {
                         int roll = new Die(familyParameters.getMinSpouseSelection()).roll();
                         if (roll > potentialSpouses.size()) {
                             // generate a random spouse
+                            if (profiler != null) profiler.start("generateRandomPotentialSpouse");
                             potentialSpouse = generateRandomPotentialSpouse(person, currentDate, familyParameters);
+                            if (profiler != null) profiler.stop();
                         } else {
-                            potentialSpouse = potentialSpouses.get(roll - 1).getPerson();
+                            potentialSpouse = potentialSpouses.get(roll - 1);
                         }
                     } else if (potentialSpouses.isEmpty()) {
+                        if (profiler != null) profiler.start("generateRandomPotentialSpouse");
                         potentialSpouse = generateRandomPotentialSpouse(person, currentDate, familyParameters);
+                        if (profiler != null) profiler.stop();
                     } else {
-                        potentialSpouse = potentialSpouses.get(new Die(potentialSpouses.size()).roll() - 1).getPerson();
+                        potentialSpouse = potentialSpouses.get(new Die(potentialSpouses.size()).roll() - 1);
                     }
+                    if (profiler != null) profiler.stop();
                 } else {
                     // generate a random spouse
+                    if (profiler != null) profiler.start("generateRandomPotentialSpouse");
                     potentialSpouse = generateRandomPotentialSpouse(person, currentDate, familyParameters);
+                    if (profiler != null) profiler.stop();
                 }
-                if (MatchMaker.checkCompatibility(person, potentialSpouse, currentDate)) {
+
+                if (profiler != null) profiler.start("MatchMaker.checkCompatibility");
+                boolean areCompatible = MatchMaker.checkCompatibility(person, potentialSpouse, currentDate);
+                if (profiler != null) profiler.stop();
+                if (areCompatible) {
                     Family family = new Family();
                     if (person.isMale()) {
                         family.setHusband(person);

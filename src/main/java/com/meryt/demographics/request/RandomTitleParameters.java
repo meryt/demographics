@@ -6,6 +6,7 @@ import lombok.Setter;
 
 import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.domain.title.Peerage;
+import com.meryt.demographics.generator.random.BetweenDie;
 import com.meryt.demographics.generator.random.PercentDie;
 
 @Getter
@@ -17,6 +18,7 @@ public class RandomTitleParameters {
     private Double percentScottish;
     private SocialClass minSocialClass;
     private SocialClass maxSocialClass;
+    private boolean socialClassEquallyWeighted;
     private List<String> names;
     private List<String> scottishNames;
     private RandomFamilyParameters familyParameters;
@@ -36,7 +38,11 @@ public class RandomTitleParameters {
     public SocialClass getRandomSocialClass() {
         SocialClass min = minSocialClass == null ? SocialClass.BARONET : minSocialClass;
         SocialClass max = maxSocialClass == null ? SocialClass.DUKE : maxSocialClass;
-        return SocialClass.randomBetween(min, max);
+        if (isSocialClassEquallyWeighted()) {
+            return SocialClass.fromRank(BetweenDie.roll(min.getRank(), max.getRank()));
+        } else {
+            return SocialClass.randomBetween(min, max);
+        }
     }
 
     public RandomFamilyParameters getFamilyParametersOrDefault() {

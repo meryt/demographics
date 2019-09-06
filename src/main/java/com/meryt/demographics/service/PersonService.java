@@ -27,6 +27,7 @@ import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.HouseholdLocationPeriod;
 import com.meryt.demographics.generator.WealthGenerator;
 import com.meryt.demographics.generator.family.MatchMaker;
+import com.meryt.demographics.profiler.Profiler;
 import com.meryt.demographics.repository.PersonRepository;
 import com.meryt.demographics.repository.PersonSearchRepository;
 import com.meryt.demographics.repository.criteria.PersonCriteria;
@@ -357,10 +358,11 @@ public class PersonService {
      * @param familyParameters extra parameters
      * @return a list of potential spouses, possibly empty, with their relationship to the person
      */
-    public List<RelatedPerson> findPotentialSpouses(@NonNull Person person,
-                                                    @Nullable LocalDate onDate,
-                                                    boolean includeFutureSpouses,
-                                                    @NonNull RandomFamilyParameters familyParameters) {
+    public List<Person> findPotentialSpouses(@NonNull Person person,
+                                             @Nullable LocalDate onDate,
+                                             boolean includeFutureSpouses,
+                                             @NonNull RandomFamilyParameters familyParameters,
+                                             @Nullable Profiler profiler) {
         int minHusbandAge = familyParameters.getMinHusbandAgeOrDefault();
         int minWifeAge = familyParameters.getMinWifeAgeOrDefault();
         LocalDate searchDate = MatchMaker.getDateToStartMarriageSearch(person, minHusbandAge, minWifeAge);
@@ -408,18 +410,44 @@ public class PersonService {
 
         final int maxRankPersonMayAspireToMarry = person.getMaxSocialClassMayAspireToMarry().getRank();
 
-        return personRepository.findPotentialSpouses(spouseGender, searchDate, minBirthDate,
-                maxBirthDate, null).stream()
+        if (profiler != null) profiler.start("personRepository.findPotentialSpouses");
+        List<Person> unfilteredList = personRepository.findPotentialSpouses(spouseGender, searchDate, minBirthDate,
+                maxBirthDate, null);
+        if (profiler != null) profiler.stop();
+
+        if (profiler != null) profiler.start("getMarriageablePersonIds");
+        List<Long> unfilteredIds = unfilteredList.stream()
+                .map(Person::getId)
+                .collect(Collectors.toList());
+        List<Long> unrelatedIds = ancestryService.getMarriageablePersonIds(person.getId(), unfilteredIds,
+                minDegreesSeparation);
+        if (profiler != null) profiler.stop();
+
+        if (profiler != null) profiler.start("filterListOfSpouses");
+        List<Person> filteredList = unfilteredList.stream()
+                .filter(p -> familyParameters.getMinSocialClass() == null
+                        || p.getSocialClassRank() >= familyParameters.getMinSocialClass().getRank())
+                .filter(p -> familyParameters.getMaxSocialClass() == null
+                        || p.getSocialClassRank() <= familyParameters.getMaxSocialClass().getRank())
                 // Keep people in the same social bracket. Extremely attractive people can marry up to 4 levels above.
                 .filter(p -> (person.getSocialClass().getRank() <= p.getMaxSocialClassMayAspireToMarry().getRank()) &&
                               p.getSocialClass().getRank() <= maxRankPersonMayAspireToMarry)
                 // Filter out married people, women who were married more than once, and widows with children
                 .filter(p -> !p.isMarriedNowOrAfter(filterSearchDate) && !isWidowWithChildren(p, filterSearchDate))
-                // Convert to a data structure that includes the relationship
+                // Filter out people who are not in the list of people sufficiently distantly related
+                .filter(p -> unrelatedIds.contains(p.getId()))
+                .collect(Collectors.toList());
+        if (profiler != null) profiler.stop();
+        return filteredList;
+    }
+
+    public List<RelatedPerson> findPotentialSpouseWithRelationship(@NonNull Person person,
+                                                                   @Nullable LocalDate onDate,
+                                                                   boolean includeFutureSpouses,
+                                                                   @NonNull RandomFamilyParameters familyParameters) {
+        return findPotentialSpouses(person, onDate, includeFutureSpouses, familyParameters, null)
+                .stream()
                 .map(spouse -> new RelatedPerson(spouse, ancestryService.calculateRelationship(spouse, person)))
-                // Filter out anyone too closely related
-                .filter(resp -> resp.getRelationship() == null ||
-                        resp.getRelationship().getDegreeOfSeparation() > minDegreesSeparation)
                 .collect(Collectors.toList());
     }
 
@@ -489,8 +517,9 @@ public class PersonService {
     }
 
     /**
-     * Disables maternity checking by setting the father to null, if the woman is not pregnant and if neither has
-     * a social class of at least yeoman or merchant.
+     * Disables maternity checking by setting the father to null, if the woman is not pregnant and if neither they
+     * nor their fathers are of rank Baronet or higher
+     *
      * @param husband the husband of the family
      * @param wife the wife of the family
      */
@@ -499,8 +528,7 @@ public class PersonService {
         if (wife.getMaternity().getConceptionDate() != null) {
             return;
         }
-        if (husband.getSocialClassRank() <= SocialClass.YEOMAN_OR_MERCHANT.getRank()
-                && wife.getSocialClassRank() <= SocialClass.YEOMAN_OR_MERCHANT.getRank()) {
+        if (!familyIsBaronetOrHigher(husband, wife)) {
             // If they move away and are not higher-class we do not want to track their families.
             // Setting the father to null will cause the maternity checker to skip them.
             log.info(String.format("Disabling maternity check for nonresident woman %d %s, married to %d %s",
@@ -508,5 +536,14 @@ public class PersonService {
             wife.getMaternity().setFather(null);
             save(wife);
         }
+    }
+
+    private boolean familyIsBaronetOrHigher(@NonNull Person husband, @NonNull Person wife) {
+        return isBaronetOrHigher(husband) || isBaronetOrHigher(wife) || isBaronetOrHigher(husband.getFather())
+                || isBaronetOrHigher(wife.getFather());
+    }
+
+    private boolean isBaronetOrHigher(@Nullable Person person) {
+        return person != null && person.getSocialClassRank() >= SocialClass.BARONET.getRank();
     }
 }

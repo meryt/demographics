@@ -73,7 +73,7 @@ public class SocialClassService {
         if (fathersClass == null) {
             return null;
         }
-        // If father and grandfather are both gentlemen, child remains a gentleman.
+        // If father is a gentleman and grandfather higher than gentleman, child remains a gentleman.
         if (fathersClass == SocialClass.GENTLEMAN) {
             Family fathersFamily = father.getFamily();
             Person grandfather = fathersFamily == null ? null : fathersFamily.getHusband();
@@ -81,7 +81,7 @@ public class SocialClassService {
                 return getChildSocialClassFromFather(fathersClass, child, onDate);
             } else {
                 SocialClass grandfathers = getCalculatedSocialClass(grandfather, forceCalculation, onDate);
-                if (grandfathers.getRank() >= SocialClass.GENTLEMAN.getRank()) {
+                if (grandfathers.getRank() > SocialClass.GENTLEMAN.getRank()) {
                     return SocialClass.GENTLEMAN;
                 } else {
                     return getChildSocialClassFromFather(fathersClass, child, onDate);

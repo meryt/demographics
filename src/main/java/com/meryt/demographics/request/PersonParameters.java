@@ -43,9 +43,21 @@ public class PersonParameters {
     private LocalDate birthDate;
 
     /**
+     * If set, this year will be used as the birth year and a random day will be picked. If birthDate is also set, this
+     * field is ignored.
+     */
+    private Integer birthYear;
+
+    /**
      * If set, this death date will be used. If aliveOnDate is also used, the aliveOnDate will be ignored.
      */
     private LocalDate deathDate;
+
+    /**
+     * If set, this year will be used as the death year and a random day will be picked. If deathDate is also set, this
+     * field is ignored.
+     */
+    private Integer deathYear;
 
     /**
      * If set, this last name will be used.
@@ -88,8 +100,9 @@ public class PersonParameters {
     }
 
     public void validate() {
-        if (birthDate == null && aliveOnDate == null) {
-            throw new IllegalArgumentException("Cannot generate a person without at least one of birthDate or aliveOnDate");
+        if (birthDate == null && aliveOnDate == null && birthYear == null) {
+            throw new IllegalArgumentException(
+                    "Cannot generate a person without at least one of birthDate, birthYear, or aliveOnDate");
         }
     }
 

@@ -12,7 +12,6 @@ import java.util.stream.Collectors;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 
 import com.meryt.demographics.domain.Occupation;
@@ -30,7 +29,7 @@ import com.meryt.demographics.domain.title.Title;
 import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.generator.random.BetweenDie;
 import com.meryt.demographics.generator.random.PercentDie;
-import com.meryt.demographics.repository.criteria.PersonCriteria;
+import com.meryt.demographics.profiler.Profiler;
 import com.meryt.demographics.request.AdvanceToDatePost;
 import com.meryt.demographics.request.RandomFamilyParameters;
 import com.meryt.demographics.request.RandomTitleParameters;
@@ -99,7 +98,12 @@ public class CalendarService {
      */
     public Map<LocalDate, List<CalendarDayEvent>> advanceToDay(@NonNull LocalDate toDate,
                                                                @NonNull AdvanceToDatePost nextDatePost) {
-        LocalDate currentDate = configurationService.getCurrentDate();
+        Profiler profiler = new Profiler();
+        profiler.start("advanceToDay");
+
+        Profiler marriageProfiler = new Profiler();
+
+                LocalDate currentDate = configurationService.getCurrentDate();
         if (currentDate == null) {
             throw new IllegalStateException("Current date is null");
         }
@@ -123,9 +127,11 @@ public class CalendarService {
                 break;
             }
 
+            profiler.start("generateMarriagesToDate");
             Map<LocalDate, List<CalendarDayEvent>> marriageEvents = generateMarriagesToDate(date, familyParameters,
-                    nextDatePost.getFarmNamesOrDefault());
+                    nextDatePost.getFarmNamesOrDefault(), marriageProfiler);
             results = mergeMaps(results, marriageEvents);
+            profiler.stop("generateMarriagesToDate");
 
             // Say the batch size is 7. If so, we don't check on the 0th through 5th date, but do on the 6th.
             // Or, in case the number of days is such that less than a full 7 days fits in at the end, we always
@@ -136,39 +142,63 @@ public class CalendarService {
                 // - the number of days to check is less than the number of days between rebuilds (e.g. we are only
                 //   checking one day at a time, we don't want to rebuild ancestry every time, we only want to do it
                 //   if there were births)
+                profiler.start("advanceMaternitiesToDay");
                 Map<LocalDate, List<CalendarDayEvent>> maternityEvents = advanceMaternitiesToDay(date);
                 results = mergeMaps(results, maternityEvents);
+                profiler.stop("advanceMaternitiesToDay");
             }
 
             if (isDuringPlague(date)) {
+                profiler.start("processPlagueDeathsOnDay");
                 processPlagueDeathsOnDay(date);
+                profiler.stop("processPlagueDeathsOnDay");
             }
 
+            profiler.start("processDeathsOnDay");
             Map<LocalDate, List<CalendarDayEvent>> deathEvents = processDeathsOnDay(date);
             results = mergeMaps(results, deathEvents);
+            profiler.stop("processDeathsOnDay");
 
+            profiler.start("processImmigrants");
             Map<LocalDate, List<CalendarDayEvent>> immigrantEvents = processImmigrants(date, nextDatePost);
             results = mergeMaps(results, immigrantEvents);
+            profiler.stop("processImmigrants");
 
+            profiler.start("processTitlesInAbeyance");
             Map<LocalDate, List<CalendarDayEvent>> titleEvents = processTitlesInAbeyance(date);
             results = mergeMaps(results, titleEvents);
+            profiler.stop("processTitlesInAbeyance");
 
             if (titleParameters != null) {
+                profiler.start("processNewTitles");
                 Map<LocalDate, List<CalendarDayEvent>> newTitleEvents = processNewTitles(titleParameters, date);
                 results = mergeMaps(results, newTitleEvents);
+                profiler.stop("processNewTitles");
             }
 
             if (date.getMonthValue() == nextDatePost.getFirstMonthOfYearOrDefault()
                     && date.getDayOfMonth() == nextDatePost.getFirstDayOfYearOrDefault()) {
+                profiler.start("distributeCapital");
                 distributeCapital(date);
+                profiler.stop("distributeCapital");
+                profiler.start("condemnRuinedHouses");
                 condemnRuinedHouses(date);
+                profiler.stop("condemnRuinedHouses");
+                profiler.start("cleanUpEmptyHouseholds");
                 cleanUpEmptyHouseholds(date);
+                profiler.stop("cleanUpEmptyHouseholds");
             }
 
             if (isQuarterDay(date)) {
+                profiler.start("moveHouseholdsToBetterHouses");
                 moveHouseholdsToBetterHouses(date);
+                profiler.stop("moveHouseholdsToBetterHouses");
+                profiler.start("hireAndFireDomesticServants");
                 hireAndFireDomesticServants(date);
+                profiler.stop("hireAndFireDomesticServants");
+                profiler.start("hireEstateEmployees");
                 hireEstateEmployees(date);
+                profiler.stop("hireEstateEmployees");
             }
 
             configurationService.setCurrentDate(date);
@@ -181,12 +211,17 @@ public class CalendarService {
 
         log.info("Finished advancing calendar");
 
+        profiler.stop("advanceToDay");
+        profiler.logResults();
+        marriageProfiler.logResults();
         return results;
     }
 
     private Map<LocalDate, List<CalendarDayEvent>> generateMarriagesToDate(@NonNull LocalDate date,
                                                                            @NonNull RandomFamilyParameters familyParameters,
-                                                                           @NonNull List<String> farmNames) {
+                                                                           @NonNull List<String> farmNames,
+                                                                           @NonNull Profiler profiler) {
+        profiler.start("findUnmarriedPeople");
         List<Person> unmarriedPeople = personService.findUnmarriedPeople(date,
                 familyParameters.getMinHusbandAgeOrDefault(),
                 familyParameters.getMaxHusbandAgeOrDefault(),
@@ -194,21 +229,28 @@ public class CalendarService {
                 familyParameters.getMaxWifeAgeOrDefault(),
                 false, // residentsOnly
                 null); // gender (i.e. find both genders)
+        profiler.stop();
         Map<LocalDate, List<CalendarDayEvent>> results = new TreeMap<>();
         List<CalendarDayEvent> dayResults = new ArrayList<>();
 
         for (Person person : unmarriedPeople) {
-            Family family = familyGenerator.attemptToFindSpouse(date, date, person, familyParameters);
+            profiler.start("attemptToFindSpouse");
+            Family family = familyGenerator.attemptToFindSpouse(date, date, person, familyParameters, profiler);
+            profiler.stop();
             if (family != null) {
+                profiler.start("creatingNewFamily");
                 familyService.save(family);
                 dayResults.add(new MarriageEvent(date, family));
                 logMarriage(family, date);
                 family = familyService.setupMarriage(family, family.getWeddingDate(), true);
+                // setupMarriage() might have disabled the maternity check so save this value so we know whether to
+                // restore it or not
+                boolean previousHavingRelationsValue = family.getWife().getMaternity().isHavingRelations();
                 family.getWife().getMaternity().setHavingRelations(false);
                 // If the woman is randomly generated her last check date is in the past. Bring her up to yesterday so
                 // that in the next step when we advance maternities, she will start with her wedding night.
                 fertilityService.cycleToDate(family.getWife(), date.minusDays(1), false);
-                family.getWife().getMaternity().setHavingRelations(true);
+                family.getWife().getMaternity().setHavingRelations(previousHavingRelationsValue);
                 personService.save(family.getWife());
 
                 Household household = person.getHousehold(date);
@@ -241,6 +283,7 @@ public class CalendarService {
                         }
                     }
                 }
+                profiler.stop();
             }
         }
         if (!dayResults.isEmpty()) {

@@ -78,6 +78,7 @@ public interface PersonRepository extends PagingAndSortingRepository<Person, Lon
             "AND (CAST(:minBirthDate AS date) IS NULL OR p.birthDate >= :minBirthDate) " +
             "AND (CAST(:maxBirthDate AS date) IS NULL OR p.birthDate <= :maxBirthDate) " +
             "AND p.finishedGeneration = FALSE " +
+            "AND p.storyCharacter = FALSE " +
             "ORDER BY p.birthDate")
     List<Person> findPotentialSpouses(@Param("gender") @NonNull Gender gender,
                                       @Param("aliveOnDate") @NonNull LocalDate aliveOnDate,
@@ -102,6 +103,7 @@ public interface PersonRepository extends PagingAndSortingRepository<Person, Lon
             "AND (CAST(:minBirthDate AS date) IS NULL OR p.birthDate >= :minBirthDate) " +
             "AND (CAST(:maxBirthDate AS date) IS NULL OR p.birthDate <= :maxBirthDate) " +
             "AND p.finishedGeneration = FALSE " +
+            "AND p.storyCharacter = FALSE " +
             "ORDER BY p.birthDate")
     List<Person> findUnmarriedPeople(@Param("aliveOnDate") @NonNull LocalDate aliveOnDate,
                                      @Param("minBirthDate") @NonNull LocalDate minBirthDate,
@@ -132,7 +134,7 @@ public interface PersonRepository extends PagingAndSortingRepository<Person, Lon
             "WHERE p.gender = 'FEMALE' " +
             "AND p.maternity.lastCheckDate < :check_date " +
             "AND p.deathDate > p.maternity.lastCheckDate " +
-            "AND (p.maternity.conceptionDate IS NOT NULL OR p.maternity.father IS NOT NULL) " +
+            "AND (p.maternity.conceptionDate IS NOT NULL OR (p.maternity.father IS NOT NULL AND p.maternity.havingRelations = TRUE)) " +
             "AND YEAR(CAST(:check_date AS date)) - YEAR(p.birthDate) >= 13 " +
             "AND YEAR(CAST(:check_date AS date)) - YEAR(p.birthDate) <= 55 " +
             "ORDER BY p.birthDate")

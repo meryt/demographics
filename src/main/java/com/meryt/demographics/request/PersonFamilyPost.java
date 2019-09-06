@@ -1,6 +1,5 @@
 package com.meryt.demographics.request;
 
-import java.time.LocalDate;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -17,7 +16,7 @@ public class PersonFamilyPost {
     /**
      * Check for spouse/children until this date, if specified. Otherwise use the person's death date.
      */
-    private LocalDate untilDate;
+    private String untilDate;
 
     /**
      * If present, a randomly-generated spouse will use this last name
