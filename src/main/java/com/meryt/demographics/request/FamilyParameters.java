@@ -13,5 +13,14 @@ public class FamilyParameters {
     private Long husbandId;
     private Long wifeId;
     private LocalDate weddingDate;
+    private Boolean skipCreateHouseholds;
+    private Boolean skipManageCapital;
 
+    public boolean isSkipCreateHouseholds() {
+        return skipCreateHouseholds != null && skipCreateHouseholds;
+    }
+
+    public boolean isSkipManageCapital() {
+        return skipManageCapital != null && skipManageCapital;
+    }
 }

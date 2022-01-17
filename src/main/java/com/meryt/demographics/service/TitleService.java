@@ -208,7 +208,7 @@ public class TitleService {
             Person nextHolder = nextHolders.getSecond().get(0);
             if (!currentHolder.isFinishedGeneration() &&
                     (nextHolder.isFemale() ||
-                      (!title.getInheritance().isMalesOnly() && !nextHolder.getFather().equals(currentHolder)))) {
+                            (!title.getInheritance().isMalesOnly() && !nextHolder.getFather().equals(currentHolder)))) {
                 // If the current holder is not finished, we can still proceed, but only if the heir is a
                 // son of the current holder, or it's a male-only inheritance style and the heir is a son
                 // (since grandchildren by an elder son come before younger sons).
@@ -224,6 +224,8 @@ public class TitleService {
             Pair<LocalDate, List<CalendarDayEvent>> dateAndEvents = addTitleToPerson(title, nextHolder,
                     nextHolders.getFirst());
             return dateAndEvents == null ? null : nextHolder;
+        } else if (allHoldersHaveFinishedGeneration(title) && nextHolders.getSecond().size() > 1) {
+            setAbeyanceCheckDate(title, nextHolders.getSecond(), null);
         } else if (allHoldersHaveFinishedGeneration(title) && nextHolders.getSecond().isEmpty()) {
             log.info(String.format("The title of %s has gone extinct.", title.getName()));
             title.setExtinct(true);
@@ -401,6 +403,9 @@ public class TitleService {
             if (heirMayBeBornOn != null) {
                 title.setNextAbeyanceCheckDate(heirMayBeBornOn);
                 save(title);
+            } else if (latestHolder != null && !latestHolder.isFinishedGeneration()) {
+                title.setNextAbeyanceCheckDate(latestHolder.getDeathDate());
+                save(title);
             } else {
                 title.setExtinct(true);
                 title.setNextAbeyanceCheckDate(null);
@@ -409,13 +414,8 @@ public class TitleService {
             }
         } else if (heirs.getSecond().size() > 1) {
             results.add(new TitleAbeyanceEvent(date, title, heirs.getSecond()));
-            Person nextToLastHeir = heirs.getSecond().get(heirs.getSecond().size() - 2);
-            LocalDate nextCheck = heirMayBeBornOn == null
-                    ? nextToLastHeir.getDeathDate()
-                    : LocalDateComparator.min(heirMayBeBornOn, nextToLastHeir.getDeathDate());
-            title.setNextAbeyanceCheckDate(nextCheck);
+            setAbeyanceCheckDate(title, heirs.getSecond(), heirMayBeBornOn);
             reenableMaternitiesForPotentialHeirs(heirs.getSecond(), date);
-            save(title);
         } else {
             Person heir = heirs.getSecond().get(0);
             if (heirMayBeBornOn != null && (!heir.isMale() || (latestHolder != null && !latestHolder.getChildren().contains(heir)))) {
@@ -432,6 +432,17 @@ public class TitleService {
             }
         }
         return results;
+    }
+
+    private void setAbeyanceCheckDate(@NonNull Title title,
+                                      @NonNull List<Person> possibleHeirs,
+                                      @Nullable LocalDate heirMayBeBornOn) {
+        Person nextToLastHeir = possibleHeirs.get(possibleHeirs.size() - 2);
+        LocalDate nextCheck = heirMayBeBornOn == null
+                ? nextToLastHeir.getDeathDate()
+                : LocalDateComparator.min(heirMayBeBornOn, nextToLastHeir.getDeathDate());
+        title.setNextAbeyanceCheckDate(nextCheck);
+        save(title);
     }
 
     /**
@@ -545,6 +556,7 @@ public class TitleService {
                 }
                 familyService.save(family);
                 person = family.getHusband();
+                person.setFounder(true);
             } else {
                 person = possiblePeople.get(BetweenDie.roll(0, possiblePeople.size() - 1));
             }
@@ -571,9 +583,17 @@ public class TitleService {
                 break;
             case VISCOUNT:
                 if (title.getPeerage() == Peerage.SCOTLAND) {
-                    title.setName("Viscount of " + randomName);
+                    if (onDate.getYear() < 1622) {
+                        title.setName("Lord of " + randomName);
+                    } else {
+                        title.setName("Viscount of " + randomName);
+                    }
                 } else if (title.getPeerage() == Peerage.ENGLAND) {
-                    title.setName("Viscount " + randomName);
+                    if (onDate.getYear() < 1440) {
+                        title.setName("Baron " + randomName);
+                    } else {
+                        title.setName("Viscount " + randomName);
+                    }
                 }
                 break;
             case EARL:
@@ -610,12 +630,14 @@ public class TitleService {
         title.setInheritanceRoot(person);
         save(title);
 
-        double currentCapital = person.getCapitalNullSafe(onDate);
-        double minCapital = WealthGenerator.getRandomStartingCapital(person.getSocialClass(),
-                person.getOccupation(onDate) != null);
-        if (currentCapital < minCapital) {
-            person.addCapital(minCapital - currentCapital, onDate, PersonCapitalPeriod.Reason.grantedWithTitle(title));
-            personService.save(person);
+        if (!titleParameters.isSkipCapitalGeneration()) {
+            double currentCapital = person.getCapitalNullSafe(onDate);
+            double minCapital = WealthGenerator.getRandomStartingCapital(person.getSocialClass(),
+                    person.getOccupation(onDate) != null);
+            if (currentCapital < minCapital) {
+                person.addCapital(minCapital - currentCapital, onDate, PersonCapitalPeriod.Reason.grantedWithTitle(title));
+                personService.save(person);
+            }
         }
         return title;
     }

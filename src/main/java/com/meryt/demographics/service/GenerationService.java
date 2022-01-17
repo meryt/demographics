@@ -238,6 +238,8 @@ public class GenerationService {
                 familyParameters.setMinSpouseSelection(personFamilyPost.getMinSpouseSelection());
                 // Allows a woman pregnant at time of husband's death to give birth
                 familyParameters.setCycleToDeath(!shouldLoopUntilReferenceDate);
+                familyParameters.setSkipCreateHouseholds(personFamilyPost.isSkipCreateHouseholds());
+                familyParameters.setSkipManageCapital(personFamilyPost.isSkipManageCapital());
 
                 Family family = null;
                 if (person.isMale() || (person.getFamilies().size() < 2 &&
@@ -279,6 +281,13 @@ public class GenerationService {
 
         if (generationPost.getOutputToFile() != null) {
             writeGenerationsToFile(generationPost.getOutputToFile());
+        }
+
+        if (generationPost.isAdvanceToReferenceDate()) {
+            LocalDate current = configurationService.getCurrentDate();
+            if (untilDate != null && (current == null || untilDate.isAfter(current))) {
+                configurationService.setCurrentDate(untilDate);
+            }
         }
 
         return results;

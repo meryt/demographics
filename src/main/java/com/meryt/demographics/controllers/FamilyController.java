@@ -75,7 +75,8 @@ public class FamilyController {
         LocalDate marriageDate = familyParameters.getWeddingDate();
 
         try {
-            return new FamilyResponse(familyService.createAndSaveFamily(husband, wife, marriageDate));
+            return new FamilyResponse(familyService.createAndSaveFamily(husband, wife, marriageDate,
+                    familyParameters.isSkipCreateHouseholds(), familyParameters.isSkipManageCapital()));
         } catch (IllegalArgumentException e) {
             throw new BadRequestException(e.toString());
         }

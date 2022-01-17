@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -103,7 +104,7 @@ public class CalendarService {
 
         Profiler marriageProfiler = new Profiler();
 
-                LocalDate currentDate = configurationService.getCurrentDate();
+        LocalDate currentDate = configurationService.getCurrentDate();
         if (currentDate == null) {
             throw new IllegalStateException("Current date is null");
         }
@@ -159,10 +160,13 @@ public class CalendarService {
             results = mergeMaps(results, deathEvents);
             profiler.stop("processDeathsOnDay");
 
-            profiler.start("processImmigrants");
-            Map<LocalDate, List<CalendarDayEvent>> immigrantEvents = processImmigrants(date, nextDatePost);
-            results = mergeMaps(results, immigrantEvents);
-            profiler.stop("processImmigrants");
+            if (familyParameters.isSkipCreateHouseholds() || familyParameters.isSkipManageCapital()) {
+                profiler.start("processImmigrants");
+                Map<LocalDate, List<CalendarDayEvent>> immigrantEvents = processImmigrants(date,
+                        nextDatePost.getChanceNewFamilyPerYear(), familyParameters);
+                results = mergeMaps(results, immigrantEvents);
+                profiler.stop("processImmigrants");
+            }
 
             profiler.start("processTitlesInAbeyance");
             Map<LocalDate, List<CalendarDayEvent>> titleEvents = processTitlesInAbeyance(date);
@@ -178,27 +182,33 @@ public class CalendarService {
 
             if (date.getMonthValue() == nextDatePost.getFirstMonthOfYearOrDefault()
                     && date.getDayOfMonth() == nextDatePost.getFirstDayOfYearOrDefault()) {
-                profiler.start("distributeCapital");
-                distributeCapital(date);
-                profiler.stop("distributeCapital");
-                profiler.start("condemnRuinedHouses");
-                condemnRuinedHouses(date);
-                profiler.stop("condemnRuinedHouses");
-                profiler.start("cleanUpEmptyHouseholds");
-                cleanUpEmptyHouseholds(date);
-                profiler.stop("cleanUpEmptyHouseholds");
+                if (!familyParameters.isSkipManageCapital()) {
+                    profiler.start("distributeCapital");
+                    distributeCapital(date);
+                    profiler.stop("distributeCapital");
+                }
+                if (!familyParameters.isSkipCreateHouseholds()) {
+                    profiler.start("condemnRuinedHouses");
+                    condemnRuinedHouses(date);
+                    profiler.stop("condemnRuinedHouses");
+                    profiler.start("cleanUpEmptyHouseholds");
+                    cleanUpEmptyHouseholds(date);
+                    profiler.stop("cleanUpEmptyHouseholds");
+                }
             }
 
             if (isQuarterDay(date)) {
-                profiler.start("moveHouseholdsToBetterHouses");
-                moveHouseholdsToBetterHouses(date);
-                profiler.stop("moveHouseholdsToBetterHouses");
-                profiler.start("hireAndFireDomesticServants");
-                hireAndFireDomesticServants(date);
-                profiler.stop("hireAndFireDomesticServants");
-                profiler.start("hireEstateEmployees");
-                hireEstateEmployees(date);
-                profiler.stop("hireEstateEmployees");
+                if (!familyParameters.isSkipCreateHouseholds()) {
+                    profiler.start("moveHouseholdsToBetterHouses");
+                    moveHouseholdsToBetterHouses(date);
+                    profiler.stop("moveHouseholdsToBetterHouses");
+                    profiler.start("hireAndFireDomesticServants");
+                    hireAndFireDomesticServants(date);
+                    profiler.stop("hireAndFireDomesticServants");
+                    profiler.start("hireEstateEmployees");
+                    hireEstateEmployees(date);
+                    profiler.stop("hireEstateEmployees");
+                }
             }
 
             configurationService.setCurrentDate(date);
@@ -242,7 +252,8 @@ public class CalendarService {
                 familyService.save(family);
                 dayResults.add(new MarriageEvent(date, family));
                 logMarriage(family, date);
-                family = familyService.setupMarriage(family, family.getWeddingDate(), true);
+                family = familyService.setupMarriage(family, family.getWeddingDate(),
+                        !familyParameters.isSkipCreateHouseholds(), !familyParameters.isSkipManageCapital(), true);
                 // setupMarriage() might have disabled the maternity check so save this value so we know whether to
                 // restore it or not
                 boolean previousHavingRelationsValue = family.getWife().getMaternity().isHavingRelations();
@@ -360,20 +371,22 @@ public class CalendarService {
      * If one is indicated, generates the household, family, residence, and possibly occupation.
      *
      * @param date the date to check for an arrival (for each parish)
-     * @param nextDatePost the request parameters, used to determine the percent chance as well as to configure the
-     *                     family generation using the RandomFamilyParameters.
+     * @param chanceNewFamilyPerYear the percent chance of a new family being generated within a year (will divide by
+     *                               365 to get chance per day... not really accurate, I know)
+     * @param familyParameters the parameters used to generate the new family, if one comes up
      * @return a map of events generated (possibly empty)
      */
     private Map<LocalDate, List<CalendarDayEvent>> processImmigrants(@NonNull LocalDate date,
-                                                                     @NonNull AdvanceToDatePost nextDatePost) {
+                                                                     @Nullable Double chanceNewFamilyPerYear,
+                                                                     @NonNull RandomFamilyParameters familyParameters) {
         Map<LocalDate, List<CalendarDayEvent>> results = new HashMap<>();
         List<CalendarDayEvent> dayResults = new ArrayList<>();
-        if (nextDatePost.getChanceNewFamilyPerYear() == null) {
+        if (chanceNewFamilyPerYear == null) {
             return results;
         }
 
         for (DwellingPlace parish :  dwellingPlaceService.loadByType(DwellingPlaceType.PARISH)) {
-            double chance = nextDatePost.getChanceNewFamilyPerYear() / 365.0;
+            double chance = chanceNewFamilyPerYear / 365.0;
             if (PercentDie.roll() < chance) {
                 // Someone might want to immigrate. But if the population density is such that it is exerting outward
                 // pressure, they will not come after all. So only come if the density is low enough or the roll is
@@ -381,7 +394,7 @@ public class CalendarService {
                 double chanceOfEmigrating = ((Parish) parish).getChanceOfEmigrating(date);
                 if (PercentDie.roll() > chanceOfEmigrating) {
                     dayResults.addAll(immigrationService.processImmigrantArrival((Parish) parish,
-                            nextDatePost.getFamilyParameters(), date));
+                           familyParameters, date));
                 }
             }
         }

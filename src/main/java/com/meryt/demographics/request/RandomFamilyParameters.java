@@ -137,6 +137,10 @@ public class RandomFamilyParameters {
 
     private Boolean skipGenerateChildren;
 
+    private Boolean skipCreateHouseholds;
+
+    private Boolean skipManageCapital;
+
     /**
      * Copy constructor
      */
@@ -163,6 +167,8 @@ public class RandomFamilyParameters {
         chanceGeneratedSpouse = other.chanceGeneratedSpouse;
         triesUntilGiveUp = other.triesUntilGiveUp;
         skipGenerateChildren = other.skipGenerateChildren;
+        skipCreateHouseholds = other.skipCreateHouseholds;
+        skipManageCapital = other.skipManageCapital;
     }
 
     public int getMinHusbandAgeOrDefault() {
@@ -229,5 +235,13 @@ public class RandomFamilyParameters {
 
     public boolean isSkipGenerateChildren() {
         return skipGenerateChildren != null && skipGenerateChildren;
+    }
+
+    public boolean isSkipCreateHouseholds() {
+        return skipCreateHouseholds != null && skipCreateHouseholds;
+    }
+
+    public boolean isSkipManageCapital() {
+        return skipManageCapital != null && skipManageCapital;
     }
 }

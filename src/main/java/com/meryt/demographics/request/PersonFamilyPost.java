@@ -49,9 +49,20 @@ public class PersonFamilyPost {
 
     private Boolean skipGenerateChildren;
 
+    private Boolean skipCreateHouseholds;
+
+    private Boolean skipManageCapital;
+
     public void validate() {
         // nothing to validate yet
     }
 
+    public boolean isSkipCreateHouseholds() {
+        return skipCreateHouseholds != null && skipCreateHouseholds;
+    }
+
+    public boolean isSkipManageCapital() {
+        return skipManageCapital != null && skipManageCapital;
+    }
 }
 

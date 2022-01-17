@@ -72,25 +72,31 @@ public class FamilyService {
      * @param weddingDate an optional wedding date
      * @return the new family
      */
-    public Family createAndSaveFamily(@Nullable Person husband, @Nullable Person wife, @Nullable LocalDate weddingDate) {
+    public Family createAndSaveFamily(@Nullable Person husband,
+                                      @Nullable Person wife,
+                                      @Nullable LocalDate weddingDate,
+                                      boolean skipCreateHouseholds,
+                                      boolean skipManageCapital) {
         if (weddingDate != null && husband != null && wife != null) {
             checkPersonAliveAndUnmarriedOnWeddingDate(husband, weddingDate);
             checkPersonAliveAndUnmarriedOnWeddingDate(wife, weddingDate);
 
-            return createAndSaveMarriage(husband, wife, weddingDate);
+            return createAndSaveMarriage(husband, wife, weddingDate, skipCreateHouseholds, skipManageCapital);
         }
         if (husband == null && wife == null) {
             throw new IllegalArgumentException("Both husband and wife cannot be null");
         }
 
         Family family = new Family();
-        family.setHusband(husband);
-        family.setWife(wife);
-        family.setWeddingDate(weddingDate);
+        if (husband != null) {
+            family.setHusband(husband);
+        }
         if (wife != null) {
+            family.setWife(wife);
             wife.getMaternity().setFather(husband);
             personService.save(wife);
         }
+        family.setWeddingDate(weddingDate);
         return save(family);
     }
 
@@ -103,7 +109,11 @@ public class FamilyService {
      * @param weddingDate a wedding date
      * @return the new family
      */
-    private Family createAndSaveMarriage(@NonNull Person husband, @NonNull Person wife, @NonNull LocalDate weddingDate) {
+    private Family createAndSaveMarriage(@NonNull Person husband,
+                                         @NonNull Person wife,
+                                         @NonNull LocalDate weddingDate,
+                                         boolean skipCreateHouseholds,
+                                         boolean skipManageCapital) {
         Family family = new Family();
         family.setHusband(husband);
         family.setWife(wife);
@@ -114,13 +124,19 @@ public class FamilyService {
 
         personService.save(wife);
         family = save(family);
-        return setupMarriage(family, weddingDate, false);
+        return setupMarriage(family, weddingDate, !skipCreateHouseholds, !skipManageCapital, false);
     }
 
-    Family setupMarriage(@NonNull Family family, @NonNull LocalDate weddingDate, boolean moveAwayIfHusbandNonResident) {
+    Family setupMarriage(@NonNull Family family,
+                         @NonNull LocalDate weddingDate,
+                         boolean manageHouseholds,
+                         boolean manageCapital,
+                         boolean moveAwayIfHusbandNonResident) {
 
         // If a first-time bride has living parents, they should give her some money.
-        applyMarriageSettlements(family.getWife(), weddingDate);
+        if (manageCapital) {
+            applyMarriageSettlements(family.getWife(), weddingDate);
+        }
 
         Person husband = family.getHusband();
         Person wife = family.getWife();
@@ -134,30 +150,32 @@ public class FamilyService {
             wife.quitJob(weddingDate);
         }
 
-        DwellingPlace husbandPlace = husband.getResidence(weddingDate);
-        DwellingPlace wifePlace = wife.getResidence(weddingDate);
+        if (manageHouseholds) {
+            DwellingPlace husbandPlace = husband.getResidence(weddingDate);
+            DwellingPlace wifePlace = wife.getResidence(weddingDate);
 
-        Household husbandsHousehold = moveWifeAndStepchildrenToHusbandsHousehold(family);
+            Household husbandsHousehold = moveWifeAndStepchildrenToHusbandsHousehold(family);
 
-        if (moveAwayIfHusbandNonResident && husbandPlace == null && wifePlace == null) {
-            log.info("Not moving household. Neither family member lives in the parishes.");
-            personService.maybeDisableMaternityCheckingForNonResidentFamily(husband, wife);
-            return family;
-        }
-
-        // If neither partner owns a place to live, they might move away.
-        if (moveAwayIfHusbandNonResident && husband.getOwnedDwellingPlaces(weddingDate).isEmpty() &&
-                wife.getOwnedDwellingPlaces(weddingDate).isEmpty() && husband.getLivingChildren(weddingDate).isEmpty()
-                && wife.getLivingChildren(weddingDate).isEmpty()) {
-            Parish parish = husbandPlace == null ? wifePlace.getParish() : husbandPlace.getParish();
-            if (parish != null && shouldEmigrate(parish, weddingDate)) {
-                emigrate(family, weddingDate);
-
+            if (moveAwayIfHusbandNonResident && husbandPlace == null && wifePlace == null) {
+                log.info("Not moving household. Neither family member lives in the parishes.");
+                personService.maybeDisableMaternityCheckingForNonResidentFamily(husband, wife);
                 return family;
             }
-        }
 
-        findResidenceForNewFamily(family, husbandsHousehold, moveAwayIfHusbandNonResident);
+            // If neither partner owns a place to live, they might move away.
+            if (moveAwayIfHusbandNonResident && husband.getOwnedDwellingPlaces(weddingDate).isEmpty() &&
+                    wife.getOwnedDwellingPlaces(weddingDate).isEmpty() && husband.getLivingChildren(weddingDate).isEmpty()
+                    && wife.getLivingChildren(weddingDate).isEmpty()) {
+                Parish parish = husbandPlace == null ? wifePlace.getParish() : husbandPlace.getParish();
+                if (parish != null && shouldEmigrate(parish, weddingDate)) {
+                    emigrate(family, weddingDate);
+
+                    return family;
+                }
+            }
+
+            findResidenceForNewFamily(family, husbandsHousehold, moveAwayIfHusbandNonResident);
+        }
 
         return family;
     }

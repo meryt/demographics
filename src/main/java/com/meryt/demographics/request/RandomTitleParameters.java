@@ -22,6 +22,7 @@ public class RandomTitleParameters {
     private List<String> names;
     private List<String> scottishNames;
     private RandomFamilyParameters familyParameters;
+    private boolean skipCapitalGeneration;
 
     private double getPercentScottishOrDefault() {
         return getPercentScottish() == null
