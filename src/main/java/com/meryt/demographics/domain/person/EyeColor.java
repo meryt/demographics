@@ -63,6 +63,34 @@ public enum EyeColor {
         }
     }
 
+    public static String genesFromEyeColor(String eyeColor) {
+        double roll = PercentDie.roll();
+        switch (eyeColor) {
+            case "BLUE":
+            case "GRAY":
+                return "CC";
+            case "GREEN":
+            case "HAZEL":
+                if (roll < 0.5) {
+                    return "CC";
+                } else if (roll < 0.99) {
+                    return "TC";
+                } else {
+                    return "TT";
+                }
+            case "AMBER":
+            case "BROWN":
+            case "BLACK":
+                if (roll < 0.7) {
+                    return "TT";
+                } else {
+                    return "TC";
+                }            
+            default:
+            throw new IllegalArgumentException("Unrecognized eye color " + eyeColor);
+        }
+    }
+
     private static EyeColor randomBlue() {
         int d6Roll = new Die(6).roll();
         if (d6Roll <= 4) {

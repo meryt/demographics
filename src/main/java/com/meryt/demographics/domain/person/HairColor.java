@@ -1,5 +1,7 @@
 package com.meryt.demographics.domain.person;
 
+import com.meryt.demographics.generator.random.PercentDie;
+
 public class HairColor {
 
     private HairColor() {
@@ -31,4 +33,35 @@ public class HairColor {
         }
     }
 
+    public static String getGenesFromHairColor(String hairColor) {
+        double roll = PercentDie.roll();
+        switch (hairColor) {
+            case "black":
+                if (roll < 0.5) {
+                    return "BBRR";
+                } else {
+                    return "BBRr";
+                }
+            case "brown":
+                if (roll < 0.5) {
+                    return "BbRR";
+                } else {
+                    return "BbRr";
+                }
+            case "blond":
+                if (roll < 0.5) {
+                    return "bbRR";
+                } else {
+                    return "bbRr";
+                }
+            case "auburn":
+                return "BBrr";
+            case "red":
+                return "Bbrr";
+            case "strawberry":
+                return "bbrr";
+            default:
+                throw new IllegalArgumentException("Invalid hair color  " + hairColor);
+        }
+    }
 }

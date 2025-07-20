@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.EyeColor;
 import com.meryt.demographics.domain.person.Gender;
+import com.meryt.demographics.domain.person.HairColor;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.generator.random.BetweenDie;
@@ -399,7 +400,7 @@ public class PersonGenerator {
             favoredParent = mother;
         }
 
-        generateAndSetTraitsFromParents(person, father, mother, favoredParent, otherParent);
+        generateAndSetTraitsFromParents(personParameters, person, father, mother, favoredParent, otherParent);
     }
 
     /**
@@ -411,7 +412,7 @@ public class PersonGenerator {
      * @param favoredParent if non-null, be one of the father or mother
      * @param otherParent if non-null, must be the other one of the father or mother
      */
-    private void generateAndSetTraitsFromParents(@NonNull Person person, Person father, Person mother,
+    private void generateAndSetTraitsFromParents(@NonNull PersonParameters personParameters, @NonNull Person person, Person father, Person mother,
                                                  Person favoredParent, Person otherParent) {
         person.setDomesticity(randomDomesticity());
         person.setCharisma(randomTrait());
@@ -434,9 +435,11 @@ public class PersonGenerator {
             person.setIntelligence(randomTrait());
         }
         person.setMorality(randomTrait());
-        person.setEyeGenes(getEyeGenesFromParents(father, mother));
-        person.setEyeColor(EyeColor.randomFromGenes(person.getEyeGenes()));
-        person.setHairGenes(getHairGenesFromParents(father, mother, person.getEyeColor()));
+        person.setEyeGenes(getEyeGenesFromParents(personParameters, person, father, mother));
+        if (person.getEyeColor() == null) {
+            person.setEyeColor(EyeColor.randomFromGenes(person.getEyeGenes()));
+        }
+        person.setHairGenes(getHairGenesFromParents(personParameters, father, mother, person.getEyeColor()));
     }
 
     /**
@@ -516,8 +519,21 @@ public class PersonGenerator {
         return new NormalDistribution(mean, 0.1).sample();
     }
 
-    private String getEyeGenesFromParents(Person father, Person mother) {
+    /**
+     * Gets the eye genes from the parents, else random or using the provided eye color.
+     * 
+     * @param personParameters - if eye color is specified, will use it if parents eye color is not available
+     * @param person - if eye color is specified rather than randomized, the color will be set on this person before returning the genes
+     * @param father - the father whose eye color we may check
+     * @param mother - the mother whose eye color we may check
+     * @return the random or calculated or specified eye color
+     */
+    private String getEyeGenesFromParents(PersonParameters personParameters, Person person, Person father, Person mother) {
         if (father == null || mother == null || father.getEyeGenes() == null || mother.getEyeGenes() == null) {
+            if (personParameters.getEyeColor() != null) {
+                person.setEyeColor(EyeColor.valueOf(personParameters.getEyeColor()));
+                return EyeColor.genesFromEyeColor(personParameters.getEyeColor());
+            }
             return getRandomEyeGenes();
         }
         Die d2 = new Die(2);
@@ -551,10 +567,14 @@ public class PersonGenerator {
      * @param ownEyeColor the person's eye color
      * @return a string representing the genes
      */
-    private String getHairGenesFromParents(@Nullable Person father,
+    private String getHairGenesFromParents(@NonNull PersonParameters personParameters,
+                                           @Nullable Person father,
                                            @Nullable Person mother,
                                            @NonNull EyeColor ownEyeColor) {
         if (father == null || mother == null || father.getHairGenes() == null || mother.getHairGenes() == null) {
+            if (personParameters.getHairColor() != null) {
+                return HairColor.getGenesFromHairColor(personParameters.getHairColor());
+            }
             return getRandomHairGenes(ownEyeColor);
         }
 
@@ -589,12 +609,17 @@ public class PersonGenerator {
     private String getRandomHairGenes(@NonNull EyeColor ownEyeColor) {
         String genes = getRandomHairGenes();
         if (ownEyeColor.isBlue() && !genes.startsWith("bb")) {
-            return getRandomHairGenes();
+            genes = getRandomHairGenes();
+            if (!genes.startsWith("bb")) {
+                return getRandomHairGenes();
+            }
         } else if (ownEyeColor.isBrown() && genes.startsWith("bb")) {
-            return getRandomHairGenes();
-        } else {
-            return genes;
+            genes = getRandomHairGenes();
+            if (genes.startsWith("bb")) {
+                return getRandomHairGenes();
+            }
         }
+        return genes;
     }
 
     /**

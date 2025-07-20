@@ -128,11 +128,13 @@ public class CalendarService {
                 break;
             }
 
-            profiler.start("generateMarriagesToDate");
-            Map<LocalDate, List<CalendarDayEvent>> marriageEvents = generateMarriagesToDate(date, familyParameters,
-                    nextDatePost.getFarmNamesOrDefault(), marriageProfiler);
-            results = mergeMaps(results, marriageEvents);
-            profiler.stop("generateMarriagesToDate");
+            if (nextDatePost.getGenerateMarriages()) {
+                profiler.start("generateMarriagesToDate");
+                Map<LocalDate, List<CalendarDayEvent>> marriageEvents = generateMarriagesToDate(date, familyParameters,
+                        nextDatePost.getFarmNamesOrDefault(), marriageProfiler);
+                results = mergeMaps(results, marriageEvents);
+                profiler.stop("generateMarriagesToDate");
+            }
 
             // Say the batch size is 7. If so, we don't check on the 0th through 5th date, but do on the 6th.
             // Or, in case the number of days is such that less than a full 7 days fits in at the end, we always
@@ -160,12 +162,14 @@ public class CalendarService {
             results = mergeMaps(results, deathEvents);
             profiler.stop("processDeathsOnDay");
 
-            if (familyParameters.isSkipCreateHouseholds() || familyParameters.isSkipManageCapital()) {
-                profiler.start("processImmigrants");
-                Map<LocalDate, List<CalendarDayEvent>> immigrantEvents = processImmigrants(date,
-                        nextDatePost.getChanceNewFamilyPerYear(), familyParameters);
-                results = mergeMaps(results, immigrantEvents);
-                profiler.stop("processImmigrants");
+            if (nextDatePost.getProcessImmigrants()) {
+                if (familyParameters.isSkipCreateHouseholds() || familyParameters.isSkipManageCapital()) {
+                    profiler.start("processImmigrants");
+                    Map<LocalDate, List<CalendarDayEvent>> immigrantEvents = processImmigrants(date,
+                            nextDatePost.getChanceNewFamilyPerYear(), familyParameters);
+                    results = mergeMaps(results, immigrantEvents);
+                    profiler.stop("processImmigrants");
+                }
             }
 
             profiler.start("processTitlesInAbeyance");
@@ -197,7 +201,7 @@ public class CalendarService {
                 }
             }
 
-            if (isQuarterDay(date)) {
+            if (nextDatePost.getProcessQuarterDays() && isQuarterDay(date)) {
                 if (!familyParameters.isSkipCreateHouseholds()) {
                     profiler.start("moveHouseholdsToBetterHouses");
                     moveHouseholdsToBetterHouses(date);

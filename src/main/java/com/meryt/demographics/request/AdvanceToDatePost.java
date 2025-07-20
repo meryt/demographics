@@ -40,6 +40,10 @@ public class AdvanceToDatePost {
     private List<String> farmNames;
     private RandomTitleParameters titleParameters;
 
+    private Boolean generateMarriages;
+    private Boolean processImmigrants;
+    private Boolean processQuarterDays;
+
     public void validate() {
         if (date == null && advanceDays == null) {
             throw new BadRequestException("One of date or advanceDays must be specified");

@@ -58,6 +58,10 @@ public class DwellingPlaceService {
         return dwellingPlaceRepository.findByName(name);
     }
 
+    public List<DwellingPlace> loadByNoParent() {
+        return dwellingPlaceRepository.findByParentIsNull();
+    }
+
     public List<Dwelling> loadHouses() {
         return loadByType(DwellingPlaceType.DWELLING).stream()
                 .map(h -> (Dwelling) h)

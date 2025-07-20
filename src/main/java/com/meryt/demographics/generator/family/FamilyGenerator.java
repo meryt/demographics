@@ -326,7 +326,8 @@ public class FamilyGenerator {
         int spouseAge;
         if (person.isMale()) {
             int minAge = Math.min(familyParameters.getMinWifeAgeOrDefault(), personAge);
-            int maxAge = Math.max(familyParameters.getMinWifeAgeOrDefault(), personAge + 2);
+            int maxAge = Math.max(familyParameters.getMinWifeAgeOrDefault(), 
+                Math.min(familyParameters.getMaxMarriageableWifeAgeOrDefault(), personAge + familyParameters.getMaxOlderWifeAgeDiffOrDefault()));
             spouseAge = BetweenDie.roll(minAge, maxAge);
         } else {
             int minAge = familyParameters.getMinHusbandAgeOrDefault(personAge);
@@ -378,8 +379,11 @@ public class FamilyGenerator {
         List<LocalDate> dates = new ArrayList<>();
         dates.add(family.getHusband().getDeathDate().plusMonths(10));
         dates.add(family.getWife().getDeathDate());
-        if (!familyParameters.isCycleToDeath()) {
+        if (!familyParameters.isCycleToDeath() && familyParameters.getCycleToDate() == null) {
             dates.add(familyParameters.getReferenceDate());
+        }
+        if (familyParameters.getCycleToDate() != null) {
+            dates.add(familyParameters.getCycleToDate());
         }
         Optional<LocalDate> minDate = dates.stream().min(Comparator.comparing(LocalDate::toEpochDay));
         LocalDate toDate = familyParameters.getReferenceDate();

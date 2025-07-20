@@ -29,6 +29,9 @@ bundle.js
 bundle.js.map
 node_modules
 
+### Cursor
+.vscode
+
 logs/*
 src/main/resources/db/demographics-archive.pgdump
 

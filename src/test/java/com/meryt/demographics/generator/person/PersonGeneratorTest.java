@@ -1,8 +1,8 @@
 package com.meryt.demographics.generator.person;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class PersonGeneratorTest {
 
@@ -10,8 +10,8 @@ public class PersonGeneratorTest {
     public void randomDomesticityIsBetween0And1() {
         for (int i = 0; i < 100; i++) {
             double randomDomesticity = PersonGenerator.randomDomesticity();
-            assertTrue(randomDomesticity + " was not <= 1.0", randomDomesticity <= 1.0);
-            assertTrue(randomDomesticity + " was not >= 0.0", randomDomesticity >= 0.0);
+            assertTrue(randomDomesticity <= 1.0, randomDomesticity + " was not <= 1.0");
+            assertTrue(randomDomesticity >= 0.0, randomDomesticity + " was not >= 0.0");
         }
     }
 }

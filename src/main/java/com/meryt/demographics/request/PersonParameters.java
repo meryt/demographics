@@ -74,6 +74,9 @@ public class PersonParameters {
      */
     private Set<String> excludeNames = new HashSet<>();
 
+    private String eyeColor;
+    private String hairColor;
+
     private Person father;
 
     private Person mother;

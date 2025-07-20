@@ -551,9 +551,9 @@ public class PersonController {
     public List<PersonPotentialSpouseResponse> getPersonPotentialSpouses(@PathVariable long personId,
                                                            @RequestParam(value = "onDate", required = false)
                                                                    String onDate,
-                                                           @RequestParam(value = "minHusbandAge", required = false)
+                                                           @RequestParam(value = "minHusbandAge", required = true)
                                                                        Integer minHusbandAge,
-                                                           @RequestParam(value = "minWifeAge", required = false)
+                                                           @RequestParam(value = "minWifeAge", required = true)
                                                                         Integer minWifeAge,
                                                            @RequestParam(value = "maxWifeAge", required = false)
                                                                          Integer maxWifeAge,

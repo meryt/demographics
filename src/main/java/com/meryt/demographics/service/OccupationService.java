@@ -9,14 +9,12 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import lombok.NonNull;
-import org.hibernate.query.criteria.internal.expression.function.AggregationFunction;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.PersonOccupationPeriod;
-import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.DwellingPlaceType;
 import com.meryt.demographics.domain.place.Parish;
@@ -97,7 +95,7 @@ public class OccupationService {
 
                     double totalOfType = 1 + (percentOfMax * numAtMax);
 
-                    roundedTotalOfType = new Long(Math.round(totalOfType)).intValue();
+                    roundedTotalOfType = Long.valueOf(Math.round(totalOfType)).intValue();
                 }
 
                 results.put(occ, roundedTotalOfType);

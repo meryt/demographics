@@ -13,7 +13,7 @@ import com.meryt.demographics.domain.place.Household;
 @Repository
 public interface HouseholdRepository extends CrudRepository<Household, Long> {
 
-    @Query(value = "SELECT * FROM households h " +
+    @Query(value = "SELECT h.* FROM households h " +
             "INNER JOIN household_locations hl ON h.id = hl.household_id " +
             "    AND hl.from_date <= :onDate " +
             "    AND (hl.to_date IS NULL OR hl.to_date > :onDate) " +

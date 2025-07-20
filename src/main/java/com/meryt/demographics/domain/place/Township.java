@@ -8,12 +8,12 @@ import lombok.Setter;
 @Getter
 @Setter
 @Entity
-@DiscriminatorValue(value = "FARM")
-public class Farm extends DwellingPlace {
+@DiscriminatorValue(value = "TOWNSHIP")
+public class Township extends DwellingPlace {
 
-    public Farm() {
+    public Township() {
         super();
-        setType(DwellingPlaceType.FARM);
+        setType(DwellingPlaceType.TOWNSHIP);
     }
 
 }

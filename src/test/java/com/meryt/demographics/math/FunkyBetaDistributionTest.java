@@ -2,7 +2,7 @@ package com.meryt.demographics.math;
 
 import java.util.Map;
 import java.util.TreeMap;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class FunkyBetaDistributionTest {
 

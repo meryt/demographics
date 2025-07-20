@@ -1,7 +1,7 @@
 package com.meryt.demographics.domain.person.fertility;
 
-import javax.persistence.Entity;
-import javax.persistence.Table;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "paternities")

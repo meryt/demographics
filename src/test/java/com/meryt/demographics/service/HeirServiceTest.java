@@ -3,9 +3,8 @@ package com.meryt.demographics.service;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.NonNull;
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.Mock;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.springframework.data.util.Pair;
 
 import com.meryt.demographics.domain.family.Family;
@@ -15,9 +14,9 @@ import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.domain.title.Title;
 import com.meryt.demographics.domain.title.TitleInheritanceStyle;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
 public class HeirServiceTest {
@@ -33,7 +32,7 @@ public class HeirServiceTest {
     private Person daughter2;
     private Person grandson1;
 
-    @Before
+    @BeforeEach
     public void setUp() {
         mockPersonService = mock(PersonService.class);
 

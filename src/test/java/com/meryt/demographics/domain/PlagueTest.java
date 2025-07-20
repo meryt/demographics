@@ -1,14 +1,16 @@
 package com.meryt.demographics.domain;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import java.time.LocalDate;
-import org.junit.Test;
+
+import org.junit.jupiter.api.Test;
 
 import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 
 public class PlagueTest {
 
@@ -43,9 +45,8 @@ public class PlagueTest {
             }
         }
 
-        assertTrue(String.format(
-                "Expected around %d deaths but had %d deaths", expectedDeaths, numDeaths),
-                Math.abs(expectedDeaths - numDeaths) <= delta * expectedDeaths);
+        assertTrue(Math.abs(expectedDeaths - numDeaths) <= delta * expectedDeaths,
+            String.format("Expected around %d deaths but had %d deaths", expectedDeaths, numDeaths));
 
     }
 

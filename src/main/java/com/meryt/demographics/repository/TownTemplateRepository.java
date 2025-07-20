@@ -60,7 +60,7 @@ public class TownTemplateRepository {
 
         try {
             Map<String, Object> result = jdbcTemplate.queryForMap(query, params);
-            return Pair.of((String) result.get("polygon_id"), new Double((Integer) result.get("polygon_value")));
+            return Pair.of((String) result.get("polygon_id"), Double.valueOf((Integer) result.get("polygon_value")));
         } catch (DataAccessException e) {
             return null;
         }
@@ -85,7 +85,7 @@ public class TownTemplateRepository {
 
         try {
             Map<String, Object> result = jdbcTemplate.queryForMap(query, params);
-            return Pair.of((String) result.get("polygon_id"), new Double(((Integer) result.get("polygon_value"))));
+            return Pair.of((String) result.get("polygon_id"), Double.valueOf(((Integer) result.get("polygon_value"))));
         } catch (DataAccessException e) {
             return null;
         }

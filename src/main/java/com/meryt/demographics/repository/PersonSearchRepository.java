@@ -1,12 +1,11 @@
 package com.meryt.demographics.repository;
 
-import java.math.BigInteger;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import javax.persistence.EntityManager;
-import javax.persistence.PersistenceContext;
-import javax.persistence.Query;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.Query;
 import lombok.NonNull;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -27,7 +26,9 @@ public class PersonSearchRepository {
 
         PersonCriteria.JoinsAndConditions joinsAndConditions = personCriteria.getJoinsAndConditions();
         query += joinsAndConditions.getJoins().stream().collect(Collectors.joining("\n"));
-        query += " WHERE TRUE AND " + joinsAndConditions.getWhereClause();
+        if (!joinsAndConditions.getJoins().isEmpty()) {
+            query += " WHERE TRUE AND " + joinsAndConditions.getWhereClause();
+        }
         query += joinsAndConditions.getOrderBy();
 
         Query countQuery = entityManager.createNativeQuery("SELECT COUNT(y.*) AS cnt FROM (" + query + ") y");
@@ -39,7 +40,7 @@ public class PersonSearchRepository {
         }
 
         List<Person> persons = (List<Person>) nativeQuery.getResultList();
-        BigInteger countResults = (BigInteger) countQuery.getSingleResult();
+        Long countResults = (Long) countQuery.getSingleResult();
 
         return new PageImpl<>(persons, personCriteria.getPageRequest(), countResults.intValue());
     }

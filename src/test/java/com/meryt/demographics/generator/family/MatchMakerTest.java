@@ -1,11 +1,11 @@
 package com.meryt.demographics.generator.family;
 
 import java.time.LocalDate;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.meryt.demographics.domain.person.Person;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class MatchMakerTest {
 
@@ -16,7 +16,7 @@ public class MatchMakerTest {
         person.setBirthDate(LocalDate.of(1700, 1, 1));
         for (int year = 1701; year < 1800; year++) {
             double percent = MatchMaker.getDesireToMarryProbability(person, LocalDate.of(year, 1, 1), 0, null, null);
-            assertTrue(String.format("Percent %4f is not between 0.0 and 1.0", percent), percent > 0.0 && percent <= 1.0);
+            assertTrue(percent > 0.0 && percent <= 1.0, String.format("Percent %4f is not between 0.0 and 1.0", percent));
         }
     }
 }

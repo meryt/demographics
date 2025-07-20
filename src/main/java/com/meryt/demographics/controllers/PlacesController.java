@@ -22,10 +22,13 @@ import com.meryt.demographics.domain.place.Dwelling;
 import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.DwellingPlaceOwnerPeriod;
 import com.meryt.demographics.domain.place.DwellingPlaceType;
+import com.meryt.demographics.domain.place.Farm;
 import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.HouseholdInhabitantPeriod;
 import com.meryt.demographics.domain.place.HouseholdLocationPeriod;
+import com.meryt.demographics.domain.place.Township;
 import com.meryt.demographics.domain.title.Title;
+import com.meryt.demographics.request.DwellingPlacePost;
 import com.meryt.demographics.request.EstatePost;
 import com.meryt.demographics.request.HousePurchasePost;
 import com.meryt.demographics.response.DwellingPlaceDetailResponse;
@@ -37,10 +40,12 @@ import com.meryt.demographics.response.PersonReference;
 import com.meryt.demographics.response.PersonResidencePeriodResponse;
 import com.meryt.demographics.response.calendar.PropertyTransferEvent;
 import com.meryt.demographics.rest.BadRequestException;
+import com.meryt.demographics.rest.ResourceNotFoundException;
 import com.meryt.demographics.service.AncestryService;
 import com.meryt.demographics.service.ControllerHelperService;
 import com.meryt.demographics.service.DwellingPlaceService;
 import com.meryt.demographics.service.HouseholdDwellingPlaceService;
+import com.meryt.demographics.service.PersonService;
 import com.meryt.demographics.service.TitleService;
 import com.meryt.demographics.time.DateRange;
 import com.meryt.demographics.time.LocalDateComparator;
@@ -54,17 +59,20 @@ public class PlacesController {
     private final HouseholdDwellingPlaceService householdDwellingPlaceService;
     private final AncestryService ancestryService;
     private final TitleService titleService;
+    private final PersonService personService;
 
     public PlacesController(@Autowired DwellingPlaceService dwellingPlaceService,
                             @Autowired ControllerHelperService controllerHelperService,
                             @Autowired HouseholdDwellingPlaceService householdDwellingPlaceService,
                             @Autowired AncestryService ancestryService,
-                            @Autowired TitleService titleService) {
+                            @Autowired TitleService titleService,
+                            @Autowired PersonService personService) {
         this.dwellingPlaceService = dwellingPlaceService;
         this.controllerHelperService = controllerHelperService;
         this.householdDwellingPlaceService = householdDwellingPlaceService;
         this.ancestryService = ancestryService;
         this.titleService = titleService;
+        this.personService = personService;
     }
 
     @RequestMapping("/api/places/{placeId}")
@@ -153,8 +161,76 @@ public class PlacesController {
                 .collect(Collectors.toList());
     }
 
+    /*
     @RequestMapping(value = "/api/places", method = RequestMethod.POST)
     public DwellingPlaceDetailResponse postPlace(@RequestBody DwellingPlace place) {
+        return new DwellingPlaceDetailResponse(dwellingPlaceService.save(place), null, ancestryService);
+    }
+    */
+
+    @RequestMapping(value = "/api/places", method = RequestMethod.POST)
+    public DwellingPlaceDetailResponse postPlace(@RequestBody DwellingPlacePost placePost) {
+        DwellingPlace place;
+        if (placePost.getId() != null) {
+            place = dwellingPlaceService.load(placePost.getId());
+            if (place == null) {
+                throw new ResourceNotFoundException("No dwelling place found for id " + placePost.getId());
+            }
+        } else {
+            if (placePost.getType() == null) {
+                throw new BadRequestException("type is required for new places");
+            }
+            switch (placePost.getType()) {
+                case "TOWNSHIP":
+                    place = new Township();
+                    break;
+                case "FARM":
+                    place = new Farm();
+                    break;
+                case "DWELLING":
+                    place = new Dwelling();
+                    break;
+                default:
+                    throw new BadRequestException("Place type " + placePost.getType() + " is invalid or not yet implemented");
+            }    
+        }
+        if (placePost.getName() != null) {
+            place.setName(placePost.getName());
+        }
+        if (placePost.getParentId() != null) {
+            DwellingPlace parent = dwellingPlaceService.load(placePost.getParentId());
+            if (parent == null) {
+                throw new ResourceNotFoundException("No dwelling place found for parent ID " + placePost.getParentId());
+            }
+            place.setParent(parent);
+        }
+        LocalDate foundedDate = controllerHelperService.parseDate(placePost.getFoundedDate());
+        if (foundedDate != null) {
+            place.setFoundedDate(foundedDate);
+        }
+        if (placePost.getOwnerId() != null) {
+            Person owner = personService.load(placePost.getOwnerId());
+            if (owner == null) {
+                throw new ResourceNotFoundException("No person found for ownerId " + placePost.getOwnerId());   
+            }
+            if (placePost.getOwnerFromDate() == null) {
+                throw new BadRequestException("If ownerId is provided, ownerFromDate must be provided");
+            }
+            LocalDate ownerFromDate = controllerHelperService.parseDate(placePost.getOwnerFromDate());
+            if (!owner.isLiving(ownerFromDate)) {
+                throw new BadRequestException("Owner " + owner.getName() + " is not alive on requested owner from date " + placePost.getOwnerFromDate());
+            }
+            if (placePost.getOwnerReason() == null) {
+                throw new BadRequestException("If ownerId is provided, ownerReason must be provided");
+            }
+            place.addOwner(owner, ownerFromDate, null, placePost.getOwnerReason());
+            if (place.getType() == DwellingPlaceType.DWELLING && place.getName() == null) {
+                place.setName("House of " + owner.getName());
+            }
+        }
+        if (placePost.getAcres() != null) {
+            place.setAcres(placePost.getAcres());
+        }
         return new DwellingPlaceDetailResponse(dwellingPlaceService.save(place), null, ancestryService);
     }
 
@@ -230,6 +306,14 @@ public class PlacesController {
         } else {
             return estates.stream().map(DwellingPlaceReference::new).collect(Collectors.toList());
         }
+    }
+
+    @RequestMapping("/api/places")
+    public List<DwellingPlaceDetailResponse> getTopLevelPlaces(@RequestParam(value = "onDate", required = false) String onDate) {
+        final LocalDate date = controllerHelperService.parseDate(onDate);
+
+        List<DwellingPlace> places = dwellingPlaceService.loadByNoParent();
+        return places.stream().map(e -> new DwellingPlaceDetailResponse(e, date, ancestryService)).collect(Collectors.toList());
     }
 
     @RequestMapping("/api/places/parishes")

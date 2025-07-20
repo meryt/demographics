@@ -115,6 +115,8 @@ public class RandomFamilyParameters {
      */
     private boolean cycleToDeath;
 
+    private LocalDate cycleToDate;
+
     /**
      * For generated families, the wife will be no more than this many years older than the husband.
      */
@@ -148,6 +150,7 @@ public class RandomFamilyParameters {
         allowExistingSpouse = other.allowExistingSpouse;
         allowMaternalDeath = other.allowMaternalDeath;
         cycleToDeath = other.cycleToDeath;
+        cycleToDate = other.cycleToDate;
         founderLastName = other.founderLastName;
         maxHusbandAge = other.maxHusbandAge;
         maxMarriageableWifeAge = other.maxMarriageableWifeAge;

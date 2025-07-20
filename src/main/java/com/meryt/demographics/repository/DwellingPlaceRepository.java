@@ -15,6 +15,8 @@ public interface DwellingPlaceRepository extends CrudRepository<DwellingPlace, L
 
     List<DwellingPlace> findByParentIsNotNullAndAttachedToParentIsTrue();
 
+    List<DwellingPlace> findByParentIsNull();
+
     List<DwellingPlace> findByName(@NonNull String name);
 
     /**
