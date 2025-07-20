@@ -86,8 +86,11 @@ public class GenerationService {
         for (int i = 0; i < numFamilies; i++) {
             Peerage peerage;
             double percentScottish = generationPost.getPercentScottish() == null ? 0.3 : generationPost.getPercentScottish();
+            double percentIrish = generationPost.getPercentIrish() == null ? 0.0 : generationPost.getPercentIrish();
             if (PercentDie.roll() <= percentScottish) {
                 peerage = Peerage.SCOTLAND;
+            } else if (PercentDie.roll() <= percentIrish) {
+                peerage = Peerage.IRELAND;
             } else {
                 peerage = Peerage.ENGLAND;
             }
@@ -326,6 +329,8 @@ public class GenerationService {
                 if (title.getPeerage() == Peerage.SCOTLAND) {
                     // Scots "Barons" are called Lords of Parliament
                     namePrefix = "Lord ";
+                } else if (title.getPeerage() == Peerage.IRELAND) {
+                    namePrefix = "Lord of the ";
                 } else {
                     namePrefix = StringUtils.capitalize(founder.getSocialClass().getFriendlyName()) + " ";
                 }

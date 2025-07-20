@@ -665,7 +665,7 @@ public class Person {
             newPeriod.setFromDate(fromDate);
             newPeriod.setToDate(toDate == null ? getDeathDate() : toDate);
             title.getTitleHolders().add(newPeriod);
-            getTitles().add(newPeriod);
+            //getTitles().add(newPeriod);
         }
 
         // Update the person's social class to match his highest ranking title, if it's higher than his current social

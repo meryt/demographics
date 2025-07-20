@@ -15,6 +15,7 @@ public class InitialGenerationPost extends OutputToFilePost {
     private Integer numFamilies;
     private RandomFamilyParameters familyParameters;
     private Double percentScottish;
+    private Double percentIrish;
     private Integer numNextGenerations;
     private PersonFamilyPost nextGenerationPost;
 
