@@ -3,17 +3,20 @@ min_from_date AS (
    SELECT 3 as rank, MIN(from_date) AS from_date
    FROM names_first
    WHERE gender = :gender
+   AND (:culture::TEXT IS NULL OR culture = :culture::TEXT)
 ),
 next_lowest_from_date AS (
     SELECT 2 as rank, MAX(from_date) AS from_date
     FROM names_first
     WHERE gender = :gender
+    AND (:culture::TEXT IS NULL OR culture = :culture::TEXT)
     AND :onDate::DATE IS NOT NULL AND from_date < :onDate::DATE
 ),
 containing_from_date AS (
      SELECT 1 AS rank, :onDate::DATE AS from_date
      FROM names_first
      WHERE gender = :gender
+     AND (:culture::TEXT IS NULL OR culture = :culture::TEXT)
      AND :onDate::DATE IS NOT NULL AND DATERANGE(from_date, to_date, '[)') @> :onDate::DATE
      LIMIT 1
 ),
@@ -35,6 +38,7 @@ y AS (
       SUM(nf.weight) OVER (ORDER BY nf.name, nf.from_date) AS cum_weight
     FROM names_first nf, best_date
     WHERE nf.gender = :gender
+    AND (:culture::TEXT IS NULL OR nf.culture = :culture::TEXT)
     AND (DATERANGE(nf.from_date, nf.to_date, '[)') @> best_date.from_date)
     ORDER BY nf.name, nf.from_date
 ),

@@ -147,6 +147,7 @@ public class FamilyGenerator {
         personParameters.setMinSocialClass(familyParameters.getMinSocialClass());
         personParameters.setMaxSocialClass(familyParameters.getMaxSocialClass());
         personParameters.setLastName(familyParameters.getFounderLastName());
+        personParameters.setNameCulture(familyParameters.getNameCulture());
 
         Person founder = personGenerator.generate(personParameters);
         founder.setFounder(true);
@@ -302,6 +303,7 @@ public class FamilyGenerator {
         spouseParameters.setMinSocialClass(socialClass);
         spouseParameters.setMaxSocialClass(socialClass);
         spouseParameters.setLastName(familyParameters.getSpouseLastName());
+        spouseParameters.setNameCulture(familyParameters.getNameCulture());
         return personGenerator.generate(spouseParameters);
 
     }

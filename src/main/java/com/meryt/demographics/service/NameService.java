@@ -33,9 +33,10 @@ public class NameService {
     @NonNull
     public String randomFirstName(@NonNull Gender gender,
                                   @Nullable Set<String> excludeNames,
-                                  @Nullable LocalDate onDate) {
+                                  @Nullable LocalDate onDate,
+                                  @Nullable String culture) {
         return nameRepository.randomFirstName(gender, excludeNames == null ? Collections.emptySet() : excludeNames,
-                onDate);
+                onDate, culture);
     }
 
     public String randomLastName() {
@@ -51,7 +52,7 @@ public class NameService {
     @NonNull
     public String randomName(@NonNull Gender gender) {
         return nameRepository.randomFirstName(gender,
-                Collections.emptySet(), null) + " " + nameRepository.randomLastName();
+                Collections.emptySet(), null, null) + " " + nameRepository.randomLastName();
     }
 
 }

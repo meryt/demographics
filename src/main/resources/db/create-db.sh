@@ -15,4 +15,8 @@ psql -c "CREATE ROLE ${DEMO_DB} LOGIN NOCREATEDB NOCREATEROLE NOREPLICATION NOSU
 echo "Creating database ${DEMO_DB}..."
 psql -c "CREATE DATABASE ${DEMO_DB} WITH OWNER ${DEMO_DB} ENCODING='UTF8';"
 
+# Create the btree_gist extension
+echo "Creating btree_gist extension..."
+psql ${DEMO_DB} -c "CREATE EXTENSION btree_gist;"
+
 echo "Database ${DEMO_DB} created successfully!" 

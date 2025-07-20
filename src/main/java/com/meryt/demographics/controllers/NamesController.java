@@ -24,9 +24,10 @@ public class NamesController {
 
     @RequestMapping("/api/names/first/random")
     public String randomFirstName(@RequestParam(required = false) String gender,
-                                  @RequestParam(required = false) String onDate) {
+                                  @RequestParam(required = false) String onDate,
+                                  @RequestParam(required = false) String culture) {
         LocalDate date = controllerHelperService.parseDate(onDate);
-        return nameService.randomFirstName(gender == null ? Gender.MALE : Gender.from(gender), null, date);
+        return nameService.randomFirstName(gender == null ? Gender.MALE : Gender.from(gender), null, date, culture);
     }
 
     @RequestMapping("/api/names/last/random")

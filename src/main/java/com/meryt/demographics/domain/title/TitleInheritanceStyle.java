@@ -8,7 +8,8 @@ public enum TitleInheritanceStyle {
     HEIRS_MALE_OF_THE_BODY(true),
     HEIRS_OF_THE_BODY(false),
     HEIRS_MALE_GENERAL(true),
-    HEIRS_GENERAL(false);
+    HEIRS_GENERAL(false),
+    IRISH_KIN_GROUP(true);
 
     @Getter
     private final boolean malesOnly;

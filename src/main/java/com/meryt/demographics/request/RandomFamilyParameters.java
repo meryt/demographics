@@ -143,6 +143,8 @@ public class RandomFamilyParameters {
 
     private Boolean skipManageCapital;
 
+    private String nameCulture;
+
     /**
      * Copy constructor
      */
@@ -172,6 +174,7 @@ public class RandomFamilyParameters {
         skipGenerateChildren = other.skipGenerateChildren;
         skipCreateHouseholds = other.skipCreateHouseholds;
         skipManageCapital = other.skipManageCapital;
+        nameCulture = other.nameCulture;
     }
 
     public int getMinHusbandAgeOrDefault() {

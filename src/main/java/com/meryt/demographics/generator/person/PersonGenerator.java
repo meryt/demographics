@@ -82,7 +82,7 @@ public class PersonGenerator {
             person.setFirstName(personParameters.getFirstName());
         } else {
             person.setFirstName(nameService.randomFirstName(person.getGender(), personParameters.getExcludeNames(),
-                    nameDate));
+                    nameDate, personParameters.getNameCulture()));
         }
 
         // People didn't use last names till about 1400. But if one is specified, use it.

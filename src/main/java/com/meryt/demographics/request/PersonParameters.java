@@ -70,6 +70,11 @@ public class PersonParameters {
     private String firstName;
 
     /**
+     * If set, this name culture will be used.
+     */
+    private String nameCulture;
+
+    /**
      * If non-empty, the following names will not be used
      */
     private Set<String> excludeNames = new HashSet<>();

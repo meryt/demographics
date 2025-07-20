@@ -25,13 +25,14 @@ public class NameRepository {
     }
 
     @NonNull
-    public String randomFirstName(@NonNull Gender gender, @Nullable Set<String> excludeNames, @Nullable LocalDate onDate) {
+    public String randomFirstName(@NonNull Gender gender, @Nullable Set<String> excludeNames, @Nullable LocalDate onDate, @Nullable String culture) {
         String name;
         do {
             String query = queryStore.getQuery("random-first-name");
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("gender", gender.getAbbreviation());
             params.addValue("onDate", onDate);
+            params.addValue("culture", culture);
             Map<String, Object> result = jdbcTemplate.queryForMap(query, params);
             name = (String) result.get("name");
         } while (excludeNames != null && excludeNames.contains(name));
