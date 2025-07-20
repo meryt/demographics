@@ -1,11 +1,19 @@
 #!/bin/bash
 
-mv demographics.pgdump demographics.pgdump.bak
+# Check if DEMO_DB environment variable is set
+if [ -z "$DEMO_DB" ]; then
+    echo "Error: DEMO_DB environment variable is not set"
+    echo "Usage: DEMO_DB=your_database_name ./backup_db"
+    exit 1
+fi
 
-pg_dump demographics > demographics.pgdump
-cp demographics.pgdump demographics-archive.pgdump
-bzip2 demographics-archive.pgdump
-mv demographics-archive.pgdump.bz2 ~/Dropbox/demographics-archive.pgdump.bz2
+# Use the environment variable throughout the script
+mv ${DEMO_DB}.pgdump ${DEMO_DB}.pgdump.bak
+
+pg_dump ${DEMO_DB} > ${DEMO_DB}.pgdump
+cp ${DEMO_DB}.pgdump ${DEMO_DB}-archive.pgdump
+bzip2 ${DEMO_DB}-archive.pgdump
+mv ${DEMO_DB}-archive.pgdump.bz2 ~/Dropbox/${DEMO_DB}-archive.pgdump.bz2
 
 
 

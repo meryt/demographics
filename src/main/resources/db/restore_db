@@ -1,12 +1,19 @@
 #!/bin/bash
 
-rm demographics-archive.pgdump
+# Check if DEMO_DB environment variable is set
+if [ -z "$DEMO_DB" ]; then
+    echo "Error: DEMO_DB environment variable is not set"
+    echo "Usage: DEMO_DB=your_database_name ./restore_db"
+    exit 1
+fi
 
-cp ~/Dropbox/demographics-archive.pgdump.bz2 . || exit
-bunzip2 demographics-archive.pgdump.bz2 || exit
+rm ${DEMO_DB}-archive.pgdump
 
-psql < ./drop-db.sql || exit
-psql < ./create-db.sql || exit
-psql demographics < demographics-archive.pgdump
+cp ~/Dropbox/${DEMO_DB}-archive.pgdump.bz2 . || exit
+bunzip2 ${DEMO_DB}-archive.pgdump.bz2 || exit
+
+./drop-db.sh || exit
+./create-db.sh || exit
+psql ${DEMO_DB} < ${DEMO_DB}-archive.pgdump
 
 
