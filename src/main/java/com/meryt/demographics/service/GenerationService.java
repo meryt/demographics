@@ -300,7 +300,7 @@ public class GenerationService {
      * Add a random title with a random inheritance style
      */
     private void addRandomTitleToFounder(@NonNull Person founder, @NonNull Peerage peerage) {
-        addRandomTitleToFounder(founder, peerage, TitleInheritanceStyle.random());
+        addRandomTitleToFounder(founder, peerage, TitleInheritanceStyle.random(peerage));
     }
 
     /**

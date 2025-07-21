@@ -137,6 +137,17 @@ public class TitleService {
             }
             log.info(String.format("Looking for heir to %s, %s, died %s", currentHolder.getName(), title.getName(),
                     currentHolder.getDeathDate()));
+            if (title.getInheritance() == TitleInheritanceStyle.IRISH_KIN_GROUP) {
+                Pair<Person, LocalDate> heir = heirService.findHeirForPerson(currentHolder, inheritanceDate, title.getInheritance(), true,
+                        title.singleFemaleMayInherit());
+                if (heir != null) {
+                    return Pair.of(inheritanceDate.minusDays(1), List.of(heir.getFirst()));
+                } else {
+                    log.info(String.format("No heir found for %s, %s, died %s", currentHolder.getName(), title.getName(),
+                            currentHolder.getDeathDate()));
+                    return Pair.of(inheritanceDate.minusDays(1), new ArrayList<>());
+                }
+            }
             List<Person> nextHolders = heirService.findPotentialHeirsForPerson(currentHolder,
                     inheritanceDate, title.getInheritance(), true, title.singleFemaleMayInherit());
             log.info(nextHolders.size() + " possible heir(s) found as of " + inheritanceDate);
@@ -577,6 +588,8 @@ public class TitleService {
             case BARON:
                 if (title.getPeerage() == Peerage.SCOTLAND) {
                     title.setName("Lord of " + randomName);
+                } else if (title.getPeerage() == Peerage.IRELAND) {
+                    title.setName("Lord of the " + randomName);    
                 } else if (title.getPeerage() == Peerage.ENGLAND) {
                     title.setName("Baron " + randomName);
                 }
@@ -676,7 +689,12 @@ public class TitleService {
 
     private Title randomTitle(@NonNull RandomTitleParameters titleParameters) {
         Peerage peerage = titleParameters.getRandomPeerage();
-        TitleInheritanceStyle inheritanceStyle = TitleInheritanceStyle.randomFavoringMaleOnly();
+        TitleInheritanceStyle inheritanceStyle;
+        if (peerage == Peerage.IRELAND) {
+            inheritanceStyle = TitleInheritanceStyle.IRISH_KIN_GROUP;
+        } else {
+            inheritanceStyle = TitleInheritanceStyle.randomFavoringMaleOnly();
+        }
 
         Title title = new Title();
         title.setPeerage(peerage);

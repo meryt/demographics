@@ -1,9 +1,12 @@
 package com.meryt.demographics.domain.title;
 
 import lombok.Getter;
+import lombok.NonNull;
+import lombok.ToString;
 
 import com.meryt.demographics.generator.random.Die;
 
+@ToString
 public enum TitleInheritanceStyle {
     HEIRS_MALE_OF_THE_BODY(true),
     HEIRS_OF_THE_BODY(false),
@@ -19,6 +22,13 @@ public enum TitleInheritanceStyle {
     }
 
     public static TitleInheritanceStyle random() {
+        return random(Peerage.ENGLAND);
+    }
+
+    public static TitleInheritanceStyle random(@NonNull Peerage peerage) {
+        if (peerage == Peerage.IRELAND) {
+            return TitleInheritanceStyle.IRISH_KIN_GROUP;
+        }
         TitleInheritanceStyle inheritanceStyle;
         int roll = new Die(4).roll();
         if (roll == 1) {

@@ -46,6 +46,11 @@ public class HeirService {
                                                     @NonNull TitleInheritanceStyle inheritanceStyle,
                                                     boolean mayLookInFuture,
                                                     boolean singleFemaleMayInherit) {
+        
+        if (inheritanceStyle == TitleInheritanceStyle.IRISH_KIN_GROUP) {
+            return findPotentalHeirsForIrishKinGroup(person, onDate);
+        }
+
         List<Person> results = new ArrayList<>();
         List<Person> childrenByBirthDate = person.getChildren().stream()
                 .sorted(Comparator.comparing(Person::getBirthDate))
@@ -109,6 +114,42 @@ public class HeirService {
         return results.stream().sorted(Comparator.comparing(Person::getDeathDate)).distinct().collect(Collectors.toList());
     }
 
+    private List<Person> findPotentalHeirsForIrishKinGroup(@NonNull Person person, @NonNull LocalDate onDate) {
+        // Irish kin groups use a common great-grandfather
+        Person root = person;
+        int numGens = 3;
+        while (numGens > 0 && root.getFather() != null) {
+            root = root.getFather();
+            numGens--;
+        }
+
+        List<Person> sons = root.getChildren().stream().filter(p -> p.isMale()).collect(Collectors.toList());
+        List<Person> grandsons = sons.stream()
+                .flatMap(son -> son.getChildren().stream())
+                .filter(grandson -> grandson.isMale())
+                .collect(Collectors.toList());
+        List<Person> greatGrandsons = grandsons.stream()
+                .flatMap(grandson -> grandson.getChildren().stream())
+                .filter(greatGrandson -> greatGrandson.isMale())
+                .collect(Collectors.toList());
+        List<Person> greatGreatGrandsons = greatGrandsons.stream()
+                .flatMap(greatGrandson -> greatGrandson.getChildren().stream())
+                .filter(greatGreatGrandson -> greatGreatGrandson.isMale())
+                .collect(Collectors.toList());
+
+        List<Person> maleDescendants = new ArrayList<>();
+        maleDescendants.addAll(sons);
+        maleDescendants.addAll(grandsons);
+        maleDescendants.addAll(greatGrandsons);
+        maleDescendants.addAll(greatGreatGrandsons);
+
+        List<Person> livingMaleDescendants = maleDescendants.stream()
+                .filter(p -> p.isLiving(onDate))
+                .collect(Collectors.toList());
+
+        return livingMaleDescendants;
+    }
+    
     @Nullable
     public Pair<Person, LocalDate> findHeirForPerson(@NonNull Person person,
                                                      @NonNull LocalDate onDate,
@@ -124,6 +165,10 @@ public class HeirService {
             return null;
         } else if (allHeirsOnDate.size() == 1) {
             return Pair.of(allHeirsOnDate.get(0), onDate);
+        }
+
+        if (inheritanceStyle == TitleInheritanceStyle.IRISH_KIN_GROUP) {
+            return findHeirForIrishKinGroup(allHeirsOnDate, onDate);
         }
 
         // The heirs are sorted by increasing order of death date. Iterate over people as they die off, assuming
@@ -161,6 +206,38 @@ public class HeirService {
 
         } while (true);
 
+    }
+
+    private Pair<Person, LocalDate> findHeirForIrishKinGroup(@NonNull List<Person> persons, @NonNull LocalDate onDate) {
+        // Find the best heir.
+
+        // First look for the strongest adult with a son
+        List<Person> adultsWithSons = persons.stream()
+            .filter(p -> p.getAgeInYears(onDate) >= 30)
+            .filter(p -> p.getChildren().stream().anyMatch(c -> c.isMale()))
+            .sorted(Comparator.comparing(Person::getStrength).reversed())
+            .collect(Collectors.toList());
+        if (!adultsWithSons.isEmpty()) {
+            return Pair.of(adultsWithSons.get(0), onDate);
+        }
+        
+        // Then look for the strongest adult
+        List<Person> adults = persons.stream()
+            .filter(p -> p.getAgeInYears(onDate) >= 30)
+            .sorted(Comparator.comparing(Person::getStrength).reversed())
+            .collect(Collectors.toList());
+        if (!adults.isEmpty()) {
+            return Pair.of(adults.get(0), onDate);
+        }
+
+        // Finally look for the strongest person
+        List<Person> any = persons.stream()
+            .sorted(Comparator.comparing(Person::getStrength).reversed())
+            .collect(Collectors.toList());
+        if (!any.isEmpty()) {
+            return Pair.of(any.get(0), onDate);
+        }
+        return null;
     }
 
     @NonNull

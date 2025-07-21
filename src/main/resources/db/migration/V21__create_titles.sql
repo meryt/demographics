@@ -14,8 +14,8 @@ CREATE TABLE titles (
 CREATE INDEX idx_title_social_class ON titles (social_class);
 CREATE INDEX idx_title_inheritance_root ON titles (inheritance_root);
 
-INSERT INTO titles (name, social_class, peerage, inheritance) VALUES
-  ('Lord Rowe of Breckanburn', 'BARON', 'SCOTLAND', 'HEIRS_OF_THE_BODY');
+--INSERT INTO titles (name, social_class, peerage, inheritance) VALUES
+--  ('Lord Rowe of Breckanburn', 'BARON', 'SCOTLAND', 'HEIRS_OF_THE_BODY');
 
 CREATE TABLE person_titles (
   person_id     INTEGER NOT NULL,
