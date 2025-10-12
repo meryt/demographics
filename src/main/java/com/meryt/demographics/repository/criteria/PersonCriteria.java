@@ -56,6 +56,22 @@ public class PersonCriteria {
     private Boolean isStoryCharacter;
 
     /**
+     * If non-null, loads only people who are at least this age (converted to bornBefore date)
+     */
+    private Integer minAge;
+
+    /**
+     * If non-null, loads only people who are at most this age (converted to bornAfter date)
+     */
+    private Integer maxAge;
+
+    /**
+     * The reference date used for age calculations when aliveOnDate is not set.
+     * If both aliveOnDate and currentDate are null, LocalDate.now() is used.
+     */
+    private LocalDate currentDate;
+
+    /**
      * Get a Spring PageRequest object from the parameters on this object
      */
     public PageRequest getPageRequest() {
@@ -84,6 +100,30 @@ public class PersonCriteria {
         if (isStoryCharacter != null) {
             joinsAndConditions.whereClauses.add("p.story_character = :isStoryCharacter");
             joinsAndConditions.parameters.put("isStoryCharacter", isStoryCharacter);
+        }
+        
+        // Handle age filtering by converting to birth date constraints
+        LocalDate referenceDate = aliveOnDate != null ? aliveOnDate : 
+                                 (currentDate != null ? currentDate : LocalDate.now());
+        
+        if (minAge != null) {
+            // For minAge, we want people who were born before (referenceDate - minAge years)
+            LocalDate maxBirthDate = referenceDate.minusYears(minAge);
+            joinsAndConditions.whereClauses.add("p.birth_date <= :maxBirthDate");
+            joinsAndConditions.parameters.put("maxBirthDate", maxBirthDate);
+        }
+        
+        if (maxAge != null) {
+            // For maxAge, we want people who were born after (referenceDate - maxAge years)
+            LocalDate minBirthDate = referenceDate.minusYears(maxAge);
+            joinsAndConditions.whereClauses.add("p.birth_date >= :minBirthDate");
+            joinsAndConditions.parameters.put("minBirthDate", minBirthDate);
+        }
+        
+        // If either minAge or maxAge is specified, ensure the person is alive at the reference date
+        if (minAge != null || maxAge != null) {
+            joinsAndConditions.whereClauses.add("(p.death_date IS NULL OR p.death_date > :referenceDate)");
+            joinsAndConditions.parameters.put("referenceDate", referenceDate);
         }
 
         joinsAndConditions.orderBys = getOrderBys(joinsAndConditions);

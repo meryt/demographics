@@ -9,8 +9,6 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.util.Pair;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -182,8 +180,11 @@ public class PersonController {
             @RequestParam(value = "pageSize", required = false) Integer pageSize,
             @RequestParam(value = "sortBy", required = false) String sortBy,
             @RequestParam(value = "aliveOnDate", required = false) String aliveOnDate,
+            @RequestParam(value = "onDate", required = false) String onDateAsString,
             @RequestParam(value = "gender", required = false) String gender,
-            @RequestParam(value = "storyCharacter", required = false) Boolean storyCharacter) {
+            @RequestParam(value = "storyCharacter", required = false) Boolean storyCharacter,
+            @RequestParam(value = "minAge", required = false) Integer minAge,
+            @RequestParam(value = "maxAge", required = false) Integer maxAge) {
 
         PersonCriteria personCriteria = new PersonCriteria();
         personCriteria.setPage(page);
@@ -197,10 +198,22 @@ public class PersonController {
         if (storyCharacter != null) {
             personCriteria.setIsStoryCharacter(storyCharacter);
         }
+        if (minAge != null) {
+            personCriteria.setMinAge(minAge);
+        }
+        if (maxAge != null) {
+            personCriteria.setMaxAge(maxAge);
+        }
+        
+        // Set currentDate for age calculations - use onDate if provided, otherwise use "current"
+        LocalDate onDate = controllerHelperService.parseDate(onDateAsString);
+        personCriteria.setCurrentDate(onDate != null ? onDate : controllerHelperService.parseDate("current"));
+
+        LocalDate referenceDate = onDate == null ? personCriteria.getAliveOnDate() : onDate;
 
         Page<Person> queryResult = personService.findAll(personCriteria);
-        return queryResult.map(p -> personCriteria.getAliveOnDate() != null
-                ? new PersonDetailResponse(p, personCriteria.getAliveOnDate(), ancestryService)
+        return queryResult.map(p -> referenceDate != null
+                ? new PersonDetailResponse(p, referenceDate, ancestryService)
                 : new PersonDetailResponse(p));
     }
 
