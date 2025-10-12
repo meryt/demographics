@@ -143,6 +143,54 @@ public class HeirService {
         maleDescendants.addAll(greatGrandsons);
         maleDescendants.addAll(greatGreatGrandsons);
 
+        int minAgeForLastChanceHeir = 15;
+        if (maleDescendants.isEmpty()) {
+            // Need to find male descendants of a female.
+            // Start with the dead lord's daughters.
+            List<Person> daughters = person.getChildren().stream()
+                    .filter(p -> p.isFemale())
+                    .collect(Collectors.toList());
+            List<Person> allSonsOfDaughters = daughters.stream()
+                    .flatMap(daughter -> daughter.getChildren().stream())
+                    .filter(son -> son.isMale() && son.isLiving(onDate))
+                    .collect(Collectors.toList());
+            List<Person> adultSonsOfDaughters = allSonsOfDaughters.stream()
+                    .filter(son -> son.isLiving(onDate) && son.getAgeInYears(onDate) >= minAgeForLastChanceHeir)
+                    .collect(Collectors.toList());
+            if (!adultSonsOfDaughters.isEmpty()) {
+                return adultSonsOfDaughters;
+            }
+            // Then look for the dead lord's sisters' sons.
+            List<Person> sisters = person.getSiblings().stream()
+                    .filter(p -> p.isFemale())
+                    .collect(Collectors.toList());
+            List<Person> allSonsOfSisters = sisters.stream()
+                    .flatMap(sister -> sister.getChildren().stream())
+                    .filter(son -> son.isMale() && son.isLiving(onDate))
+                    .collect(Collectors.toList());
+            List<Person> sonsOfSisters = allSonsOfSisters.stream()
+                    .filter(son -> son.getAgeInYears(onDate) >= minAgeForLastChanceHeir)
+                    .collect(Collectors.toList());
+            if (!sonsOfSisters.isEmpty()) {
+                return sonsOfSisters;
+            }
+            if (person.getFather() == null) {
+                allSonsOfDaughters.addAll(allSonsOfSisters);
+                return allSonsOfDaughters;
+            }
+            // Then look for the dead lord's father's sisters' sons.
+            List<Person> fathersSisters = person.getFather().getSiblings().stream()
+                    .filter(p -> p.isFemale())
+                    .collect(Collectors.toList());
+            List<Person> sonsOfFathersSisters = fathersSisters.stream()
+                    .flatMap(sister -> sister.getChildren().stream())
+                    .filter(son -> son.isMale() && son.isLiving(onDate) && son.getAgeInYears(onDate) >= minAgeForLastChanceHeir)
+                    .collect(Collectors.toList());
+            if (!sonsOfFathersSisters.isEmpty()) {
+                return sonsOfFathersSisters;
+            }            
+        }
+
         List<Person> livingMaleDescendants = maleDescendants.stream()
                 .filter(p -> p.isLiving(onDate))
                 .collect(Collectors.toList());

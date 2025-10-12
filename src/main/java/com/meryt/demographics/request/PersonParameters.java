@@ -81,6 +81,7 @@ public class PersonParameters {
 
     private String eyeColor;
     private String hairColor;
+    private Boolean allowBlondHair;
 
     private Person father;
 
@@ -114,4 +115,7 @@ public class PersonParameters {
         }
     }
 
+    public boolean isAllowBlondHair() {
+        return allowBlondHair != null ? allowBlondHair : true;
+    }
 }

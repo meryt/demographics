@@ -51,6 +51,11 @@ public class PersonCriteria {
     private Gender gender;
 
     /**
+     * If non-null, loads only people who are story characters
+     */
+    private Boolean isStoryCharacter;
+
+    /**
      * Get a Spring PageRequest object from the parameters on this object
      */
     public PageRequest getPageRequest() {
@@ -75,6 +80,10 @@ public class PersonCriteria {
         if (gender != null) {
             joinsAndConditions.whereClauses.add("p.gender = :gender");
             joinsAndConditions.parameters.put("gender", gender.name());
+        }
+        if (isStoryCharacter != null) {
+            joinsAndConditions.whereClauses.add("p.story_character = :isStoryCharacter");
+            joinsAndConditions.parameters.put("isStoryCharacter", isStoryCharacter);
         }
 
         joinsAndConditions.orderBys = getOrderBys(joinsAndConditions);

@@ -7,6 +7,8 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Query;
 import lombok.NonNull;
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.stereotype.Repository;
@@ -15,6 +17,7 @@ import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.repository.criteria.PersonCriteria;
 
 @Repository
+@Slf4j
 public class PersonSearchRepository {
 
     @PersistenceContext
@@ -26,13 +29,15 @@ public class PersonSearchRepository {
 
         PersonCriteria.JoinsAndConditions joinsAndConditions = personCriteria.getJoinsAndConditions();
         query += joinsAndConditions.getJoins().stream().collect(Collectors.joining("\n"));
-        if (!joinsAndConditions.getJoins().isEmpty()) {
-            query += " WHERE TRUE AND " + joinsAndConditions.getWhereClause();
+        if (!joinsAndConditions.getWhereClauses().isEmpty()) {
+            query += " WHERE TRUE AND " + joinsAndConditions.getWhereClauses().stream().collect(Collectors.joining(" AND "));
         }
         query += joinsAndConditions.getOrderBy();
 
         Query countQuery = entityManager.createNativeQuery("SELECT COUNT(y.*) AS cnt FROM (" + query + ") y");
         Query nativeQuery = entityManager.createNativeQuery(query + personCriteria.getLimitAndOffset(), Person.class);
+        log.info("Query: {}", query);
+
 
         for (Map.Entry<String, Object> params : joinsAndConditions.getParameters().entrySet()) {
             countQuery.setParameter(params.getKey(), params.getValue());

@@ -148,6 +148,7 @@ public class FamilyGenerator {
         personParameters.setMaxSocialClass(familyParameters.getMaxSocialClass());
         personParameters.setLastName(familyParameters.getFounderLastName());
         personParameters.setNameCulture(familyParameters.getNameCulture());
+        personParameters.setAllowBlondHair(familyParameters.isAllowBlondHair());
 
         Person founder = personGenerator.generate(personParameters);
         founder.setFounder(true);
@@ -304,6 +305,7 @@ public class FamilyGenerator {
         spouseParameters.setMaxSocialClass(socialClass);
         spouseParameters.setLastName(familyParameters.getSpouseLastName());
         spouseParameters.setNameCulture(familyParameters.getNameCulture());
+        spouseParameters.setAllowBlondHair(familyParameters.isAllowBlondHair());
         return personGenerator.generate(spouseParameters);
 
     }

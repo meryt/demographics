@@ -33,5 +33,7 @@ node_modules
 .vscode
 
 logs/*
-src/main/resources/db/*.pgdump
+src/main/resources/db/*.pgdump*
 
+
+.DS_Store

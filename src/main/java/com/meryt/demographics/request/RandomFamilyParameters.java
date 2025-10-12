@@ -145,6 +145,8 @@ public class RandomFamilyParameters {
 
     private String nameCulture;
 
+    private Boolean allowBlondHair;
+
     /**
      * Copy constructor
      */
@@ -175,6 +177,7 @@ public class RandomFamilyParameters {
         skipCreateHouseholds = other.skipCreateHouseholds;
         skipManageCapital = other.skipManageCapital;
         nameCulture = other.nameCulture;
+        allowBlondHair = other.allowBlondHair;
     }
 
     public int getMinHusbandAgeOrDefault() {
@@ -249,5 +252,9 @@ public class RandomFamilyParameters {
 
     public boolean isSkipManageCapital() {
         return skipManageCapital != null && skipManageCapital;
+    }
+
+    public boolean isAllowBlondHair() {
+        return allowBlondHair != null ? allowBlondHair : true;
     }
 }

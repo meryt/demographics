@@ -182,7 +182,8 @@ public class PersonController {
             @RequestParam(value = "pageSize", required = false) Integer pageSize,
             @RequestParam(value = "sortBy", required = false) String sortBy,
             @RequestParam(value = "aliveOnDate", required = false) String aliveOnDate,
-            @RequestParam(value = "gender", required = false) String gender) {
+            @RequestParam(value = "gender", required = false) String gender,
+            @RequestParam(value = "storyCharacter", required = false) Boolean storyCharacter) {
 
         PersonCriteria personCriteria = new PersonCriteria();
         personCriteria.setPage(page);
@@ -192,6 +193,9 @@ public class PersonController {
         personCriteria.setAliveOnDate(controllerHelperService.parseDate(aliveOnDate));
         if (gender != null) {
             personCriteria.setGender(Gender.from(gender));
+        }
+        if (storyCharacter != null) {
+            personCriteria.setIsStoryCharacter(storyCharacter);
         }
 
         Page<Person> queryResult = personService.findAll(personCriteria);

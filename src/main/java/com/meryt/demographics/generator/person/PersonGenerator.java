@@ -575,7 +575,7 @@ public class PersonGenerator {
             if (personParameters.getHairColor() != null) {
                 return HairColor.getGenesFromHairColor(personParameters.getHairColor());
             }
-            return getRandomHairGenes(ownEyeColor);
+            return getRandomHairGenes(ownEyeColor, personParameters.isAllowBlondHair());
         }
 
         Die d2 = new Die(2);
@@ -598,8 +598,18 @@ public class PersonGenerator {
         return result;
     }
 
+    private String getRandomHairGenes(@NonNull EyeColor ownEyeColor, boolean allowBlond) {
+        for (int i = 0; i < 10; i++) {
+            String genes = getRandomHairGenes(ownEyeColor);
+            if (!HairColor.isBlond(genes) || allowBlond) {
+                return genes;
+            }
+        }
+        return getRandomHairGenes(ownEyeColor);
+    }
+
     /**
-     * Get random hair color, but if eyes are blue and the first try is not a shade of blond, then try a second time.
+     * Get random hair color, but if eyes are blue and the first try is not a shade of blond or reddish, then try a second time.
      * Likewise if eyes are brown and first try is blond, try a second time.
      *
      * @param ownEyeColor which will cause blond to be favored if the eyes are known to be blue, and blond to be
@@ -608,14 +618,14 @@ public class PersonGenerator {
      */
     private String getRandomHairGenes(@NonNull EyeColor ownEyeColor) {
         String genes = getRandomHairGenes();
-        if (ownEyeColor.isBlue() && !genes.startsWith("bb")) {
+        if (ownEyeColor.isBlue() && !(HairColor.isBlond(genes) || HairColor.isReddish(genes))) {
             genes = getRandomHairGenes();
-            if (!genes.startsWith("bb")) {
+            if (!(HairColor.isBlond(genes) || HairColor.isReddish(genes))) {
                 return getRandomHairGenes();
             }
-        } else if (ownEyeColor.isBrown() && genes.startsWith("bb")) {
+        } else if (ownEyeColor.isBrown() && HairColor.isBlond(genes)) {
             genes = getRandomHairGenes();
-            if (genes.startsWith("bb")) {
+            if (HairColor.isBlond(genes)) {
                 return getRandomHairGenes();
             }
         }

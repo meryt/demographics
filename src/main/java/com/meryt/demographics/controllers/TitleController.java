@@ -2,6 +2,7 @@ package com.meryt.demographics.controllers;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -68,8 +69,13 @@ public class TitleController {
         }
         final Boolean filterExtinct = extinct;
         Iterable<Title> titles = titleService.findAllOrderByName();
+        
         return StreamSupport.stream(titles.spliterator(), false)
                 .filter(t -> filterExtinct == null || filterExtinct.equals(t.isExtinct()))
+                .sorted(
+                    Comparator.comparing((Title t) -> t.getSocialClass().getRank()).reversed()
+                        .thenComparing(t -> t.getName().toLowerCase())
+                )
                 .map(t -> new TitleReference(t, date))
                 .collect(Collectors.toList());
     }

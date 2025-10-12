@@ -64,4 +64,12 @@ public class HairColor {
                 throw new IllegalArgumentException("Invalid hair color  " + hairColor);
         }
     }
+
+    public static boolean isBlond(String genes) {
+        return genes.startsWith("bb");
+    }
+
+    public static boolean isReddish(String genes) {
+        return genes.equals("Bbrr") || genes.equals("bbrr") || genes.equals("BBrr");
+    }
 }
