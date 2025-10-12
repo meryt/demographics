@@ -5,7 +5,6 @@ import java.util.Collections;
 import java.util.List;
 import javax.annotation.Nullable;
 import lombok.NonNull;
-import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;

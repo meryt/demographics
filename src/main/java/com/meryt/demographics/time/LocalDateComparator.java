@@ -2,7 +2,6 @@ package com.meryt.demographics.time;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -10,8 +9,6 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import lombok.NonNull;
-
-import com.meryt.demographics.domain.place.HouseholdLocationPeriod;
 
 public class LocalDateComparator {
 

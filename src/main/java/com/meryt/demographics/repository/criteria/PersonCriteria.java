@@ -92,13 +92,13 @@ public class PersonCriteria {
     }
 
     private List<String> getOrderBys(@NonNull JoinsAndConditions joinsAndConditions) {
-        String s = StringUtils.isEmpty(sortBy) ? "birthDate" : sortBy;
+        String s = !StringUtils.hasText(sortBy) ? "birthDate" : sortBy;
         List<String> items = new ArrayList<>();
         for (String sortByString : s.split(",")) {
             String[] parts = sortByString.split(" ", 2);
             String property = parts[0].trim();
             boolean reversed = false;
-            if (parts.length > 1 && !StringUtils.isEmpty(parts[1])) {
+            if (parts.length > 1 && !!StringUtils.hasText(parts[1])) {
                 reversed = parts[1].trim().equalsIgnoreCase("DESC");
             }
             items.add(getOrderByForProperty(property, reversed, joinsAndConditions));
@@ -111,13 +111,13 @@ public class PersonCriteria {
      * sort orders using DESC
      */
     private Sort getSortOrder() {
-        String s = StringUtils.isEmpty(sortBy) ? "birthDate" : sortBy;
+        String s = !StringUtils.hasText(sortBy) ? "birthDate" : sortBy;
         Sort sort = null;
         for (String sortByString : s.split(",")) {
             String[] parts = sortByString.split(" ", 2);
             String property = parts[0].trim();
             boolean reversed = false;
-            if (parts.length > 1 && !StringUtils.isEmpty(parts[1])) {
+            if (parts.length > 1 && !!StringUtils.hasText(parts[1])) {
                 reversed = parts[1].trim().equalsIgnoreCase("DESC");
             }
             Sort by = getSortForProperty(property, reversed);
