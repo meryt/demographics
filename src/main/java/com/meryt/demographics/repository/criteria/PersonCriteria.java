@@ -107,15 +107,19 @@ public class PersonCriteria {
                                  (currentDate != null ? currentDate : LocalDate.now());
         
         if (minAge != null) {
-            // For minAge, we want people who were born before (referenceDate - minAge years)
+            // For minAge, we want people who are at least minAge years old (inclusive)
+            // Someone born on referenceDate - minAge years should be included
             LocalDate maxBirthDate = referenceDate.minusYears(minAge);
             joinsAndConditions.whereClauses.add("p.birth_date <= :maxBirthDate");
             joinsAndConditions.parameters.put("maxBirthDate", maxBirthDate);
         }
         
         if (maxAge != null) {
-            // For maxAge, we want people who were born after (referenceDate - maxAge years)
-            LocalDate minBirthDate = referenceDate.minusYears(maxAge);
+            // For maxAge, we want people who are at most maxAge years old (inclusive)
+            // Someone born on referenceDate - maxAge years should be included (exactly maxAge years old)
+            // Someone born on referenceDate - maxAge years - 364 days should be included (maxAge years and 364 days old)
+            // This is equivalent to referenceDate - (maxAge + 1) years + 1 day
+            LocalDate minBirthDate = referenceDate.minusYears(maxAge + 1).plusDays(1);
             joinsAndConditions.whereClauses.add("p.birth_date >= :minBirthDate");
             joinsAndConditions.parameters.put("minBirthDate", minBirthDate);
         }
