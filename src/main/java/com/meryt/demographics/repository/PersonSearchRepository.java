@@ -25,7 +25,7 @@ public class PersonSearchRepository {
 
     @SuppressWarnings("unchecked")
     public Page<Person> findPersons(@NonNull PersonCriteria personCriteria) {
-        String query = "SELECT * FROM persons p ";
+        String query = "SELECT p.* FROM persons p ";
 
         PersonCriteria.JoinsAndConditions joinsAndConditions = personCriteria.getJoinsAndConditions();
         query += joinsAndConditions.getJoins().stream().collect(Collectors.joining("\n"));

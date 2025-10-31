@@ -72,6 +72,11 @@ public class PersonCriteria {
     private LocalDate currentDate;
 
     /**
+     * If non-null, filters people based on whether they have a dwelling place
+     */
+    private Boolean hasDwellingPlace;
+
+    /**
      * Get a Spring PageRequest object from the parameters on this object
      */
     public PageRequest getPageRequest() {
@@ -105,6 +110,7 @@ public class PersonCriteria {
         // Handle age filtering by converting to birth date constraints
         LocalDate referenceDate = aliveOnDate != null ? aliveOnDate : 
                                  (currentDate != null ? currentDate : LocalDate.now());
+        LocalDate currentOrAliveOnDate = currentDate == null ? aliveOnDate : currentDate;
         
         if (minAge != null) {
             // For minAge, we want people who are at least minAge years old (inclusive)
@@ -128,6 +134,13 @@ public class PersonCriteria {
         if (minAge != null || maxAge != null) {
             joinsAndConditions.whereClauses.add("(p.death_date IS NULL OR p.death_date > :referenceDate)");
             joinsAndConditions.parameters.put("referenceDate", referenceDate);
+        }
+
+        if (currentOrAliveOnDate != null && hasDwellingPlace != null && hasDwellingPlace) {
+            joinsAndConditions.joins.add("INNER JOIN household_inhabitants hi ON p.id = hi.person_id AND DATERANGE(hi.from_date, hi.to_date) @> CAST(:currentOrAliveOnDate AS DATE)\n" +
+                                        "INNER JOIN households h ON hi.household_id = h.id\n" +
+                                        "INNER JOIN household_locations hl ON h.id = hl.household_id AND DATERANGE(hl.from_date, hl.to_date) @> CAST(:currentOrAliveOnDate AS DATE)\n");
+            joinsAndConditions.parameters.put("currentOrAliveOnDate", currentOrAliveOnDate);
         }
 
         joinsAndConditions.orderBys = getOrderBys(joinsAndConditions);
