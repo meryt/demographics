@@ -98,7 +98,6 @@ public class PlacesController {
      * Gets the recursive residents of a place as a list of households with their locations
      */
     @RequestMapping("/api/places/{placeId}/households")
-    @SuppressWarnings("unchecked")
     public List<HouseholdResponseWithLocations> getPlaceHouseholds(@PathVariable long placeId,
                                                                    @RequestParam(value = "onDate") String onDate) {
         DwellingPlace place = controllerHelperService.loadDwellingPlace(placeId);

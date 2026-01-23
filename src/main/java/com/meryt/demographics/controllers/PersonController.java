@@ -617,11 +617,11 @@ public class PersonController {
         familyParameters.setMinHusbandAge(minHusbandAge);
         familyParameters.setMaxWifeAge(maxWifeAge);
 
-        if (minSocialClass != null && !StringUtils.isEmpty(minSocialClass)) {
+        if (minSocialClass != null && !StringUtils.hasText(minSocialClass)) {
             SocialClass minClass = SocialClass.valueOf(minSocialClass);
             familyParameters.setMinSocialClass(minClass);
         }
-        if (maxSocialClass != null && !StringUtils.isEmpty(maxSocialClass)) {
+        if (maxSocialClass != null && !StringUtils.hasText(maxSocialClass)) {
             SocialClass maxClass = SocialClass.valueOf(maxSocialClass);
             familyParameters.setMaxSocialClass(maxClass);
         }
@@ -657,7 +657,7 @@ public class PersonController {
             date = person.getDeathDate();
         }
         TitleInheritanceStyle inheritanceStyle = TitleInheritanceStyle.HEIRS_GENERAL;
-        if (!StringUtils.isEmpty(inheritance)) {
+        if (!StringUtils.hasText(inheritance)) {
             try {
                 inheritanceStyle = TitleInheritanceStyle.valueOf(inheritance);
             } catch (IllegalArgumentException e) {
@@ -682,7 +682,7 @@ public class PersonController {
             date = person.getDeathDate();
         }
         TitleInheritanceStyle inheritanceStyle = TitleInheritanceStyle.HEIRS_GENERAL;
-        if (!StringUtils.isEmpty(inheritance)) {
+        if (!StringUtils.hasText(inheritance)) {
             try {
                 inheritanceStyle = TitleInheritanceStyle.valueOf(inheritance);
             } catch (IllegalArgumentException e) {

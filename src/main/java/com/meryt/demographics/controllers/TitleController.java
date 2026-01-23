@@ -60,7 +60,7 @@ public class TitleController {
                                           @RequestParam(value = "onDate", required = false) String onDate) {
         final LocalDate date = controllerHelperService.parseDate(onDate);
         Boolean extinct = null;
-        if (!StringUtils.isEmpty(isExtinct)) {
+        if (StringUtils.hasText(isExtinct)) {
             try {
                 extinct = Boolean.parseBoolean(isExtinct);
             } catch (IllegalArgumentException e) {
