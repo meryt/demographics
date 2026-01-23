@@ -209,6 +209,7 @@ public class PersonCriteria {
             case "firstName":
             case "lastName":
             case "comeliness":
+            case "mainCharacter":
                 column = "p." + camelCaseToSnakeCase(property);
                 break;
             case "name":

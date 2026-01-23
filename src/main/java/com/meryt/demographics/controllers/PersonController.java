@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.util.Pair;
 import org.springframework.http.HttpStatus;
@@ -221,10 +222,14 @@ public class PersonController {
 
         LocalDate referenceDate = onDate == null ? personCriteria.getAliveOnDate() : onDate;
 
-        Page<Person> queryResult = personService.findAll(personCriteria);
-        return queryResult.map(p -> referenceDate != null
-                ? new PersonDetailResponse(p, referenceDate, ancestryService)
-                : new PersonDetailResponse(p));
+        try {
+            Page<Person> queryResult = personService.findAll(personCriteria);
+            return queryResult.map(p -> referenceDate != null
+                        ? new PersonDetailResponse(p, referenceDate, ancestryService)
+                        : new PersonDetailResponse(p));
+        } catch (InvalidDataAccessApiUsageException e) {
+            throw new BadRequestException(e.getMessage());
+        }
     }
 
     @RequestMapping(value = "/api/persons/{personId}", method = RequestMethod.DELETE)
