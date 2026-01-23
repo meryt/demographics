@@ -120,6 +120,11 @@ public class Person {
      */
     private boolean storyCharacter;
 
+    /**
+     * Non-null values indicate a main character. Use this as an index to allow sort by importance of character (low values first)
+     */
+    private Integer mainCharacter;
+
     @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @PrimaryKeyJoinColumn
     private Maternity maternity;

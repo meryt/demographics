@@ -185,6 +185,7 @@ public class PersonController {
             @RequestParam(value = "onDate", required = false) String onDateAsString,
             @RequestParam(value = "gender", required = false) String gender,
             @RequestParam(value = "storyCharacter", required = false) Boolean storyCharacter,
+            @RequestParam(value = "mainCharacter", required = false) Boolean mainCharacter,
             @RequestParam(value = "minAge", required = false) Integer minAge,
             @RequestParam(value = "maxAge", required = false) Integer maxAge,
             @RequestParam(value = "hasDwellingPlace", required = false) Boolean hasDwellingPlace) {
@@ -200,6 +201,9 @@ public class PersonController {
         }
         if (storyCharacter != null) {
             personCriteria.setIsStoryCharacter(storyCharacter);
+        }
+        if (mainCharacter != null) {
+            personCriteria.setIsMainCharacter(mainCharacter);
         }
         if (minAge != null) {
             personCriteria.setMinAge(minAge);

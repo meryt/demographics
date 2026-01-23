@@ -56,6 +56,11 @@ public class PersonCriteria {
     private Boolean isStoryCharacter;
 
     /**
+     * If non-null, loads only people who are main characters
+     */
+    private Boolean isMainCharacter;
+
+    /**
      * If non-null, loads only people who are at least this age (converted to bornBefore date)
      */
     private Integer minAge;
@@ -105,6 +110,15 @@ public class PersonCriteria {
         if (isStoryCharacter != null) {
             joinsAndConditions.whereClauses.add("p.story_character = :isStoryCharacter");
             joinsAndConditions.parameters.put("isStoryCharacter", isStoryCharacter);
+        }
+        if (isMainCharacter != null) {
+            if (isMainCharacter) {
+                // When true, check for non-null main_character values
+                joinsAndConditions.whereClauses.add("p.main_character IS NOT NULL");
+            } else {
+                // When false, check for null main_character values
+                joinsAndConditions.whereClauses.add("p.main_character IS NULL");
+            }
         }
         
         // Handle age filtering by converting to birth date constraints
