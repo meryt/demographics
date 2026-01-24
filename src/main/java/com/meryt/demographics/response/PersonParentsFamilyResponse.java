@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
 import lombok.Getter;
 import lombok.NonNull;
@@ -27,10 +28,10 @@ class PersonParentsFamilyResponse {
     private final LocalDate weddingDate;
     private final List<PersonReference> siblings;
 
-    PersonParentsFamilyResponse(@NonNull Family family, @NonNull Person person) {
+    PersonParentsFamilyResponse(@NonNull Family family, @NonNull Person person, @Nullable LocalDate onDate) {
         id = family.getId();
-        father = family.getHusband() == null ? null : new PersonParentsResponse(family.getHusband(), NUM_GENERATIONS);
-        mother = family.getWife() == null ? null : new PersonParentsResponse(family.getWife(), NUM_GENERATIONS);
+        father = family.getHusband() == null ? null : new PersonParentsResponse(family.getHusband(), NUM_GENERATIONS, onDate);
+        mother = family.getWife() == null ? null : new PersonParentsResponse(family.getWife(), NUM_GENERATIONS, onDate);
         weddingDate = family.getWeddingDate();
 
         List<Person> sortedChildren = family.getChildren().stream()
@@ -40,7 +41,7 @@ class PersonParentsFamilyResponse {
         if (!sortedChildren.isEmpty()) {
             siblings = new ArrayList<>();
             for (Person child : sortedChildren) {
-                siblings.add(new PersonReference(child));
+                siblings.add(new PersonReference(child, onDate));
             }
         } else {
             siblings = null;

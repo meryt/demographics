@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.NonNull;
 
+import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.Person;
 
 @Getter
@@ -17,7 +18,9 @@ public class PersonReference {
     private final String lastName;
     private final LocalDate birthDate;
     private final LocalDate deathDate;
+    private final String ageAtDeath;
     private final String age;
+    private final Gender gender;
     private final List<PersonTitleResponse> titles;
 
     public PersonReference(@NonNull Person person) {
@@ -30,7 +33,9 @@ public class PersonReference {
         this.lastName = person.getLastName();
         this.birthDate = person.getBirthDate();
         this.deathDate = person.getDeathDate();
-
+        this.ageAtDeath = person.getAgeAtDeath();
+        this.gender = person.getGender();
+        
         if (onDate != null && person.isLiving(onDate) && !person.getTitles(onDate).isEmpty()) {
             titles = person.getTitles(onDate).stream()
                     .map(PersonTitleResponse::new)

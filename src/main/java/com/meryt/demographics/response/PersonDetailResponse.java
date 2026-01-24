@@ -80,7 +80,7 @@ public class PersonDetailResponse extends PersonResponse {
             }
         }
 
-        family = person.getFamily() == null ? null : new PersonParentsFamilyResponse(person.getFamily(), person);
+        family = person.getFamily() == null ? null : new PersonParentsFamilyResponse(person.getFamily(), person, onDate);
 
         capitalHistory = person.getCapitalPeriods().stream()
                 .map(PersonCapitalResponse::new)
