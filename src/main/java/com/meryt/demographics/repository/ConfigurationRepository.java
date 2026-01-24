@@ -3,6 +3,7 @@ package com.meryt.demographics.repository;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import lombok.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,6 +44,21 @@ public class ConfigurationRepository {
         params.put("key", key);
         params.put("value", value);
         jdbcTemplate.update(query, params);
+    }
+
+    public Map<String, String> getAllConfiguration() {
+        String query = "SELECT key, value::TEXT FROM configuration " +
+                       "UNION " +
+                       "SELECT 'last_check_date' AS key, last_check_date::TEXT AS value FROM check_date";
+        return jdbcTemplate.query(query, (rs, rowNum) -> {
+            Map<String, String> row = new HashMap<>();
+            row.put("key", rs.getString("key"));
+            row.put("value", rs.getString("value"));
+            return row;
+        }).stream().collect(Collectors.toMap(
+            row -> row.get("key"),
+            row -> row.get("value")
+        ));
     }
 
     @Nullable

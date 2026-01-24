@@ -1,7 +1,7 @@
 package com.meryt.demographics.service;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeParseException;
+import java.util.Map;
 import javax.annotation.Nullable;
 import lombok.NonNull;
 import org.springframework.stereotype.Service;
@@ -9,7 +9,6 @@ import org.springframework.util.StringUtils;
 
 import com.meryt.demographics.repository.CheckDateRepository;
 import com.meryt.demographics.repository.ConfigurationRepository;
-import com.meryt.demographics.rest.BadRequestException;
 import com.meryt.demographics.rest.ConflictException;
 
 @Service
@@ -26,7 +25,7 @@ public class ConfigurationService {
 
     @Nullable
     public LocalDate parseDate(@Nullable String date) {
-        if (StringUtils.isEmpty(date)) {
+        if (!StringUtils.hasText(date)) {
             return null;
         }
         if (date.equalsIgnoreCase("current")) {
@@ -59,5 +58,9 @@ public class ConfigurationService {
 
     public boolean isPauseCheck() {
         return configurationRepository.isPauseCheck();
+    }
+
+    public Map<String, String> getAllConfiguration() {
+        return configurationRepository.getAllConfiguration();
     }
 }
