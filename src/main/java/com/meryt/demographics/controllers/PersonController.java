@@ -47,6 +47,7 @@ import com.meryt.demographics.request.PersonHouseholdPost;
 import com.meryt.demographics.request.PersonParameters;
 import com.meryt.demographics.request.PersonTitlePost;
 import com.meryt.demographics.request.RandomFamilyParameters;
+import com.meryt.demographics.response.FertilityResponse;
 import com.meryt.demographics.response.HouseholdResponseWithLocations;
 import com.meryt.demographics.response.LeastCommonAncestorResponse;
 import com.meryt.demographics.response.PersonCapitalResponse;
@@ -241,9 +242,13 @@ public class PersonController {
     }
 
     @RequestMapping(value = "/api/persons/{personId}/fertility", method = RequestMethod.GET)
-    public Fertility getPersonFertility(@PathVariable long personId) {
+    public FertilityResponse getPersonFertility(@PathVariable long personId) {
         Person person = controllerHelperService.loadPerson(personId);
-        return person.getFertility();
+        Fertility fertility = person.getFertility();
+        if (fertility == null) {
+            return null;
+        }
+        return new FertilityResponse(fertility);
     }
 
     @RequestMapping(value = "/api/persons/{personId}/fertility", method = RequestMethod.POST)
