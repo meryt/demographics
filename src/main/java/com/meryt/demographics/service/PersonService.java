@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.meryt.demographics.domain.Occupation;
 import com.meryt.demographics.domain.family.AncestryRecord;
@@ -28,6 +29,9 @@ import com.meryt.demographics.domain.place.HouseholdLocationPeriod;
 import com.meryt.demographics.generator.WealthGenerator;
 import com.meryt.demographics.generator.family.MatchMaker;
 import com.meryt.demographics.profiler.Profiler;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+
 import com.meryt.demographics.repository.PersonRepository;
 import com.meryt.demographics.repository.PersonSearchRepository;
 import com.meryt.demographics.repository.criteria.PersonCriteria;
@@ -39,6 +43,9 @@ import com.meryt.demographics.time.LocalDateComparator;
 @Slf4j
 @Service
 public class PersonService {
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     private final PersonRepository personRepository;
     private final AncestryService ancestryService;
@@ -81,8 +88,17 @@ public class PersonService {
         return personRepository.findByFounderTrueOrderByBirthDate();
     }
 
+    @Transactional
     public void delete(@NonNull Person person) {
-        personRepository.delete(person);
+        // Use native query to delete directly, bypassing Hibernate's entity management
+        // This avoids stale entity issues with cascade-deleted fertility objects
+        // The database has ON DELETE CASCADE, so fertility records will be deleted automatically
+        long personId = person.getId();
+        entityManager.createNativeQuery("DELETE FROM persons WHERE id = :personId")
+                .setParameter("personId", personId)
+                .executeUpdate();
+        entityManager.flush();
+        entityManager.clear();
     }
 
     @NonNull
