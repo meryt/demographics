@@ -7,6 +7,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import lombok.NonNull;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.math3.distribution.BetaDistribution;
 import org.apache.commons.math3.distribution.NormalDistribution;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -347,9 +348,12 @@ public class PersonGenerator {
                 // Get a random death date such that the person is alive on the reference date if born on this
                 // date
                 long lifespan;
-                Integer minAgeYears = aliveOnDate != null 
-                    ? person.getBirthDate().until(aliveOnDate).getYears() 
-                    : personParameters.getMinAge();
+                Integer minAgeYears = null;
+                if (aliveOnDate != null) {
+                    minAgeYears = person.getBirthDate().until(aliveOnDate).getYears();
+                } else {
+                    minAgeYears = minAge;
+                }
                 do {
                     lifespan = lifeTableService.randomLifeExpectancy(person.getBirthDate(),
                             minAgeYears, null, person.getGender());
