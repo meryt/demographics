@@ -79,6 +79,7 @@ public class PersonController {
     private static final String DEATH_DATE = "deathDate";
     private static final String BIRTH_PLACE = "birthPlace";
     private static final String DEATH_PLACE = "deathPlace";
+    private static final String CAUSE_OF_DEATH = "causeOfDeath";
     private static final String SOCIAL_CLASS = "socialClass";
     private static final String LAST_NAME = "lastName";
     private static final String IS_LAST_NAME_RECURSIVE = "applyLastNameRecursively";
@@ -557,6 +558,11 @@ public class PersonController {
         if (updates.containsKey(DEATH_PLACE)) {
             person.setDeathPlace((String) updates.get(DEATH_PLACE));
             updates.remove(DEATH_PLACE);
+        }
+
+        if (updates.containsKey(CAUSE_OF_DEATH)) {
+            person.setCauseOfDeath((String) updates.get(CAUSE_OF_DEATH));
+            updates.remove(CAUSE_OF_DEATH);
         }
 
         if (updates.containsKey(DEATH_DATE)) {
