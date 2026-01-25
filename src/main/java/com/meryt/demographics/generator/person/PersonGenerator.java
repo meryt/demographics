@@ -347,7 +347,9 @@ public class PersonGenerator {
                 // Get a random death date such that the person is alive on the reference date if born on this
                 // date
                 long lifespan;
-                Integer minAgeYears = aliveOnDate != null ? person.getBirthDate().until(aliveOnDate).getYears() : null;
+                Integer minAgeYears = aliveOnDate != null 
+                    ? person.getBirthDate().until(aliveOnDate).getYears() 
+                    : personParameters.getMinAge();
                 do {
                     lifespan = lifeTableService.randomLifeExpectancy(person.getBirthDate(),
                             minAgeYears, null, person.getGender());
