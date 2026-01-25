@@ -82,6 +82,16 @@ public class PersonCriteria {
     private Boolean hasDwellingPlace;
 
     /**
+     * If non-null, filters people whose first name contains this value (case-insensitive)
+     */
+    private String firstName;
+
+    /**
+     * If non-null, filters people whose last name contains this value (case-insensitive)
+     */
+    private String lastName;
+
+    /**
      * Get a Spring PageRequest object from the parameters on this object
      */
     public PageRequest getPageRequest() {
@@ -155,6 +165,16 @@ public class PersonCriteria {
                                         "INNER JOIN households h ON hi.household_id = h.id\n" +
                                         "INNER JOIN household_locations hl ON h.id = hl.household_id AND DATERANGE(hl.from_date, hl.to_date) @> CAST(:currentOrAliveOnDate AS DATE)\n");
             joinsAndConditions.parameters.put("currentOrAliveOnDate", currentOrAliveOnDate);
+        }
+
+        if (StringUtils.hasText(firstName)) {
+            joinsAndConditions.whereClauses.add("p.first_name ILIKE :firstName");
+            joinsAndConditions.parameters.put("firstName", "%" + firstName + "%");
+        }
+
+        if (StringUtils.hasText(lastName)) {
+            joinsAndConditions.whereClauses.add("p.last_name ILIKE :lastName");
+            joinsAndConditions.parameters.put("lastName", "%" + lastName + "%");
         }
 
         joinsAndConditions.orderBys = getOrderBys(joinsAndConditions);

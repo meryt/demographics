@@ -190,7 +190,9 @@ public class PersonController {
             @RequestParam(value = "mainCharacter", required = false) Boolean mainCharacter,
             @RequestParam(value = "minAge", required = false) Integer minAge,
             @RequestParam(value = "maxAge", required = false) Integer maxAge,
-            @RequestParam(value = "hasDwellingPlace", required = false) Boolean hasDwellingPlace) {
+            @RequestParam(value = "hasDwellingPlace", required = false) Boolean hasDwellingPlace,
+            @RequestParam(value = "firstName", required = false) String firstName,
+            @RequestParam(value = "lastName", required = false) String lastName) {
 
         PersonCriteria personCriteria = new PersonCriteria();
         personCriteria.setPage(page);
@@ -215,6 +217,12 @@ public class PersonController {
         }
         if (hasDwellingPlace != null) {
             personCriteria.setHasDwellingPlace(hasDwellingPlace);
+        }
+        if (firstName != null) {
+            personCriteria.setFirstName(firstName);
+        }
+        if (lastName != null) {
+            personCriteria.setLastName(lastName);
         }
         
         // Set currentDate for age calculations - use onDate if provided, otherwise use "current"
