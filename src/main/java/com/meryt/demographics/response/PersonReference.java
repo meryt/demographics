@@ -17,7 +17,9 @@ public class PersonReference {
     private final String firstName;
     private final String lastName;
     private final LocalDate birthDate;
+    private final String birthPlace;
     private final LocalDate deathDate;
+    private final String deathPlace;
     private final String ageAtDeath;
     private final String age;
     private final Gender gender;
@@ -32,7 +34,9 @@ public class PersonReference {
         this.firstName = person.getFirstName();
         this.lastName = person.getLastName();
         this.birthDate = person.getBirthDate();
+        this.birthPlace = person.getBirthPlace();
         this.deathDate = person.getDeathDate();
+        this.deathPlace = person.getDeathPlace();
         this.ageAtDeath = person.getAgeAtDeath();
         this.gender = person.getGender();
         
