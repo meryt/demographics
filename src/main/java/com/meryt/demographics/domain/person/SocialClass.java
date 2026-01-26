@@ -29,7 +29,6 @@ public enum SocialClass {
     private final int rank;
 
     @Getter
-    @JsonValue
     private final String description;
 
     SocialClass(int rank, String description) {
@@ -91,7 +90,9 @@ public enum SocialClass {
         }
     }
 
+
     @NonNull
+    @JsonValue
     public String getFriendlyName() {
         return name().toLowerCase().replace("_", " ");
     }
