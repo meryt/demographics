@@ -92,7 +92,8 @@ public class PersonGenerator {
                 person.setLastName(personParameters.getLastName());
             } else {
                 person.setLastName(getLastNameForNewPerson(nameDate, personParameters.getFather(),
-                        personParameters.getMother(), personParameters.isBornOutOfWedlock()));
+                        personParameters.getMother(), personParameters.isBornOutOfWedlock(),
+                        personParameters.getNameCulture()));
             }
         }
 
@@ -150,12 +151,14 @@ public class PersonGenerator {
      *
      * @param onDate the date on which the name should be generated (as they were not used before around 1400)
      * @param father the father, if available
+     * @param culture optionally, a culture to filter names by
      * @return a last name or null
      */
     private String getLastNameForNewPerson(@NonNull LocalDate onDate,
                                            @Nullable Person father,
                                            @Nullable Person mother,
-                                           boolean isOutOfWedlock) {
+                                           boolean isOutOfWedlock,
+                                           @Nullable String culture) {
 
         if (isOutOfWedlock && mother != null) {
             String motherLastName = mother.getLastName();
@@ -208,7 +211,7 @@ public class PersonGenerator {
         }
 
         if (onDate.isAfter(LocalDate.of(LAST_NAME_BEGINNING_YEAR, 1, 1))) {
-            return nameService.randomLastName();
+            return nameService.randomLastName(culture);
         }
 
         return null;

@@ -31,13 +31,16 @@ public class NamesController {
     }
 
     @RequestMapping("/api/names/last/random")
-    public String randomLastName() {
-        return nameService.randomLastName();
+    public String randomLastName(@RequestParam(required = false) String culture) {
+        return nameService.randomLastName(culture);
     }
 
     @RequestMapping("/api/names/random")
-    public String randomName(@RequestParam(required = false) String gender) {
-        return nameService.randomName(gender == null ? Gender.MALE : Gender.from(gender));
+    public String randomName(@RequestParam(required = false) String gender,
+                             @RequestParam(required = false) String onDate,
+                             @RequestParam(required = false) String culture) {
+        LocalDate date = controllerHelperService.parseDate(onDate);
+        return nameService.randomName(gender == null ? Gender.MALE : Gender.from(gender), date, culture);
     }
 
 }
