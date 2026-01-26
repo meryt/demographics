@@ -40,7 +40,7 @@ public class NameService {
                                   @Nullable LocalDate onDate,
                                   @Nullable String culture) {
         Set<String> cultures = null;
-        if (StringUtils.hasText(culture)) {
+        if (culture != null && StringUtils.hasText(culture)) {
             cultures = Arrays.stream(culture.split(","))
                     .map(String::trim)
                     .filter(StringUtils::hasText)
@@ -59,7 +59,7 @@ public class NameService {
     @NonNull
     public String randomLastName(@Nullable String culture) {
         Set<String> cultures = null;
-        if (StringUtils.hasText(culture)) {
+        if (culture != null && StringUtils.hasText(culture)) {
             cultures = Arrays.stream(culture.split(","))
                     .map(String::trim)
                     .filter(StringUtils::hasText)
@@ -79,7 +79,7 @@ public class NameService {
     @NonNull
     public String randomName(@NonNull Gender gender, @Nullable LocalDate onDate, @Nullable String culture) {
         Set<String> cultures = null;
-        if (StringUtils.hasText(culture)) {
+        if (culture != null && StringUtils.hasText(culture)) {
             cultures = Arrays.stream(culture.split(","))
                     .map(String::trim)
                     .filter(StringUtils::hasText)

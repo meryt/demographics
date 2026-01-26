@@ -9,6 +9,7 @@ import java.util.Set;
 import javax.annotation.Nullable;
 import lombok.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceUtils;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Repository;
 
 import com.meryt.demographics.database.QueryStore;
 import com.meryt.demographics.domain.person.Gender;
+import com.meryt.demographics.rest.BadRequestException;
 
 @Repository
 public class NameRepository {
@@ -35,24 +37,14 @@ public class NameRepository {
             MapSqlParameterSource params = new MapSqlParameterSource();
             params.addValue("gender", gender.getAbbreviation());
             params.addValue("onDate", onDate);
+            addCulturesParameter(params, cultures);
             
-            // Convert Set to PostgreSQL array
-            if (cultures != null && !cultures.isEmpty()) {
-                Connection conn = DataSourceUtils.getConnection(jdbcTemplate.getJdbcTemplate().getDataSource());
-                try {
-                    Array array = conn.createArrayOf("TEXT", cultures.toArray());
-                    params.addValue("cultures", array);
-                } catch (SQLException e) {
-                    throw new RuntimeException("Failed to create PostgreSQL array for cultures", e);
-                } finally {
-                    DataSourceUtils.releaseConnection(conn, jdbcTemplate.getJdbcTemplate().getDataSource());
-                }
-            } else {
-                params.addValue("cultures", null);
+            try {
+                Map<String, Object> result = jdbcTemplate.queryForMap(query, params);
+                name = (String) result.get("name");
+            } catch (EmptyResultDataAccessException e) {
+                throw new BadRequestException("No first name found for gender " + gender + " and cultures " + cultures);
             }
-            
-            Map<String, Object> result = jdbcTemplate.queryForMap(query, params);
-            name = (String) result.get("name");
         } while (excludeNames != null && excludeNames.contains(name));
         return name;
     }
@@ -66,8 +58,24 @@ public class NameRepository {
             query = "SELECT name FROM names_last ORDER BY random() LIMIT 1";
         } else {
             query = "SELECT name FROM names_last WHERE culture = ANY(:cultures::TEXT[]) ORDER BY random() LIMIT 1";
-            
-            // Convert Set to PostgreSQL array
+            addCulturesParameter(params, cultures);
+        }
+        
+        try {
+            return jdbcTemplate.queryForObject(query, params, String.class);
+        } catch (EmptyResultDataAccessException e) {
+            throw new BadRequestException("No last name found for cultures " + cultures);
+        }
+    }
+
+    /**
+     * Converts a Set of culture strings to a PostgreSQL array and adds it to the parameter source.
+     *
+     * @param params the parameter source to add the cultures parameter to
+     * @param cultures the set of cultures to convert, may be null or empty
+     */
+    private void addCulturesParameter(@NonNull MapSqlParameterSource params, @Nullable Set<String> cultures) {
+        if (cultures != null && !cultures.isEmpty()) {
             Connection conn = DataSourceUtils.getConnection(jdbcTemplate.getJdbcTemplate().getDataSource());
             try {
                 Array array = conn.createArrayOf("TEXT", cultures.toArray());
@@ -77,8 +85,8 @@ public class NameRepository {
             } finally {
                 DataSourceUtils.releaseConnection(conn, jdbcTemplate.getJdbcTemplate().getDataSource());
             }
+        } else {
+            params.addValue("cultures", null);
         }
-        
-        return jdbcTemplate.queryForObject(query, params, String.class);
     }
 }
