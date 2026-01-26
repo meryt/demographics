@@ -23,7 +23,7 @@ public class PersonFamilyPost {
      */
     private String spouseLastName;
 
-    private boolean persist;
+    private boolean persist = true;
 
     /**
      * If non-null this person will be used as the spouse, rather than generating a random one.
@@ -52,6 +52,11 @@ public class PersonFamilyPost {
     private Boolean skipCreateHouseholds;
 
     private Boolean skipManageCapital;
+
+    /**
+     * Culture to use when generating names for the family members.
+     */
+    private String nameCulture;
 
     public void validate() {
         // nothing to validate yet

@@ -501,6 +501,7 @@ public class PersonController {
         familyParameters.setMinSpouseSelection(personFamilyPost.getMinSpouseSelection());
         familyParameters.setTriesUntilGiveUp(personFamilyPost.getTriesUntilGiveUp());
         familyParameters.setSkipGenerateChildren(personFamilyPost.getSkipGenerateChildren());
+        familyParameters.setNameCulture(personFamilyPost.getNameCulture());
 
         Family family = familyGenerator.generate(person, familyParameters);
         if (family == null) {

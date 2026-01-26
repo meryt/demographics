@@ -107,7 +107,7 @@ public class RandomFamilyParameters {
     /**
      * If true, will save the family after generating.
      */
-    private boolean persist;
+    private boolean persist = true;
 
     /**
      * If true, will continue checking for children until the death of the father or mother, rather than stopping
@@ -141,7 +141,7 @@ public class RandomFamilyParameters {
 
     private Boolean skipCreateHouseholds;
 
-    private Boolean skipManageCapital;
+    private Boolean skipManageCapital = true;
 
     private String nameCulture;
 
