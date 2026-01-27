@@ -104,7 +104,7 @@ public class FamilyGenerator {
             family.setWife(personService.save(family.getWife()));
         }
 
-        if (!familyParameters.isSkipCreateHouseholds()) {
+        if (!familyParameters.isSkipCreateHouseholds() && familyParameters.isPersist()) {
             familyService.moveWifeAndStepchildrenToHusbandsHousehold(family);
         }
 

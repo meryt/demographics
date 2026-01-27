@@ -243,6 +243,7 @@ public class GenerationService {
                 familyParameters.setCycleToDeath(!shouldLoopUntilReferenceDate);
                 familyParameters.setSkipCreateHouseholds(personFamilyPost.isSkipCreateHouseholds());
                 familyParameters.setSkipManageCapital(personFamilyPost.isSkipManageCapital());
+                familyParameters.setNameCulture(personFamilyPost.getNameCulture());
 
                 Family family = null;
                 if (person.isMale() || (person.getFamilies().size() < 2 &&
