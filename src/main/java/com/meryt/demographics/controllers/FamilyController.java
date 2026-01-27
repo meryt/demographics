@@ -48,6 +48,11 @@ public class FamilyController {
             return null;
         }
         Family returnedFamily = familyParameters.isPersist() ? familyService.save(family) : family;
+        
+        if (!familyParameters.isSkipCreateHouseholds()) {
+            familyService.moveWifeAndStepchildrenToHusbandsHousehold(family);
+        }
+        
         return new FamilyResponse(returnedFamily);
     }
 

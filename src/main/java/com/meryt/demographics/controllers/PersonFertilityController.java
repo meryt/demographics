@@ -1,5 +1,6 @@
 package com.meryt.demographics.controllers;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -9,6 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.meryt.demographics.domain.person.Person;
@@ -44,13 +46,18 @@ public class PersonFertilityController {
     }
 
     @RequestMapping(value = "/api/persons/{personId}/fertility", method = RequestMethod.GET)
-    public FertilityResponse getPersonFertility(@PathVariable long personId) {
+    public FertilityResponse getPersonFertility(@PathVariable long personId,
+                                                @RequestParam(value = "onDate", required = false) String onDate) {
         Person person = controllerHelperService.loadPerson(personId);
         Fertility fertility = person.getFertility();
         if (fertility == null) {
             return null;
         }
-        return new FertilityResponse(fertility);
+        LocalDate date = null;
+        if (onDate != null) {
+            date = controllerHelperService.parseDate(onDate);
+        }
+        return new FertilityResponse(fertility, date);
     }
 
     @RequestMapping(value = "/api/persons/{personId}/fertility", method = RequestMethod.POST)

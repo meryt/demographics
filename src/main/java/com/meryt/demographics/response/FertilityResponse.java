@@ -1,6 +1,7 @@
 package com.meryt.demographics.response;
 
 import java.time.LocalDate;
+import javax.annotation.Nullable;
 import lombok.Getter;
 import lombok.NonNull;
 
@@ -14,6 +15,7 @@ public class FertilityResponse {
     private final double fertilityFactor;
     
     // Maternity-specific fields
+    private final Double effectiveFertilityFactor;
     private final LocalDate conceptionDate;
     private final LocalDate miscarriageDate;
     private final LocalDate dueDate;
@@ -36,11 +38,18 @@ public class FertilityResponse {
     private final Long fatherId;
 
     public FertilityResponse(@NonNull Fertility fertility) {
+        this(fertility, null);
+    }
+
+    public FertilityResponse(@NonNull Fertility fertility, @Nullable LocalDate onDate) {
         this.personId = fertility.getPersonId();
         this.fertilityFactor = fertility.getFertilityFactor();
         
+        LocalDate effectiveDate = onDate != null ? onDate : LocalDate.now();
+        
         if (fertility instanceof Maternity) {
             Maternity maternity = (Maternity) fertility;
+            this.effectiveFertilityFactor = maternity.getEffectiveFertilityFactor(effectiveDate);
             this.conceptionDate = maternity.getConceptionDate();
             this.miscarriageDate = maternity.getMiscarriageDate();
             this.dueDate = maternity.getDueDate();
@@ -61,6 +70,7 @@ public class FertilityResponse {
             this.fatherId = maternity.getFatherId();
         } else {
             // Paternity - these fields are null
+            this.effectiveFertilityFactor = null;
             this.conceptionDate = null;
             this.miscarriageDate = null;
             this.dueDate = null;

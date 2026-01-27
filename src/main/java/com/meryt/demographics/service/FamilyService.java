@@ -231,7 +231,7 @@ public class FamilyService {
      *
      * @param family the newly wedded family
      */
-    private Household moveWifeAndStepchildrenToHusbandsHousehold(@NonNull Family family) {
+    public Household moveWifeAndStepchildrenToHusbandsHousehold(@NonNull Family family) {
         LocalDate date = family.getWeddingDate();
         Person man = family.getHusband();
         Person woman = family.getWife();

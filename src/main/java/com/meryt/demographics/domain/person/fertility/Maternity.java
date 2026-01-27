@@ -149,6 +149,14 @@ public class Maternity extends Fertility {
         return percentChance;
     }
 
+    @JsonIgnore
+    public double getEffectiveFertilityFactor(@NonNull LocalDate day) {
+        if (isPregnant(day)) {
+            return 0;
+        }
+        return getFertilityFactor() * getAgeFertilityFactor(getPerson().getBirthDate(), day) * getBreastfeedingFertilityFactor(day);
+    }
+
     private double getDailyConceptionProbability(@NonNull LocalDate day) {
         if (getLastCycleDate() == null) {
             return 0;
@@ -299,7 +307,8 @@ public class Maternity extends Fertility {
     private double getAgeFertilityFactor(@NonNull LocalDate mothersBirthDate, @NonNull LocalDate day) {
         int ageInYears = mothersBirthDate.until(day).getYears();
 
-        if      (25 > ageInYears) { return 1; }
+        if      (11 > ageInYears) { return 0.0;  }
+        else if (25 > ageInYears) { return 1;    }
         else if (30 > ageInYears) { return 0.95; }
         else if (35 > ageInYears) { return 0.83; }
         else if (36 > ageInYears) { return 0.75; }
