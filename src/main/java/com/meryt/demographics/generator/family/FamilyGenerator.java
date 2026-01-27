@@ -26,6 +26,8 @@ import com.meryt.demographics.generator.random.PercentDie;
 import com.meryt.demographics.profiler.Profiler;
 import com.meryt.demographics.request.PersonParameters;
 import com.meryt.demographics.request.RandomFamilyParameters;
+import com.meryt.demographics.service.FamilyService;
+import com.meryt.demographics.service.HouseholdService;
 import com.meryt.demographics.service.PersonService;
 
 @Slf4j
@@ -37,11 +39,17 @@ public class FamilyGenerator {
 
     private final PersonGenerator personGenerator;
     private final PersonService personService;
+    private final FamilyService familyService;
+    private final HouseholdService householdService;
 
     public FamilyGenerator(@Autowired PersonGenerator personGenerator,
-                           @Autowired PersonService personService) {
+                           @Autowired PersonService personService,
+                           @Autowired FamilyService familyService,
+                           @Autowired HouseholdService householdService) {
         this.personGenerator = personGenerator;
         this.personService = personService;
+        this.familyService = familyService;
+        this.householdService = householdService;
     }
 
     /**
@@ -95,13 +103,27 @@ public class FamilyGenerator {
             family.setHusband(personService.save(family.getHusband()));
             family.setWife(personService.save(family.getWife()));
         }
+
+        if (!familyParameters.isSkipCreateHouseholds()) {
+            familyService.moveWifeAndStepchildrenToHusbandsHousehold(family);
+        }
+
         if (!familyParameters.isSkipGenerateChildren()) {
             generateChildren(family, familyParameters);
+        }
+
+        if (!family.getChildren().isEmpty() && !familyParameters.isSkipCreateHouseholds() && familyParameters.isPersist()) {
+            // Save the family before adding the children to ensure the family and household are in the database.
+            familyService.save(family);
         }
 
         for (Person child : family.getChildren()) {
             if (child.getAgeInYears(child.getDeathDate()) <= DIED_IN_CHILDHOOD_AGE) {
                 child.setFinishedGeneration(true);
+            }
+            if (!familyParameters.isSkipCreateHouseholds() && familyParameters.isPersist() && child.getBirthDate().isBefore(child.getDeathDate())
+                    && family.getHusband().getHousehold(child.getBirthDate()) != null) {
+                householdService.addPersonToHousehold(child, family.getHusband().getHousehold(child.getBirthDate()), child.getBirthDate(), false);
             }
         }
 
