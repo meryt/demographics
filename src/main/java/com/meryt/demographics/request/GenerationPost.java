@@ -21,7 +21,7 @@ public class GenerationPost extends OutputToFilePost {
 
     private Boolean skipTitleUpdate;
 
-    private Boolean advanceToReferenceDate;
+    private Boolean advanceToReferenceDate = true;
 
     public void validate() {
         if (personFamilyPost == null) {

@@ -7,6 +7,8 @@ import lombok.Setter;
 
 import java.time.LocalDate;
 
+import org.flywaydb.core.internal.util.StringUtils;
+
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.generator.random.PercentDie;
@@ -178,6 +180,14 @@ public class RandomFamilyParameters {
         skipManageCapital = other.skipManageCapital;
         nameCulture = other.nameCulture;
         allowBlondHair = other.allowBlondHair;
+    }
+
+    public String getFounderLastName() {
+        return StringUtils.hasText(founderLastName) ? founderLastName : null;
+    }
+    
+    public String getSpouseLastName() {
+        return StringUtils.hasText(spouseLastName) ? spouseLastName : null;
     }
 
     public int getMinHusbandAgeOrDefault() {

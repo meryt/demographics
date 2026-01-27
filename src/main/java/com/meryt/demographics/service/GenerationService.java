@@ -170,7 +170,9 @@ public class GenerationService {
             writeGenerationsToFile(generationPost.getOutputToFile());
         }
 
-        configurationService.setCurrentDate(generationPost.getFamilyParameters().getReferenceDate());
+        configurationService.setCurrentDate(generationPost.getNextGenerationPost().getUntilDate() != null 
+            ? configurationService.parseDate(generationPost.getNextGenerationPost().getUntilDate()) 
+            : generationPost.getFamilyParameters().getReferenceDate());
 
         return result;
     }
