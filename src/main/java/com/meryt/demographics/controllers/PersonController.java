@@ -47,7 +47,9 @@ import com.meryt.demographics.request.PersonHouseholdPost;
 import com.meryt.demographics.request.PersonParameters;
 import com.meryt.demographics.request.PersonTitlePost;
 import com.meryt.demographics.request.RandomFamilyParameters;
+import com.meryt.demographics.response.calendar.CalendarDayEvent;
 import com.meryt.demographics.response.FertilityResponse;
+import com.meryt.demographics.response.FertilityPostResponse;
 import com.meryt.demographics.response.HouseholdResponseWithLocations;
 import com.meryt.demographics.response.LeastCommonAncestorResponse;
 import com.meryt.demographics.response.PersonCapitalResponse;
@@ -261,7 +263,7 @@ public class PersonController {
     }
 
     @RequestMapping(value = "/api/persons/{personId}/fertility", method = RequestMethod.POST)
-    public Fertility postPersonFertility(@PathVariable long personId, @RequestBody PersonFertilityPost post) {
+    public FertilityPostResponse postPersonFertility(@PathVariable long personId, @RequestBody PersonFertilityPost post) {
         Person person = controllerHelperService.loadPerson(personId);
 
         if (person.getFertility() == null) {
@@ -280,15 +282,16 @@ public class PersonController {
             personService.save(person);
         }
 
+        List<CalendarDayEvent> events = new ArrayList<>();
         String dateString = post.getCycleToDate();
         LocalDate cycleToDate = controllerHelperService.parseDate(dateString);
         if (cycleToDate != null) {
             if (!person.isFemale()) {
                 throw new BadRequestException("cycleToDate applies only to women");
             }
-            fertilityService.cycleToDate(person, cycleToDate, post.getAllowMaternalDeathOrDefault());
+            events.addAll(fertilityService.cycleToDate(person, cycleToDate, post.getAllowMaternalDeathOrDefault()));
         }
-        return person.getFertility();
+        return new FertilityPostResponse(person.getFertility(), events);
     }
 
     @RequestMapping(value = "/api/persons/{personId}/households", method = RequestMethod.POST)
