@@ -29,8 +29,6 @@ import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.PersonCapitalPeriod;
 import com.meryt.demographics.domain.person.PersonTitlePeriod;
 import com.meryt.demographics.domain.person.SocialClass;
-import com.meryt.demographics.domain.person.fertility.Fertility;
-import com.meryt.demographics.domain.person.fertility.Maternity;
 import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.DwellingPlaceOwnerPeriod;
 import com.meryt.demographics.domain.place.Household;
@@ -38,18 +36,13 @@ import com.meryt.demographics.domain.title.Title;
 import com.meryt.demographics.domain.title.TitleInheritanceStyle;
 import com.meryt.demographics.generator.family.FamilyGenerator;
 import com.meryt.demographics.generator.family.MatchMaker;
-import com.meryt.demographics.generator.person.FertilityGenerator;
 import com.meryt.demographics.generator.person.PersonGenerator;
 import com.meryt.demographics.repository.criteria.PersonCriteria;
 import com.meryt.demographics.request.PersonFamilyPost;
-import com.meryt.demographics.request.PersonFertilityPost;
 import com.meryt.demographics.request.PersonHouseholdPost;
 import com.meryt.demographics.request.PersonParameters;
 import com.meryt.demographics.request.PersonTitlePost;
 import com.meryt.demographics.request.RandomFamilyParameters;
-import com.meryt.demographics.response.calendar.CalendarDayEvent;
-import com.meryt.demographics.response.FertilityResponse;
-import com.meryt.demographics.response.FertilityPostResponse;
 import com.meryt.demographics.response.HouseholdResponseWithLocations;
 import com.meryt.demographics.response.LeastCommonAncestorResponse;
 import com.meryt.demographics.response.PersonCapitalResponse;
@@ -67,7 +60,6 @@ import com.meryt.demographics.service.AncestryService;
 import com.meryt.demographics.service.ControllerHelperService;
 import com.meryt.demographics.service.DwellingPlaceService;
 import com.meryt.demographics.service.FamilyService;
-import com.meryt.demographics.service.FertilityService;
 import com.meryt.demographics.service.HeirService;
 import com.meryt.demographics.service.HouseholdService;
 import com.meryt.demographics.service.PersonService;
@@ -97,8 +89,6 @@ public class PersonController {
 
     private final FamilyService familyService;
 
-    private final FertilityService fertilityService;
-
     private final AncestryService ancestryService;
 
     private final HeirService heirService;
@@ -114,7 +104,6 @@ public class PersonController {
                             @Autowired TitleService titleService,
                             @Autowired FamilyGenerator familyGenerator,
                             @Autowired FamilyService familyService,
-                            @Autowired FertilityService fertilityService,
                             @Autowired AncestryService ancestryService,
                             @Autowired HeirService heirService,
                             @Autowired ControllerHelperService controllerHelperService,
@@ -125,7 +114,6 @@ public class PersonController {
         this.titleService = titleService;
         this.familyGenerator = familyGenerator;
         this.familyService = familyService;
-        this.fertilityService = fertilityService;
         this.ancestryService = ancestryService;
         this.heirService = heirService;
         this.controllerHelperService = controllerHelperService;
@@ -250,48 +238,6 @@ public class PersonController {
         PersonDetailResponse response = new PersonDetailResponse(person);
         personService.delete(person);
         return response;
-    }
-
-    @RequestMapping(value = "/api/persons/{personId}/fertility", method = RequestMethod.GET)
-    public FertilityResponse getPersonFertility(@PathVariable long personId) {
-        Person person = controllerHelperService.loadPerson(personId);
-        Fertility fertility = person.getFertility();
-        if (fertility == null) {
-            return null;
-        }
-        return new FertilityResponse(fertility);
-    }
-
-    @RequestMapping(value = "/api/persons/{personId}/fertility", method = RequestMethod.POST)
-    public FertilityPostResponse postPersonFertility(@PathVariable long personId, @RequestBody PersonFertilityPost post) {
-        Person person = controllerHelperService.loadPerson(personId);
-
-        if (person.getFertility() == null) {
-            FertilityGenerator fertilityGenerator = new FertilityGenerator();
-            if (person.isFemale()) {
-                Maternity maternity = fertilityGenerator.randomMaternity(person);
-                //maternity.setPersonId(person.getId());
-                //maternity.setPerson(person);
-                person.setMaternity(maternity);
-            } else {
-                person.setPaternity(fertilityGenerator.randomPaternity());
-            }
-            // This is broken in Hibernate 5.2.14-5.2.16 and possibly later. For now it is only possible to create
-            // a fertility record at the time the person record is created.
-            // https://hibernate.atlassian.net/browse/HHH-12436
-            personService.save(person);
-        }
-
-        List<CalendarDayEvent> events = new ArrayList<>();
-        String dateString = post.getCycleToDate();
-        LocalDate cycleToDate = controllerHelperService.parseDate(dateString);
-        if (cycleToDate != null) {
-            if (!person.isFemale()) {
-                throw new BadRequestException("cycleToDate applies only to women");
-            }
-            events.addAll(fertilityService.cycleToDate(person, cycleToDate, post.getAllowMaternalDeathOrDefault()));
-        }
-        return new FertilityPostResponse(person.getFertility(), events);
     }
 
     @RequestMapping(value = "/api/persons/{personId}/households", method = RequestMethod.POST)
