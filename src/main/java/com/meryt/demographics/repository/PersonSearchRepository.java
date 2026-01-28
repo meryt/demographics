@@ -37,7 +37,7 @@ public class PersonSearchRepository {
         Query countQuery = entityManager.createNativeQuery("SELECT COUNT(y.*) AS cnt FROM (" + query + ") y");
         Query nativeQuery = entityManager.createNativeQuery(query + personCriteria.getLimitAndOffset(), Person.class);
         log.info("Query: {}", query);
-
+        log.info("Parameters: {}", joinsAndConditions.getParameters());
 
         for (Map.Entry<String, Object> params : joinsAndConditions.getParameters().entrySet()) {
             countQuery.setParameter(params.getKey(), params.getValue());
