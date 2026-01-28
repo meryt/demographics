@@ -4,7 +4,6 @@ import java.sql.Array;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDate;
-import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
 import lombok.NonNull;
@@ -16,6 +15,7 @@ import org.springframework.jdbc.datasource.DataSourceUtils;
 import org.springframework.stereotype.Repository;
 
 import com.meryt.demographics.database.QueryStore;
+import com.meryt.demographics.domain.person.FirstName;
 import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.rest.BadRequestException;
 
@@ -30,8 +30,8 @@ public class NameRepository {
     }
 
     @NonNull
-    public String randomFirstName(@NonNull Gender gender, @Nullable Set<String> excludeNames, @Nullable LocalDate onDate, @Nullable Set<String> cultures) {
-        String name;
+    public FirstName randomFirstNameObject(@NonNull Gender gender, @Nullable Set<String> excludeNames, @Nullable LocalDate onDate, @Nullable Set<String> cultures) {
+        FirstName firstName;
         do {
             String query = queryStore.getQuery("random-first-name");
             MapSqlParameterSource params = new MapSqlParameterSource();
@@ -40,13 +40,36 @@ public class NameRepository {
             addCulturesParameter(params, cultures);
             
             try {
-                Map<String, Object> result = jdbcTemplate.queryForMap(query, params);
-                name = (String) result.get("name");
+                firstName = jdbcTemplate.queryForObject(query, params, (rs, rowNum) -> {
+                    FirstName fn = new FirstName();
+                    fn.setName(rs.getString("name"));
+                    fn.setWeight(rs.getDouble("weight"));
+                    fn.setGender(Gender.from(rs.getString("gender")));
+                    int rank = rs.getInt("rank");
+                    if (!rs.wasNull()) {
+                        fn.setRank(rank);
+                    }
+                    fn.setCulture(rs.getString("culture"));
+                    java.sql.Date fromDate = rs.getDate("from_date");
+                    if (fromDate != null) {
+                        fn.setFromDate(fromDate.toLocalDate());
+                    }
+                    java.sql.Date toDate = rs.getDate("to_date");
+                    if (toDate != null) {
+                        fn.setToDate(toDate.toLocalDate());
+                    }
+                    return fn;
+                });
             } catch (EmptyResultDataAccessException e) {
                 throw new BadRequestException("No first name found for gender " + gender + " and cultures " + cultures);
             }
-        } while (excludeNames != null && excludeNames.contains(name));
-        return name;
+        } while (excludeNames != null && excludeNames.contains(firstName.getName()));
+        return firstName;
+    }
+
+    @NonNull
+    public String randomFirstName(@NonNull Gender gender, @Nullable Set<String> excludeNames, @Nullable LocalDate onDate, @Nullable Set<String> cultures) {
+        return randomFirstNameObject(gender, excludeNames, onDate, cultures).getName();
     }
 
     @NonNull
@@ -89,4 +112,5 @@ public class NameRepository {
             params.addValue("cultures", null);
         }
     }
+
 }

@@ -35,6 +35,11 @@ y AS (
     SELECT
       nf.name,
       nf.weight,
+      nf.gender,
+      nf.rank,
+      nf.culture,
+      nf.from_date,
+      nf.to_date,
       SUM(nf.weight) OVER (ORDER BY nf.name, nf.from_date) AS cum_weight
     FROM names_first nf, best_date
     WHERE nf.gender = :gender
@@ -52,6 +57,11 @@ rand AS (
 SELECT
   y.name,
   y.weight,
+  y.gender,
+  y.rank,
+  y.culture,
+  y.from_date,
+  y.to_date,
   rand.total_weight,
   rand.randval
 FROM y
