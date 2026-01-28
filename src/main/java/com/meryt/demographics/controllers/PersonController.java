@@ -78,6 +78,8 @@ public class PersonController {
     private static final String LAST_NAME = "lastName";
     private static final String IS_LAST_NAME_RECURSIVE = "applyLastNameRecursively";
     private static final String FIRST_NAME = "firstName";
+    private static final String FIRST_NAME_CULTURE = "firstNameCulture";
+    private static final String LAST_NAME_CULTURE = "lastNameCulture";
 
     private final PersonGenerator personGenerator;
 
@@ -486,7 +488,7 @@ public class PersonController {
             }
             updates.remove(SOCIAL_CLASS);
         }
-        if (updates.containsKey(LAST_NAME)) {
+        if (updates.containsKey(LAST_NAME) || updates.containsKey(LAST_NAME_CULTURE)) {
             boolean recurse = false;
             if (updates.containsKey(IS_LAST_NAME_RECURSIVE)) {
                 recurse = ((boolean)(updates.get(IS_LAST_NAME_RECURSIVE)));
@@ -494,14 +496,29 @@ public class PersonController {
             }
             String newLastName = ((String) updates.get(LAST_NAME));
             updates.remove(LAST_NAME);
+            String newLastNameCulture = ((String) updates.get(LAST_NAME_CULTURE));
+            updates.remove(LAST_NAME_CULTURE);
 
-            // This method saves the person right away
-            personService.updatePersonLastName(person, newLastName, recurse, false);
+            if ((newLastName == null && newLastNameCulture == null) || (newLastName != null && newLastNameCulture != null)) {
+                // User must wish to clear/set both values
+                personService.updatePersonLastName(person, newLastName, newLastNameCulture, recurse, false);
+            } else if (newLastName == null) {
+                // User may not have provided the culture at all, just wants to set the last name
+                personService.updatePersonLastName(person, person.getLastName(), newLastNameCulture, recurse, false);
+            } else {
+                // User may not have provided the last name at all, just wants to set the culture
+                personService.updatePersonLastName(person, newLastName, person.getLastNameCulture(), recurse, false);
+            }
         }
 
         if (updates.containsKey(FIRST_NAME)) {
             person.setFirstName((String) updates.get(FIRST_NAME));
             updates.remove(FIRST_NAME);
+        }
+
+        if (updates.containsKey(FIRST_NAME_CULTURE)) {
+            person.setFirstNameCulture((String) updates.get(FIRST_NAME_CULTURE));
+            updates.remove(FIRST_NAME_CULTURE);
         }
 
         if (updates.containsKey(BIRTH_PLACE)) {

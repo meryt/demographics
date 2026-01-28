@@ -685,7 +685,7 @@ public class ParishPopulator {
                 dwellingPlaceService.save(house);
                 Person owner = house.getOwner(onDate);
                 if (owner != null && owner.getLastName() == null) {
-                    personService.updatePersonLastName(owner, "of " + house.getParent().getName(), true, false);
+                    personService.updatePersonLastName(owner, "of " + house.getParent().getName(), null, true, false);
                 }
             }
         }

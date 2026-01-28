@@ -9,10 +9,11 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
-import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
@@ -263,9 +264,9 @@ public class TitleService {
         save(title);
 
         person.addOrUpdateTitle(title, dateObtained, null);
-        if (Strings.isNullOrEmpty(person.getLastName())) {
+        if (StringUtils.isBlank(person.getLastName())) {
             String lastNameFromTitle = title.getName().replaceAll("^[^ ]+ ", "");
-            personService.updatePersonLastName(person, lastNameFromTitle, true, true);
+            personService.updatePersonLastName(person, lastNameFromTitle, title.getPeerage().name(), true, true);
         }
         personService.save(person);
 

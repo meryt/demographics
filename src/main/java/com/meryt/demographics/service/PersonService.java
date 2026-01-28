@@ -265,9 +265,11 @@ public class PersonService {
      */
     public void updatePersonLastName(@NonNull Person person,
                                              @Nullable String newLastName,
+                                             @Nullable String newLastNameCulture,
                                              boolean recursive,
                                              boolean recurseOnlyIfNull) {
         person.setLastName(newLastName);
+        person.setLastNameCulture(newLastNameCulture);
         save(person);
         if (!recursive) {
             return;
@@ -280,10 +282,11 @@ public class PersonService {
             if (child.isFemale()) {
                 // Don't recurse beyond the female children
                 child.setLastName(newLastName);
+                child.setLastNameCulture(newLastNameCulture);
                 save(child);
             } else {
                 // Boys should get their name plus any descendants updated
-                updatePersonLastName(child, newLastName, true, recurseOnlyIfNull);
+                updatePersonLastName(child, newLastName, newLastNameCulture, true, recurseOnlyIfNull);
             }
         }
     }

@@ -16,6 +16,9 @@ public class PersonSummaryResponse extends PersonReference {
 
     private OccupationReference occupation;
 
+    private String firstNameCulture;
+    private String lastNameCulture;
+
     public PersonSummaryResponse(@NonNull Person person, @Nullable LocalDate onDate) {
         super(person, onDate);
         socialClass = person.getSocialClass();
@@ -23,5 +26,7 @@ public class PersonSummaryResponse extends PersonReference {
             Occupation personOcc = person.getOccupation(onDate);
             occupation = personOcc == null ? null : new OccupationReference(personOcc);
         }
+        firstNameCulture = person.getFirstNameCulture();
+        lastNameCulture = person.getLastNameCulture();
     }
 }
