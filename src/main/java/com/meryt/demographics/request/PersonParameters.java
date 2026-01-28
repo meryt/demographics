@@ -63,14 +63,16 @@ public class PersonParameters {
      * If set, this last name will be used.
      */
     private String lastName;
+    private String lastNameCulture;
 
     /**
      * If set, this first name will be used.
      */
     private String firstName;
+    private String firstNameCulture;
 
     /**
-     * If set, this name culture will be used.
+     * If set, this name culture will be used for first and last names.
      */
     private String nameCulture;
 

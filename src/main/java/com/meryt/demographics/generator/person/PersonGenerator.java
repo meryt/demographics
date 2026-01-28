@@ -2,6 +2,7 @@ package com.meryt.demographics.generator.person;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -15,8 +16,10 @@ import org.springframework.stereotype.Service;
 
 import com.meryt.demographics.domain.family.Family;
 import com.meryt.demographics.domain.person.EyeColor;
+import com.meryt.demographics.domain.person.FirstName;
 import com.meryt.demographics.domain.person.Gender;
 import com.meryt.demographics.domain.person.HairColor;
+import com.meryt.demographics.domain.person.LastName;
 import com.meryt.demographics.domain.person.Person;
 import com.meryt.demographics.domain.person.SocialClass;
 import com.meryt.demographics.generator.random.BetweenDie;
@@ -79,22 +82,32 @@ public class PersonGenerator {
 
         Person person = new Person();
         person.setGender(personParameters.getGender() == null ? Gender.random() : personParameters.getGender());
-        if (personParameters.getFirstName() != null) {
-            person.setFirstName(personParameters.getFirstName());
-        } else {
-            person.setFirstName(nameService.randomFirstName(person.getGender(), personParameters.getExcludeNames(),
-                    nameDate, personParameters.getNameCulture()));
-        }
 
         // People didn't use last names till about 1400. But if one is specified, use it.
         if (!PersonParameters.NO_LAST_NAME.equals(personParameters.getLastName())) {
             if (personParameters.getLastName() != null) {
                 person.setLastName(personParameters.getLastName());
+                person.setLastNameCulture(personParameters.getLastNameCulture());
             } else {
-                person.setLastName(getLastNameForNewPerson(nameDate, personParameters.getFather(),
+                LastName lastName = getLastNameForNewPerson(nameDate, personParameters.getFather(),
                         personParameters.getMother(), personParameters.isBornOutOfWedlock(),
-                        personParameters.getNameCulture()));
+                        personParameters.getNameCulture());
+                if (lastName != null) {
+                    person.setLastName(lastName.getName());
+                    person.setLastNameCulture(lastName.getCulture());
+                }
             }
+        }
+
+        if (personParameters.getFirstName() != null) {
+            person.setFirstName(personParameters.getFirstName());
+            person.setFirstNameCulture(personParameters.getFirstNameCulture());
+        } else {
+            String nameCulture = person.getLastNameCulture() != null ? person.getLastNameCulture() : personParameters.getNameCulture();
+            FirstName firstName = nameService.randomFirstName(person.getGender(), personParameters.getExcludeNames(),
+                nameDate, nameCulture);
+            person.setFirstName(firstName.getName());
+            person.setFirstNameCulture(firstName.getCulture());
         }
 
         generatePersonLifespan(personParameters, person);
@@ -154,11 +167,11 @@ public class PersonGenerator {
      * @param culture optionally, a culture to filter names by
      * @return a last name or null
      */
-    private String getLastNameForNewPerson(@NonNull LocalDate onDate,
-                                           @Nullable Person father,
-                                           @Nullable Person mother,
-                                           boolean isOutOfWedlock,
-                                           @Nullable String culture) {
+    private LastName getLastNameForNewPerson(@NonNull LocalDate onDate,
+                                             @Nullable Person father,
+                                             @Nullable Person mother,
+                                             boolean isOutOfWedlock,
+                                             @Nullable String culture) {
 
         if (isOutOfWedlock && mother != null) {
             String motherLastName = mother.getLastName();
@@ -166,43 +179,42 @@ public class PersonGenerator {
             if (motherLastName != null && lastNameAppearsNoble(motherLastName)) {
                 return null;
             } else {
-                return motherLastName;
+                return new LastName(motherLastName, mother.getLastNameCulture());
             }
         }
 
-        String fatherLastName = father == null ? null : father.getLastName();
-        String motherLastName = mother == null ? null : mother.getLastName();
+        LastName fatherLastName = father == null ? null : new LastName(father.getLastName(), father.getLastNameCulture());
+        LastName motherLastName = mother == null ? null : new LastName(mother.getLastName(), mother.getLastNameCulture());
 
         if (fatherLastName == null && motherLastName != null
                 && onDate.isAfter(LocalDate.of(LAST_NAME_START_ADOPTING_YEAR, 1, 1))) {
             // When the date starts getting late, use the mother's last name if she has one and the father does not.
             // But if the mother's name is noble and she is too far removed from nobility, don't use it.
-            if (lastNameAppearsNoble(motherLastName)) {
-                if (personHasTitleMatchingLastName(mother, motherLastName)
-                        || personOwnsEstateMatchingLastName(mother, motherLastName, onDate)) {
+            if (lastNameAppearsNoble(motherLastName.getName())) {
+                if (personHasTitleMatchingLastName(mother, motherLastName.getCulture())
+                        || personOwnsEstateMatchingLastName(mother, motherLastName.getName(), onDate)) {
                     return motherLastName;
                 }
                 Person grandfather = mother.getFather();
-                if (grandfather != null && personHasTitleMatchingLastName(grandfather, motherLastName)) {
+                if (grandfather != null && personHasTitleMatchingLastName(grandfather, motherLastName.getName())) {
                     return motherLastName;
                 }
-                return null;
             }
             return motherLastName;
         }
 
         if (fatherLastName != null) {
-            if (lastNameAppearsNoble(fatherLastName) && father.getId() != 0) {
+            if (lastNameAppearsNoble(fatherLastName.getName()) && father.getId() != 0) {
                 // A name indicating nobility or place name association is only retained if the person is a close and
                 // direct descendant of a person holding the title.
-                if (personHasTitleMatchingLastName(father, fatherLastName)) {
+                if (personHasTitleMatchingLastName(father, fatherLastName.getName())) {
                     return fatherLastName;
                 }
-                if (personOwnsEstateMatchingLastName(father, fatherLastName, onDate)) {
+                if (personOwnsEstateMatchingLastName(father, fatherLastName.getName(), onDate)) {
                     return fatherLastName;
                 }
                 Person grandfather = father.getFather();
-                if (grandfather != null && personHasTitleMatchingLastName(grandfather, fatherLastName)) {
+                if (grandfather != null && personHasTitleMatchingLastName(grandfather, fatherLastName.getName())) {
                     return fatherLastName;
                 }
             } else {
@@ -292,6 +304,30 @@ public class PersonGenerator {
         personParameters.setMother(family.getWife());
         personParameters.setBornOutOfWedlock(family.getWeddingDate() == null
                 || family.getWeddingDate().isAfter(birthDate));
+        
+        // Collect name cultures from both parents and set on personParameters
+        Person father = family.getHusband();
+        Person mother = family.getWife();
+        Set<String> cultures = new HashSet<>();
+        if (father != null) {
+            if (father.getFirstNameCulture() != null) {
+                cultures.add(father.getFirstNameCulture());
+            }
+            if (father.getLastNameCulture() != null) {
+                cultures.add(father.getLastNameCulture());
+            }
+        }
+        if (mother != null) {
+            if (mother.getFirstNameCulture() != null) {
+                cultures.add(mother.getFirstNameCulture());
+            }
+            if (mother.getLastNameCulture() != null) {
+                cultures.add(mother.getLastNameCulture());
+            }
+        }
+        if (!cultures.isEmpty()) {
+            personParameters.setNameCulture(String.join(",", cultures));
+        }
 
         List<Person> children = new ArrayList<>();
         Person firstChild = generate(personParameters);
@@ -308,6 +344,7 @@ public class PersonGenerator {
             matchIdenticalTwinParameters(firstChild, identicalTwin);
             // Add the child's own name to the excluded names in case we generate fraternal twin too
             family.addChild(identicalTwin);
+            personParameters.getExcludeNames().add(firstChild.getFirstName());
         }
         if (includeFraternalTwin) {
             Person fraternalTwin = generateChildrenForParents(family, birthDate, false, false).get(0);

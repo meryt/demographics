@@ -2,7 +2,9 @@ package com.meryt.demographics.controllers;
 
 import java.time.LocalDate;
 
+import com.meryt.demographics.domain.person.FirstName;
 import com.meryt.demographics.domain.person.Gender;
+import com.meryt.demographics.domain.person.LastName;
 import com.meryt.demographics.service.ControllerHelperService;
 import com.meryt.demographics.service.NameService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,7 +25,7 @@ public class NamesController {
     }
 
     @RequestMapping("/api/names/first/random")
-    public String randomFirstName(@RequestParam(required = false) String gender,
+    public FirstName randomFirstName(@RequestParam(required = false) String gender,
                                   @RequestParam(required = false) String onDate,
                                   @RequestParam(required = false) String culture) {
         LocalDate date = controllerHelperService.parseDate(onDate);
@@ -31,7 +33,7 @@ public class NamesController {
     }
 
     @RequestMapping("/api/names/last/random")
-    public String randomLastName(@RequestParam(required = false) String culture) {
+    public LastName randomLastName(@RequestParam(required = false) String culture) {
         return nameService.randomLastName(culture);
     }
 

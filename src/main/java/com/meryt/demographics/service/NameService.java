@@ -9,7 +9,9 @@ import javax.annotation.Nullable;
 
 import org.springframework.util.StringUtils;
 
+import com.meryt.demographics.domain.person.FirstName;
 import com.meryt.demographics.domain.person.Gender;
+import com.meryt.demographics.domain.person.LastName;
 import com.meryt.demographics.repository.NameRepository;
 
 import lombok.NonNull;
@@ -35,7 +37,7 @@ public class NameService {
      * @return a name
      */
     @NonNull
-    public String randomFirstName(@NonNull Gender gender,
+    public FirstName randomFirstName(@NonNull Gender gender,
                                   @Nullable Set<String> excludeNames,
                                   @Nullable LocalDate onDate,
                                   @Nullable String culture) {
@@ -46,7 +48,7 @@ public class NameService {
                     .filter(StringUtils::hasText)
                     .collect(Collectors.toSet());
         }
-        return nameRepository.randomFirstName(gender, excludeNames == null ? Collections.emptySet() : excludeNames,
+        return nameRepository.randomFirstNameObject(gender, excludeNames == null ? Collections.emptySet() : excludeNames,
                 onDate, cultures);
     }
 
@@ -57,7 +59,7 @@ public class NameService {
      * @return a name
      */
     @NonNull
-    public String randomLastName(@Nullable String culture) {
+    public LastName randomLastName(@Nullable String culture) {
         Set<String> cultures = null;
         if (culture != null && StringUtils.hasText(culture)) {
             cultures = Arrays.stream(culture.split(","))
@@ -65,7 +67,7 @@ public class NameService {
                     .filter(StringUtils::hasText)
                     .collect(Collectors.toSet());
         }
-        return nameRepository.randomLastName(cultures);
+        return nameRepository.randomLastNameObject(cultures);
     }
 
     /**

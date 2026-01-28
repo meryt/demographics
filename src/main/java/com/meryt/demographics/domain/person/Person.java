@@ -67,9 +67,13 @@ public class Person {
 
     private String firstName;
 
+    private String firstNameCulture;
+
     private String middleNames;
 
     private String lastName;
+
+    private String lastNameCulture;
 
     private LocalDate birthDate;
 

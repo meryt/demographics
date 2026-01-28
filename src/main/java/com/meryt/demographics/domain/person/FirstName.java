@@ -1,9 +1,14 @@
 package com.meryt.demographics.domain.person;
 
 import java.time.LocalDate;
+
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class FirstName {
     private String name;
     private Gender gender;
@@ -12,4 +17,9 @@ public class FirstName {
     private String culture;
     private LocalDate fromDate;
     private LocalDate toDate;
+
+    public FirstName(String name, String culture) {
+        this.name = name;
+        this.culture = culture;
+    }
 }
