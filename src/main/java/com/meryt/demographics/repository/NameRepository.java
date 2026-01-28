@@ -17,6 +17,7 @@ import org.springframework.stereotype.Repository;
 import com.meryt.demographics.database.QueryStore;
 import com.meryt.demographics.domain.person.FirstName;
 import com.meryt.demographics.domain.person.Gender;
+import com.meryt.demographics.domain.person.LastName;
 import com.meryt.demographics.rest.BadRequestException;
 
 @Repository
@@ -73,22 +74,32 @@ public class NameRepository {
     }
 
     @NonNull
-    public String randomLastName(@Nullable Set<String> cultures) {
+    public LastName randomLastNameObject(@Nullable Set<String> cultures) {
         String query;
         MapSqlParameterSource params = new MapSqlParameterSource();
         
         if (cultures == null || cultures.isEmpty()) {
-            query = "SELECT name FROM names_last ORDER BY random() LIMIT 1";
+            query = "SELECT name, culture FROM names_last ORDER BY random() LIMIT 1";
         } else {
-            query = "SELECT name FROM names_last WHERE culture = ANY(:cultures::TEXT[]) ORDER BY random() LIMIT 1";
+            query = "SELECT name, culture FROM names_last WHERE culture = ANY(:cultures::TEXT[]) ORDER BY random() LIMIT 1";
             addCulturesParameter(params, cultures);
         }
         
         try {
-            return jdbcTemplate.queryForObject(query, params, String.class);
+            return jdbcTemplate.queryForObject(query, params, (rs, rowNum) -> {
+                LastName lastName = new LastName();
+                lastName.setName(rs.getString("name"));
+                lastName.setCulture(rs.getString("culture"));
+                return lastName;
+            });
         } catch (EmptyResultDataAccessException e) {
             throw new BadRequestException("No last name found for cultures " + cultures);
         }
+    }
+
+    @NonNull
+    public String randomLastName(@Nullable Set<String> cultures) {
+        return randomLastNameObject(cultures).getName();
     }
 
     /**
