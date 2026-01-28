@@ -92,6 +92,11 @@ public class PersonCriteria {
     private String lastName;
 
     /**
+     * If non-null, filters people based on whether they are married
+     */
+    private Boolean married;
+
+    /**
      * Get a Spring PageRequest object from the parameters on this object
      */
     public PageRequest getPageRequest() {
@@ -177,6 +182,15 @@ public class PersonCriteria {
             joinsAndConditions.parameters.put("lastName", "%" + lastName + "%");
         }
 
+        if (married != null) {
+            joinsAndConditions.joins.add("LEFT JOIN person_last_marriage plm ON p.id = plm.id");
+            if (married) {
+                joinsAndConditions.whereClauses.add("plm.last_married_date >= :referenceDate");
+            } else {
+                joinsAndConditions.whereClauses.add("(plm.last_married_date IS NULL OR plm.last_married_date < :referenceDate)");
+            }
+            joinsAndConditions.parameters.put("referenceDate", referenceDate);
+        }
         joinsAndConditions.orderBys = getOrderBys(joinsAndConditions);
 
         return joinsAndConditions;
