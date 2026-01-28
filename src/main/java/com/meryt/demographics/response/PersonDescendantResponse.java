@@ -15,7 +15,6 @@ import com.meryt.demographics.domain.person.SocialClass;
 @Getter
 public class PersonDescendantResponse extends PersonReference {
 
-    private final String ageAtDeath;
     private final SocialClass socialClass;
     private final String relation;
     private final boolean finishedGeneration;
@@ -41,7 +40,6 @@ public class PersonDescendantResponse extends PersonReference {
                                     int remainingDepth) {
         super(person, referenceDate);
         relation = calculateRelation(person.getGender(), distanceFromRoot);
-        ageAtDeath = person.getAgeAtDeath();
         socialClass = person.getSocialClass();
         finishedGeneration = person.isFinishedGeneration();
 
