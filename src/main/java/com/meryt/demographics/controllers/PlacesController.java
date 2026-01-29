@@ -27,6 +27,7 @@ import com.meryt.demographics.domain.place.Household;
 import com.meryt.demographics.domain.place.HouseholdInhabitantPeriod;
 import com.meryt.demographics.domain.place.HouseholdLocationPeriod;
 import com.meryt.demographics.domain.place.Township;
+import com.meryt.demographics.domain.place.Region;
 import com.meryt.demographics.domain.title.Title;
 import com.meryt.demographics.request.DwellingPlacePost;
 import com.meryt.demographics.request.EstatePost;
@@ -180,6 +181,9 @@ public class PlacesController {
                 throw new BadRequestException("type is required for new places");
             }
             switch (placePost.getType()) {
+                case "REGION":
+                    place = new Region();
+                    break;
                 case "TOWNSHIP":
                     place = new Township();
                     break;

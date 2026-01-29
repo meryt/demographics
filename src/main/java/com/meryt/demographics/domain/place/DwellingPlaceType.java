@@ -12,9 +12,9 @@ public enum DwellingPlaceType {
     STREET(setOf(DWELLING, FARM)),
     ESTATE(setOf(DWELLING, STREET, FARM)),
     TOWN(setOf(DWELLING, FARM, STREET, ESTATE)),
-    TOWNSHIP(setOf(DWELLING, FARM, STREET, TOWN)),
+    TOWNSHIP(setOf(DWELLING, FARM, STREET, ESTATE, TOWN)),
     PARISH(setOf(DWELLING, FARM, STREET, ESTATE, TOWN)),
-    REGION(setOf(DWELLING, FARM, STREET, ESTATE, TOWN, PARISH));
+    REGION(setOf(DWELLING, FARM, STREET, ESTATE, TOWN, TOWNSHIP, PARISH));
 
     private Set<DwellingPlaceType> canContain;
 
@@ -39,9 +39,11 @@ public enum DwellingPlaceType {
     /**
      * Determines whether a dwelling place of this type can contain this other type of dwelling place. For example,
      * a TOWN may contain a STREET but a STREET may not contain a TOWN.
+     * 
+     * A REGION can contain other REGIONs. (It's not possible to enable this in the enum constructor.)
      */
     public boolean canContain(DwellingPlaceType other) {
-        return canContain.contains(other);
+        return canContain.contains(other) || (other == REGION && this == REGION);
     }
 
     public String getFriendlyName() {
