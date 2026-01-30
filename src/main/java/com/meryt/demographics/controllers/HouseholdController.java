@@ -123,7 +123,7 @@ public class HouseholdController {
         }
 
         Household household = householdService.createHouseholdForHead(person, onDate,
-                householdPost.getIncludeHomelessFamilyMembers());
+                householdPost.getIncludeHomelessFamilyMembers(), householdPost.getIncludeSiblingsOrDefault());
         return new HouseholdResponseWithLocations(household, onDate, ancestryService);
     }
 

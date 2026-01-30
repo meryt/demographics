@@ -10,6 +10,11 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -31,6 +36,7 @@ import com.meryt.demographics.domain.place.Region;
 import com.meryt.demographics.domain.title.Title;
 import com.meryt.demographics.request.DwellingPlacePost;
 import com.meryt.demographics.request.EstatePost;
+import com.meryt.demographics.request.FarmPost;
 import com.meryt.demographics.request.HousePurchasePost;
 import com.meryt.demographics.response.DwellingPlaceDetailResponse;
 import com.meryt.demographics.response.DwellingPlaceOwnerResponse;
@@ -266,7 +272,20 @@ public class PlacesController {
             return new DwellingPlaceDetailResponse(householdDwellingPlaceService.createEstateAroundDwelling(
                     (Dwelling) house, estatePost, onDate, entailedToTitle), onDate, ancestryService);
         }
+    }
 
+
+
+    @RequestMapping(value = "/api/farms", method = RequestMethod.POST)
+    public DwellingPlaceDetailResponse createFarmForHousehold(@RequestBody FarmPost farmPost) {
+        if (farmPost.getParentDwellingPlaceId() == null) {
+            throw new BadRequestException("parentDwellingPlaceId is required");
+        }
+        Person owner = controllerHelperService.loadPerson(farmPost.getOwnerId());
+        LocalDate onDate = controllerHelperService.parseDate(farmPost.getOwnerFromDate());
+        DwellingPlace parentPlace = dwellingPlaceService.load(farmPost.getParentDwellingPlaceId());
+        return new DwellingPlaceDetailResponse(householdDwellingPlaceService.createFarmForPerson(parentPlace, owner,
+                farmPost, onDate), onDate, ancestryService);
     }
 
     @RequestMapping(value = "/api/houses/{houseId}/purchase")
@@ -311,12 +330,36 @@ public class PlacesController {
         }
     }
 
-    @RequestMapping("/api/places")
+    @RequestMapping("/api/places/top-level")
     public List<DwellingPlaceDetailResponse> getTopLevelPlaces(@RequestParam(value = "onDate", required = false) String onDate) {
         final LocalDate date = controllerHelperService.parseDate(onDate);
 
         List<DwellingPlace> places = dwellingPlaceService.loadByNoParent();
         return places.stream().map(e -> new DwellingPlaceDetailResponse(e, date, ancestryService)).collect(Collectors.toList());
+    }
+
+    @RequestMapping("/api/places")
+    public Page<DwellingPlaceDetailResponse> getPlaces(@RequestParam(value = "canContainType", required = false) String canContainType,
+                                                       @RequestParam(value = "onDate", required = false) String onDate,
+                                                       @RequestParam(value = "page", required = false) Integer page,
+                                                       @RequestParam(value = "pageSize", required = false) Integer pageSize,
+                                                       @RequestParam(value = "sortBy", required = false) String sortBy) {
+        final LocalDate date = controllerHelperService.parseDate(onDate);
+        DwellingPlaceType canContainTypeEnum = null;
+        if (canContainType != null && !canContainType.isBlank()) {
+            try {
+                canContainTypeEnum = DwellingPlaceType.valueOf(canContainType.trim().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new BadRequestException("Invalid canContainType: " + canContainType
+                        + ". Must be one of: " + java.util.Arrays.toString(DwellingPlaceType.values()));
+            }
+        }
+        int pageNum = page != null ? page : 0;
+        int size = pageSize != null ? pageSize : 20;
+        Sort sort = StringUtils.hasText(sortBy) ? Sort.by(Sort.Direction.ASC, sortBy) : Sort.by(Sort.Direction.ASC, "id");
+        Pageable pageable = PageRequest.of(pageNum, size, sort);
+        Page<DwellingPlace> places = dwellingPlaceService.getPlaces(canContainTypeEnum, pageable);
+        return places.map(e -> new DwellingPlaceDetailResponse(e, date, ancestryService));
     }
 
     @RequestMapping("/api/places/parishes")

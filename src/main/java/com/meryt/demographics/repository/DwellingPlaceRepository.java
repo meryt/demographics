@@ -2,16 +2,24 @@ package com.meryt.demographics.repository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 import lombok.NonNull;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
+import org.springframework.data.repository.PagingAndSortingRepository;
 
 import com.meryt.demographics.domain.place.DwellingPlace;
 import com.meryt.demographics.domain.place.DwellingPlaceType;
 
-public interface DwellingPlaceRepository extends CrudRepository<DwellingPlace, Long> {
+public interface DwellingPlaceRepository extends PagingAndSortingRepository<DwellingPlace, Long>, CrudRepository<DwellingPlace, Long> {
 
     List<DwellingPlace> findByType(@NonNull DwellingPlaceType type);
+
+    List<DwellingPlace> findByTypeIn(@NonNull Set<DwellingPlaceType> types);
+
+    Page<DwellingPlace> findByTypeIn(@NonNull Set<DwellingPlaceType> types, Pageable pageable);
 
     List<DwellingPlace> findByParentIsNotNullAndAttachedToParentIsTrue();
 

@@ -32,7 +32,8 @@ public class DwellingPlaceOwnerPeriod implements DateRange {
         MARRIAGE("Purchased upon marriage"),
         EVICTION("Purchased upon eviction"),
         MOVE_TO_PARISH("Moved to parish"),
-        CREATED_ESTATE("Created estate");
+        CREATED_ESTATE("Created estate"),
+        FOUNDED_FARM("Founded farm");
 
         @Getter
         private final String message;

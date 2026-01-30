@@ -46,6 +46,19 @@ public enum DwellingPlaceType {
         return canContain.contains(other) || (other == REGION && this == REGION);
     }
 
+    /**
+     * Returns all dwelling place types that can contain this type (e.g. for FARM, returns PARISH, TOWN, ESTATE, etc.).
+     */
+    public Set<DwellingPlaceType> getTypesThatCanContain() {
+        Set<DwellingPlaceType> result = EnumSet.noneOf(DwellingPlaceType.class);
+        for (DwellingPlaceType type : values()) {
+            if (type.canContain(this)) {
+                result.add(type);
+            }
+        }
+        return result;
+    }
+
     public String getFriendlyName() {
         return StringUtils.capitalize(name().toLowerCase());
     }

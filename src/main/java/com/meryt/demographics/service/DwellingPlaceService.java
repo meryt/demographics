@@ -2,9 +2,14 @@ package com.meryt.demographics.service;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import javax.annotation.Nullable;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
@@ -60,6 +65,22 @@ public class DwellingPlaceService {
 
     public List<DwellingPlace> loadByNoParent() {
         return dwellingPlaceRepository.findByParentIsNull();
+    }
+
+    /**
+     * Loads places with pagination. By default returns all places. If canContainType is non-null, returns only places
+     * whose type is one of the types that can contain the given type (e.g. canContainType=FARM returns parishes,
+     * towns, estates, etc.).
+     */
+    public Page<DwellingPlace> getPlaces(@Nullable DwellingPlaceType canContainType, @NonNull Pageable pageable) {
+        if (canContainType == null) {
+            return dwellingPlaceRepository.findAll(pageable);
+        }
+        Set<DwellingPlaceType> types = canContainType.getTypesThatCanContain();
+        if (types.isEmpty()) {
+            return new PageImpl<>(Collections.emptyList(), pageable, 0);
+        }
+        return dwellingPlaceRepository.findByTypeIn(types, pageable);
     }
 
     public List<Dwelling> loadHouses() {

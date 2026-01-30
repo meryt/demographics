@@ -38,6 +38,7 @@ import com.meryt.demographics.generator.random.BetweenDie;
 import com.meryt.demographics.generator.random.Die;
 import com.meryt.demographics.generator.random.PercentDie;
 import com.meryt.demographics.request.EstatePost;
+import com.meryt.demographics.request.FarmPost;
 import com.meryt.demographics.request.PersonParameters;
 import com.meryt.demographics.request.RandomFamilyParameters;
 import com.meryt.demographics.response.calendar.CalendarDayEvent;
@@ -789,7 +790,7 @@ public class HouseholdDwellingPlaceService {
                                       @Nullable Title entailedToTitle) {
         Household ownerHousehold = owner.getHousehold(onDate);
         if (ownerHousehold == null) {
-            ownerHousehold = householdService.createHouseholdForHead(owner, onDate, true);
+            ownerHousehold = householdService.createHouseholdForHead(owner, onDate, true, true);
         }
 
         Estate estate = createEstateForHousehold(parentPlace, estatePost.getName(),
@@ -814,6 +815,81 @@ public class HouseholdDwellingPlaceService {
         return estate;
     }
 
+    /**
+     * Creates a farm for a person under the given parent dwelling place. If the
+     * person has no household, one will be created.
+     * 
+     * @param parentPlace the parent dwelling place
+     * @param owner the owner of the farm
+     * @param farmPost parameters for farm and household creation
+     * @param onDate the date on which the farm is created
+     * @return the new farm
+     */
+    public Farm createFarmForPerson(@NonNull DwellingPlace parentPlace,
+                                    @NonNull Person owner,
+                                    @NonNull FarmPost farmPost,
+                                    @NonNull LocalDate onDate) {
+        Household ownerHousehold = owner.getHousehold(onDate);
+        if (ownerHousehold == null) {
+            ownerHousehold = householdService.createHouseholdForHead(owner, onDate, 
+                farmPost.getIncludeHomelessFamilyMembersOrDefault(), farmPost.getIncludeSiblingsOrDefault());
+        }
+        return createFarmForHousehold(owner, ownerHousehold, parentPlace, farmPost, onDate);
+    }
+
+    /**
+     * Creates a farm for a person and his household under the given parent dwelling place.
+     * 
+     * @param owner the owner of the farm
+     * @param ownerHousehold the household of the owner (should logically be the same as 
+     * the owner's household)
+     * @param parentPlace the parent dwelling place
+     * @param farmPost parameters for farm and household creation
+     * @param onDate the date on which the farm is created
+     * @return the new farm
+     */
+    private Farm createFarmForHousehold(@NonNull Person owner,
+                                        @NonNull Household ownerHousehold,
+                                        @NonNull DwellingPlace parentPlace,
+                                        @NonNull FarmPost farmPost,
+                                        @NonNull LocalDate onDate) {
+        Farm farm = new Farm();
+        farm.setFoundedDate(onDate);
+        if (farmPost.getFarmName() != null) {
+            farm.setName(farmPost.getFarmName());
+        } else {
+            farm.setName(owner.getLastName() + " Farm");
+        }
+        farm.setAcres(farmPost.getAcres());
+        dwellingPlaceService.save(farm);
+
+        farm.addOwner(owner, onDate, owner.getDeathDate(),
+                DwellingPlaceOwnerPeriod.ReasonToPurchase.FOUNDED_FARM.getMessage());
+
+        parentPlace.addDwellingPlace(farm);
+        dwellingPlaceService.save(parentPlace);
+        dwellingPlaceService.save(farm);
+
+        Dwelling house = new Dwelling();
+        house.setFoundedDate(onDate);
+        if (farmPost.getHouseName() != null) {
+            house.setName(farmPost.getHouseName());
+        } else {
+            house.setName("House of " + owner.getName());
+        }
+        dwellingPlaceService.save(house);
+        
+        house.addOwner(owner, onDate, owner.getDeathDate(),
+                DwellingPlaceOwnerPeriod.ReasonToPurchase.FOUNDED_FARM.getMessage());
+        farm.addDwellingPlace(house);
+
+        dwellingPlaceService.save(house);
+        dwellingPlaceService.save(farm);
+
+        addToDwellingPlace(ownerHousehold, house, onDate, null);
+        return farm;
+    }
+
     public Estate createEstateAroundDwelling(@NonNull Dwelling house,
                                              @NonNull EstatePost estatePost,
                                              @NonNull LocalDate onDate,
@@ -825,7 +901,7 @@ public class HouseholdDwellingPlaceService {
 
         Household ownerHousehold = owner.getHousehold(onDate);
         if (ownerHousehold == null) {
-            ownerHousehold = householdService.createHouseholdForHead(owner, onDate, true);
+            ownerHousehold = householdService.createHouseholdForHead(owner, onDate, true, true);
         }
 
         Estate estate = createEstateForHouse(house, estatePost.getName(), estatePost.getDwellingName(), owner,
@@ -1160,10 +1236,10 @@ public class HouseholdDwellingPlaceService {
                 householdToMove = currentHousehold;
             } else {
                 householdService.endPersonResidence(currentHousehold, newEmployee, onDate);
-                householdToMove = householdService.createHouseholdForHead(newEmployee, onDate, false);
+                householdToMove = householdService.createHouseholdForHead(newEmployee, onDate, false, false);
             }
         } else {
-            householdToMove = householdService.createHouseholdForHead(newEmployee, onDate, false);
+            householdToMove = householdService.createHouseholdForHead(newEmployee, onDate, false, false);
         }
         return householdToMove;
     }
@@ -1269,7 +1345,7 @@ public class HouseholdDwellingPlaceService {
                     || currentDwelling.getNullSafeValue() < bestOwnedPlace.getNullSafeValue())) {
                 Household hh = person.getHousehold(onDate);
                 if (hh == null) {
-                    hh = householdService.createHouseholdForHead(person, onDate, true);
+                    hh = householdService.createHouseholdForHead(person, onDate, true, true);
                 }
                 if (hh != null) {
                     log.info(String.format("Moving %d %s and household to a better house that they own, %d %s",
@@ -1301,13 +1377,13 @@ public class HouseholdDwellingPlaceService {
         if (bestOwnedPlace == null) {
             // He doesn't currently own any house of high enough value. He might buy one, build one, or move away.
 
-            Dwelling bestBuyablePlace = findBestBuyableHouseFarmOrEstate(
+            Dwelling bestBuyablePlace = currentDwelling == null ? null : findBestBuyableHouseFarmOrEstate(
                     currentDwelling.getParish(), onDate, capital, minAcceptableHouseValue);
             if (bestBuyablePlace != null) {
                 log.info(String.format("%d %s can afford to buy and move to a better house, %d %s",
                         person.getId(), person.getName(), bestBuyablePlace.getId(), bestBuyablePlace.getFriendlyName()));
                 buyAndMoveIntoHouse(bestBuyablePlace, person, onDate, reasonForBuyingExisting);
-            } else {
+            } else if (currentDwelling != null) {
                 // A gentleman or less may build a new house of appropriate value, with a 5% chance
                 if (capital > minAcceptableHouseValue && pretension.getRank() <= SocialClass.GENTLEMAN.getRank()
                         && PercentDie.roll() <= 0.05) {
@@ -1337,6 +1413,12 @@ public class HouseholdDwellingPlaceService {
                         personService.maybeDisableMaternityCheckingForNonResidentFamily(husband, wife);
                     }
                 }
+            } else {
+                // He doesn't currently own any house of high enough value, and he doesn't live in the parish.
+                // He will move away.
+                log.info(String.format("No house could be found suitable for a %s; %s will move away",
+                        pretension.getFriendlyName(), person.getIdAndName()));
+                movePersonsHouseholdAway(person, onDate);
             }
         } else if (!(currentDwelling != null && (currentDwelling.equals(bestOwnedPlace) || currentDwelling.getParent().equals(bestOwnedPlace)))
                 && bestOwnedPlace.isHouse()) {

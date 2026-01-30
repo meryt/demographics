@@ -397,7 +397,7 @@ public class InheritanceService {
             if (heirsHousehold == null) {
                 log.info(String.format("%d %s does not have a household yet; creating", heir.getId(),
                         heir.getName()));
-                heirsHousehold = householdService.createHouseholdForHead(heir, onDate, true);
+                heirsHousehold = householdService.createHouseholdForHead(heir, onDate, true, true);
             }
             log.info(String.format("Moving household of %d %s into house", heir.getId(),
                     heir.getName()));

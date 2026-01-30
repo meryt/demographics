@@ -318,12 +318,17 @@ public class HouseholdService {
      *
      * @param head the person who will be the head
      * @param asOfDate the date from which the person will live in the household
-     * @param includeHomelessFamilyMembers if true, homeless
+     * @param includeHomelessFamilyMembers if true, the spouse and the children
+     * of either spouse without families of their own will be added to the household.
+     * @param includeSiblings if includeHomelessFamilyMembers is true, and this
+     * parameter is true, and the person has siblings without families of their own
+     * and wihtout homes of their own, then those siblings will be added to the household.
      * @return
      */
     public Household createHouseholdForHead(@NonNull Person head,
                                             @NonNull LocalDate asOfDate,
-                                            boolean includeHomelessFamilyMembers) {
+                                            boolean includeHomelessFamilyMembers,
+                                            boolean includeSiblings) {
         Household household = new Household();
         household = save(household);
         addPersonToHousehold(head, household, asOfDate, true);
@@ -331,7 +336,7 @@ public class HouseholdService {
         if (!includeHomelessFamilyMembers) {
             return household;
         } else {
-            return addHomelessFamilyMembersToHousehold(head, household, asOfDate, true);
+            return addHomelessFamilyMembersToHousehold(head, household, asOfDate, includeSiblings);
         }
 
     }
