@@ -63,4 +63,13 @@ public class ConfigurationService {
     public Map<String, String> getAllConfiguration() {
         return configurationRepository.getAllConfiguration();
     }
+
+    /**
+     * Upsert each key-value pair into the configuration table. Values are converted to strings.
+     */
+    public void upsertConfiguration(@NonNull Map<String, String> updates) {
+        for (Map.Entry<String, String> entry : updates.entrySet()) {
+            configurationRepository.upsertValue(entry.getKey(), entry.getValue());
+        }
+    }
 }

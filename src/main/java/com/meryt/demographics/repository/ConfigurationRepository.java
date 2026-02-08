@@ -46,6 +46,18 @@ public class ConfigurationRepository {
         jdbcTemplate.update(query, params);
     }
 
+    /**
+     * Insert or update a configuration entry. If the key exists, its value is updated; otherwise a new row is inserted.
+     */
+    public void upsertValue(@NonNull String key, @Nullable String value) {
+        String query = "INSERT INTO configuration (key, value) VALUES (:key, :value) " +
+                "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value";
+        Map<String, String> params = new HashMap<>();
+        params.put("key", key);
+        params.put("value", value);
+        jdbcTemplate.update(query, params);
+    }
+
     public Map<String, String> getAllConfiguration() {
         String query = "SELECT key, value::TEXT FROM configuration " +
                        "UNION " +
