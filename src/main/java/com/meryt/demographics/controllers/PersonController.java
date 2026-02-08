@@ -80,6 +80,8 @@ public class PersonController {
     private static final String FIRST_NAME = "firstName";
     private static final String FIRST_NAME_CULTURE = "firstNameCulture";
     private static final String LAST_NAME_CULTURE = "lastNameCulture";
+    private static final String STORY_CHARACTER = "storyCharacter";
+    private static final String MAIN_CHARACTER = "mainCharacter";
 
     private final PersonGenerator personGenerator;
 
@@ -558,6 +560,23 @@ public class PersonController {
                 person.setBirthDate(birthDate);
             }
             updates.remove(BIRTH_DATE);
+        }
+
+        if (updates.containsKey(STORY_CHARACTER)) {
+            person.setStoryCharacter(Boolean.TRUE.equals(updates.get(STORY_CHARACTER)));
+            updates.remove(STORY_CHARACTER);
+        }
+
+        if (updates.containsKey(MAIN_CHARACTER)) {
+            Object val = updates.get(MAIN_CHARACTER);
+            if (val == null) {
+                person.setMainCharacter(null);
+            } else if (val instanceof Number) {
+                person.setMainCharacter(((Number) val).intValue());
+            } else {
+                throw new BadRequestException(MAIN_CHARACTER + " must be a number or null");
+            }
+            updates.remove(MAIN_CHARACTER);
         }
 
         if (!updates.isEmpty()) {

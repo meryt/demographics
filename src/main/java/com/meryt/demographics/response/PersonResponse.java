@@ -36,6 +36,8 @@ public class PersonResponse extends PersonSummaryResponse {
     private final double intelligence;
     private final double morality;
     private final double strength;
+    private boolean storyCharacter;
+    private Integer mainCharacter;
 
     private final List<String> traits;
 
@@ -82,6 +84,9 @@ public class PersonResponse extends PersonSummaryResponse {
                 traits.add(t.getName());
             }
         }
+
+        storyCharacter = person.isStoryCharacter();
+        mainCharacter = person.getMainCharacter();
     }
 
 }
