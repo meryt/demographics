@@ -39,6 +39,7 @@ public class TitleController {
     private static final String INHERITANCE_ROOT = "inheritanceRoot";
     private static final String INHERITANCE_STYLE = "inheritanceStyle";
     private static final String EXTINCT = "extinct";
+    private static final String NAME = "name";
 
     private final TitleService titleService;
     private final PersonService personService;
@@ -102,6 +103,12 @@ public class TitleController {
     @RequestMapping(value = "/api/titles/{titleId}", method = RequestMethod.PATCH)
     public TitleReference patchTitle(@PathVariable long titleId, @RequestBody Map<String, Object> updates) {
         Title title = loadTitle(titleId);
+
+        if (updates.containsKey(NAME)) {
+            title.setName((String) updates.get(NAME));
+            updates.remove(NAME);
+        }
+
         if (updates.containsKey(INHERITANCE_ROOT)) {
             if (updates.get(INHERITANCE_ROOT) == null) {
                 title.setInheritanceRoot(null);
